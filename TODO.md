@@ -1,0 +1,19 @@
+# MiniTui TODO
+
+## High Priority
+- [ ] Scrollbar indicator for lists - show position in long lists (e.g., `▲ 5/50 ▼`)
+- [ ] Color themes - configurable color schemes instead of hardcoded colors
+- [ ] Confirmation dialog - `Widget.Confirm("Delete?").OnYes(...).OnNo(...)`
+- [ ] Tabs widget - for multi-panel UIs
+
+## Medium Priority
+- [ ] Table widget - columns with headers, sorting
+- [ ] Toast/notification widget - auto-dismiss visual messages
+- [ ] Spinner/loading indicator - for async operations
+- [ ] Popup menu - context menus, dropdowns
+
+## Polish
+- [ ] Debug mode - visualize focus, layout boundaries
+- [ ] Better text wrapping - for modals with long content
+- [ ] Mouse support - clicking to focus, scrolling
+- [ ] Multi-line text input widget
