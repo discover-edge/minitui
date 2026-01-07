@@ -1,0 +1,34 @@
+name: Publish NuGet Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/MiniTui.sln
+
+      - name: Build
+        run: dotnet build src/MiniTui.sln --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack src/MiniTui/MiniTui.csproj --configuration Release --no-build --output ./nupkg
+
+      - name: Push to GitHub Packages
+        run: dotnet nuget push ./nupkg/*.nupkg --source "https://nuget.pkg.github.com/discover-edge/index.json" --api-key ${{ secrets.GITHUB_TOKEN }}
