@@ -271,16 +271,6 @@ public static class Widgets
         var y = (buf.Height - height) / 2;
         var area = new Rect(x, y, width, height);
 
-        // Draw shadow
-        for (var sy = area.Y + 1; sy < area.Bottom + 1 && sy < buf.Height; sy++)
-        {
-            for (var sx = area.X + 1; sx < area.Right + 1 && sx < buf.Width; sx++)
-            {
-                var existing = buf.Get(sx, sy);
-                buf.Set(sx, sy, new Cell(existing.Char, ConsoleColor.DarkGray, ConsoleColor.Black));
-            }
-        }
-
         // Fill background
         buf.FillRect(area, new Cell(' ', ConsoleColor.Gray, ConsoleColor.Black));
 
