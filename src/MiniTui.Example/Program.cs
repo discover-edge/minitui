@@ -10,6 +10,7 @@ var demos = new (string Name, Action Run)[]
     ("Progress Bars", RunProgress),
     ("Form Demo", RunForm),
     ("Dashboard", RunDashboard),
+    ("Command Registry", RunCommandDemo),
 };
 
 var demoNames = demos.Select(d => d.Name).ToList();
@@ -334,4 +335,135 @@ void RunDashboard()
                 .Draw(buf, screen);
         })
         .RunWhile(() => !Input.IsQuit(Input.Poll()));
+}
+
+void RunCommandDemo()
+{
+    var notes = new List<string>();
+    var commandState = CommandInputState.Empty;
+    var listState = ListState.Empty;
+    var status = TimedMessage.Empty;
+    var showHelp = false;
+    var running = true;
+
+    // Build the command registry
+    var commands = CommandRegistry.Create()
+        .Add("add", "a")
+            .Usage("<text>")
+            .Description("Add a note")
+            .Handler(cmd =>
+            {
+                var text = cmd.ArgsAsString;
+                if (string.IsNullOrWhiteSpace(text))
+                    return CommandResult.Error("Usage: :add <text>");
+                notes.Insert(0, $"[{DateTime.Now:HH:mm}] {text}");
+                return CommandResult.Ok("Note added");
+            })
+        .Add("clear", "c")
+            .Description("Clear all notes")
+            .Handler(_ =>
+            {
+                notes.Clear();
+                listState = ListState.Empty;
+                return CommandResult.Ok("Notes cleared");
+            })
+        .Add("delete", "d", "rm")
+            .Usage("<index>")
+            .Description("Delete note by index")
+            .Handler(cmd =>
+            {
+                if (!int.TryParse(cmd.GetArg(0), out var index) || index < 1 || index > notes.Count)
+                    return CommandResult.Error($"Invalid index. Use 1-{notes.Count}");
+                notes.RemoveAt(index - 1);
+                return CommandResult.Ok($"Deleted note {index}");
+            })
+        .Add("help", "h", "?")
+            .Description("Show help")
+            .Handler(_ =>
+            {
+                showHelp = true;
+                return CommandResult.Ok();
+            })
+        .Add("quit", "q", "exit")
+            .Description("Exit the demo")
+            .Handler(_ => CommandResult.Quit())
+        .Build();
+
+    // Generate help from registry
+    var helpLines = new List<string> { "Commands:" };
+    helpLines.AddRange(commands.GetHelp());
+    helpLines.Add("");
+    helpLines.Add("Navigation: Tab to switch, Up/Down to navigate");
+
+    // Set up router
+    InputRouter router = null!;
+    router = new InputRouter()
+        .Add("list", key =>
+        {
+            if (InputHelpers.IsListNavigationKey(key))
+                listState = InputHelpers.HandleListNavigation(key, listState, notes.Count, 10);
+            else if (InputHelpers.IsTextEditKey(key))
+            {
+                router.SetFocus("command");
+                commandState = InputHelpers.HandleCommandInput(key, commandState).State;
+            }
+        })
+        .Add("command", key =>
+        {
+            var result = InputHelpers.HandleCommandInput(key, commandState);
+            commandState = result.State;
+
+            if (result.Command is { } cmd)
+            {
+                var cmdResult = commands.Execute(cmd);
+                if (cmdResult == null)
+                    status = TimedMessage.Show($"Unknown command: {cmd.Name}");
+                else if (cmdResult.ShouldQuit)
+                    running = false;
+                else if (cmdResult.Message != null)
+                    status = TimedMessage.Show(cmdResult.Message);
+            }
+        })
+        .WithModal(() => showHelp, _ => showHelp = false)
+        .StartWith("command");
+
+    App.Create()
+        .UseRouter(router)
+        .Render((buf, screen) =>
+        {
+            var layout = Layout.Vertical(screen)
+                .AddFill("list")
+                .Add("bottom", 3)
+                .Build();
+
+            Widget.List()
+                .Items(notes.Count > 0 ? notes : ["No notes yet. Try :add Hello world!"])
+                .State(listState)
+                .Focused(router.IsFocused("list"))
+                .Title("Notes")
+                .Draw(buf, layout["list"]);
+
+            var inputArea = layout["bottom"].Shrink(1, 0);
+            inputArea = new Rect(inputArea.X, inputArea.Y + 1, inputArea.Width, 1);
+
+            Widget.CommandInput()
+                .State(commandState)
+                .Focused(router.IsFocused("command"))
+                .Draw(buf, inputArea);
+
+            Widget.StatusBar()
+                .Message(status, "Tab: switch | :h help | :q quit")
+                .Right($"{notes.Count} notes")
+                .Draw(buf, layout["bottom"]);
+
+            if (showHelp)
+                Widget.Modal().Title("Help").Lines(helpLines).Draw(buf);
+        })
+        .RunWhile(() =>
+        {
+            var key = Input.Poll();
+            if (key != null)
+                router.Handle(key.Value);
+            return running;
+        });
 }
