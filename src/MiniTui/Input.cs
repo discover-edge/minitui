@@ -26,7 +26,10 @@ public static class Input
     public static bool IsKey(ConsoleKeyInfo? key, ConsoleKey target) 
         => key?.Key == target;
 
-    public static bool IsChar(ConsoleKeyInfo? key, char target) 
+    /// <summary>
+    /// Check if a specific character was pressed.
+    /// </summary>
+    public static bool IsChar(ConsoleKeyInfo? key, char target)
         => key?.KeyChar == target;
 
     /// <summary>
@@ -42,6 +45,322 @@ public static class Input
 }
 
 /// <summary>
+/// State for a text input field.
+/// </summary>
+public record struct TextInputState(string Value, int CursorPos)
+{
+    /// <summary>Empty state with no text and cursor at position 0.</summary>
+    public static TextInputState Empty => new("", 0);
+}
+
+/// <summary>
+/// State for a list/selection.
+/// </summary>
+public record struct ListState(int SelectedIndex, int ScrollOffset)
+{
+    /// <summary>Empty state with selection and scroll at 0.</summary>
+    public static ListState Empty => new(0, 0);
+}
+
+/// <summary>
+/// A parsed command with name and arguments.
+/// </summary>
+public record ParsedCommand(string Name, string[] Args, string Raw)
+{
+    /// <summary>
+    /// Parse a colon-prefixed command string (e.g., ":add self Fixed bug").
+    /// Returns null if the input doesn't start with a colon.
+    /// </summary>
+    public static ParsedCommand? Parse(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return null;
+
+        input = input.Trim();
+        if (!input.StartsWith(':'))
+            return null;
+
+        var content = input[1..];
+        var parts = content.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length == 0)
+            return null;
+
+        var name = parts[0].ToLowerInvariant();
+        var args = parts.Length > 1
+            ? parts[1].Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            : [];
+
+        return new ParsedCommand(name, args, input);
+    }
+
+    /// <summary>
+    /// Get all arguments as a single string (useful for commands like ":add person note text here").
+    /// </summary>
+    public string ArgsAsString => Args.Length > 0 ? string.Join(' ', Args) : "";
+
+    /// <summary>
+    /// Get argument at index, or null if not present.
+    /// </summary>
+    public string? GetArg(int index) => index < Args.Length ? Args[index] : null;
+
+    /// <summary>
+    /// Get all arguments starting from index as a single string.
+    /// </summary>
+    public string? GetArgsFrom(int index) => index < Args.Length
+        ? string.Join(' ', Args.Skip(index))
+        : null;
+}
+
+/// <summary>
+/// State for a command input with history.
+/// </summary>
+public record struct CommandInputState(string Value, int CursorPos, List<string> History, int HistoryIndex)
+{
+    /// <summary>Empty state with no text, cursor at 0, empty history.</summary>
+    public static CommandInputState Empty => new("", 0, [], 0);
+
+    /// <summary>
+    /// Create a new state with the given history.
+    /// </summary>
+    public static CommandInputState WithHistory(List<string> history) =>
+        new("", 0, history, history.Count);
+}
+
+/// <summary>
+/// Result of handling command input - either just state update, or state + submitted command.
+/// </summary>
+public record struct CommandInputResult(CommandInputState State, ParsedCommand? Command);
+
+/// <summary>
+/// A timed message that expires after a duration.
+/// </summary>
+public record struct TimedMessage(string Text, DateTime Expiry)
+{
+    /// <summary>Empty message (already expired).</summary>
+    public static TimedMessage Empty => new("", DateTime.MinValue);
+
+    /// <summary>
+    /// Create a message that expires after the specified duration.
+    /// </summary>
+    public static TimedMessage Show(string text, TimeSpan duration) =>
+        new(text, DateTime.Now + duration);
+
+    /// <summary>
+    /// Create a message that expires after the specified seconds.
+    /// </summary>
+    public static TimedMessage Show(string text, double seconds = 3) =>
+        Show(text, TimeSpan.FromSeconds(seconds));
+
+    /// <summary>
+    /// Get the message text if not expired, otherwise return the default.
+    /// </summary>
+    public readonly string GetOrDefault(string defaultText) =>
+        DateTime.Now < Expiry ? Text : defaultText;
+
+    /// <summary>
+    /// Check if the message is still visible (not expired).
+    /// </summary>
+    public readonly bool IsVisible => DateTime.Now < Expiry;
+}
+
+/// <summary>
+/// Helper functions for handling widget input.
+/// </summary>
+public static class InputHelpers
+{
+    /// <summary>
+    /// Handle text input keys. Returns new state after processing the key.
+    /// </summary>
+    public static TextInputState HandleTextInput(ConsoleKeyInfo key, TextInputState state)
+    {
+        var (value, cursor) = state;
+
+        switch (key.Key)
+        {
+            case ConsoleKey.Backspace:
+                if (cursor > 0)
+                    return new(value.Remove(cursor - 1, 1), cursor - 1);
+                break;
+
+            case ConsoleKey.Delete:
+                if (cursor < value.Length)
+                    return new(value.Remove(cursor, 1), cursor);
+                break;
+
+            case ConsoleKey.LeftArrow:
+                if (cursor > 0)
+                    return state with { CursorPos = cursor - 1 };
+                break;
+
+            case ConsoleKey.RightArrow:
+                if (cursor < value.Length)
+                    return state with { CursorPos = cursor + 1 };
+                break;
+
+            case ConsoleKey.Home:
+                return state with { CursorPos = 0 };
+
+            case ConsoleKey.End:
+                return state with { CursorPos = value.Length };
+
+            default:
+                // Printable character
+                if (key.KeyChar >= 32 && key.KeyChar < 127)
+                    return new(value.Insert(cursor, key.KeyChar.ToString()), cursor + 1);
+                break;
+        }
+
+        return state;
+    }
+
+    /// <summary>
+    /// Handle list navigation keys. Returns new state after processing the key.
+    /// </summary>
+    public static ListState HandleListNavigation(ConsoleKeyInfo key, ListState state, int itemCount, int visibleHeight)
+    {
+        if (itemCount == 0) return state;
+
+        var (selected, scroll) = state;
+        var maxScroll = Math.Max(0, itemCount - visibleHeight);
+
+        switch (key.Key)
+        {
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.K:
+                if (selected > 0)
+                {
+                    selected--;
+                    if (selected < scroll)
+                        scroll = selected;
+                }
+                break;
+
+            case ConsoleKey.DownArrow:
+            case ConsoleKey.J:
+                if (selected < itemCount - 1)
+                {
+                    selected++;
+                    if (selected >= scroll + visibleHeight)
+                        scroll = selected - visibleHeight + 1;
+                }
+                break;
+
+            case ConsoleKey.PageUp:
+                selected = Math.Max(0, selected - visibleHeight);
+                scroll = Math.Max(0, scroll - visibleHeight);
+                break;
+
+            case ConsoleKey.PageDown:
+                selected = Math.Min(itemCount - 1, selected + visibleHeight);
+                scroll = Math.Min(maxScroll, scroll + visibleHeight);
+                break;
+
+            case ConsoleKey.Home:
+                selected = 0;
+                scroll = 0;
+                break;
+
+            case ConsoleKey.End:
+                selected = itemCount - 1;
+                scroll = maxScroll;
+                break;
+        }
+
+        return new(selected, scroll);
+    }
+
+    /// <summary>
+    /// Check if the key is a text editing key (not navigation).
+    /// </summary>
+    public static bool IsTextEditKey(ConsoleKeyInfo key)
+    {
+        return key.Key == ConsoleKey.Backspace
+            || key.Key == ConsoleKey.Delete
+            || (key.KeyChar >= 32 && key.KeyChar < 127);
+    }
+
+    /// <summary>
+    /// Check if the key is a list navigation key.
+    /// </summary>
+    public static bool IsListNavigationKey(ConsoleKeyInfo key)
+    {
+        return key.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow
+            or ConsoleKey.PageUp or ConsoleKey.PageDown
+            or ConsoleKey.Home or ConsoleKey.End
+            or ConsoleKey.J or ConsoleKey.K;
+    }
+
+    /// <summary>
+    /// Check if the key should dismiss a modal (Escape, Enter, or Q).
+    /// </summary>
+    public static bool IsModalDismissKey(ConsoleKeyInfo key)
+    {
+        return key.Key is ConsoleKey.Escape or ConsoleKey.Enter or ConsoleKey.Q;
+    }
+
+    /// <summary>
+    /// Handle command input with history. Returns new state and optionally a parsed command on Enter.
+    /// </summary>
+    public static CommandInputResult HandleCommandInput(ConsoleKeyInfo key, CommandInputState state)
+    {
+        var (value, cursor, history, historyIndex) = state;
+
+        // Enter submits the command
+        if (key.Key == ConsoleKey.Enter)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return new(state, null);
+
+            // Add to history
+            history.Add(value);
+            var newState = new CommandInputState("", 0, history, history.Count);
+            var command = ParsedCommand.Parse(value);
+
+            return new(newState, command);
+        }
+
+        // Escape clears input
+        if (key.Key == ConsoleKey.Escape)
+        {
+            return new(new CommandInputState("", 0, history, history.Count), null);
+        }
+
+        // Up arrow - previous history
+        if (key.Key == ConsoleKey.UpArrow)
+        {
+            if (history.Count > 0 && historyIndex > 0)
+            {
+                historyIndex--;
+                var historyValue = history[historyIndex];
+                return new(new CommandInputState(historyValue, historyValue.Length, history, historyIndex), null);
+            }
+            return new(state, null);
+        }
+
+        // Down arrow - next history
+        if (key.Key == ConsoleKey.DownArrow)
+        {
+            if (historyIndex < history.Count - 1)
+            {
+                historyIndex++;
+                var historyValue = history[historyIndex];
+                return new(new CommandInputState(historyValue, historyValue.Length, history, historyIndex), null);
+            }
+            else if (historyIndex == history.Count - 1)
+            {
+                return new(new CommandInputState("", 0, history, history.Count), null);
+            }
+            return new(state, null);
+        }
+
+        // Regular text input
+        var textState = HandleTextInput(key, new TextInputState(value, cursor));
+        return new(new CommandInputState(textState.Value, textState.CursorPos, history, historyIndex), null);
+    }
+}
+
+/// <summary>
 /// Simple focus manager for navigating between UI elements.
 /// </summary>
 public class FocusManager
@@ -49,18 +368,26 @@ public class FocusManager
     private int _current;
     private readonly int _count;
 
+    /// <summary>Index of currently focused element.</summary>
     public int Current => _current;
 
+    /// <summary>Create a focus manager for the given number of elements.</summary>
     public FocusManager(int elementCount)
     {
         _count = elementCount;
         _current = 0;
     }
 
+    /// <summary>Move focus to the next element (wraps around).</summary>
     public void Next() => _current = (_current + 1) % _count;
+
+    /// <summary>Move focus to the previous element (wraps around).</summary>
     public void Previous() => _current = (_current - 1 + _count) % _count;
+
+    /// <summary>Set focus to a specific element index.</summary>
     public void Set(int index) => _current = Math.Clamp(index, 0, _count - 1);
 
+    /// <summary>Check if element at index is focused.</summary>
     public bool IsFocused(int index) => _current == index;
 
     /// <summary>
@@ -91,5 +418,114 @@ public class FocusManager
         }
 
         return false;
+    }
+}
+
+/// <summary>
+/// Routes input to focused elements with fluent configuration.
+/// </summary>
+public class InputRouter
+{
+    private readonly List<(string Name, Action<ConsoleKeyInfo> Handler)> _handlers = [];
+    private int _focusIndex;
+    private Func<bool>? _modalActive;
+    private Action<ConsoleKeyInfo>? _modalHandler;
+
+    /// <summary>
+    /// Register a named focus element with its input handler.
+    /// </summary>
+    public InputRouter Add(string name, Action<ConsoleKeyInfo> handler)
+    {
+        _handlers.Add((name, handler));
+        return this;
+    }
+
+    /// <summary>
+    /// Configure modal handling. Modal takes priority when active.
+    /// </summary>
+    public InputRouter WithModal(Func<bool> isActive, Action<ConsoleKeyInfo> handler)
+    {
+        _modalActive = isActive;
+        _modalHandler = handler;
+        return this;
+    }
+
+    /// <summary>
+    /// Set which element starts with focus.
+    /// </summary>
+    public InputRouter StartWith(string name)
+    {
+        var index = _handlers.FindIndex(h => h.Name == name);
+        if (index >= 0) _focusIndex = index;
+        return this;
+    }
+
+    /// <summary>
+    /// Get the name of the currently focused element.
+    /// </summary>
+    public string CurrentFocus => _handlers.Count > 0 ? _handlers[_focusIndex].Name : "";
+
+    /// <summary>
+    /// Check if a modal is currently active.
+    /// </summary>
+    public bool IsModalActive => _modalActive?.Invoke() == true;
+
+    /// <summary>
+    /// Check if a named element is focused.
+    /// </summary>
+    public bool IsFocused(string name) => _handlers.Count > 0 && _handlers[_focusIndex].Name == name;
+
+    /// <summary>
+    /// Move focus to the next element.
+    /// </summary>
+    public void FocusNext()
+    {
+        if (_handlers.Count > 0)
+            _focusIndex = (_focusIndex + 1) % _handlers.Count;
+    }
+
+    /// <summary>
+    /// Move focus to the previous element.
+    /// </summary>
+    public void FocusPrevious()
+    {
+        if (_handlers.Count > 0)
+            _focusIndex = (_focusIndex - 1 + _handlers.Count) % _handlers.Count;
+    }
+
+    /// <summary>
+    /// Set focus to a named element.
+    /// </summary>
+    public void SetFocus(string name)
+    {
+        var index = _handlers.FindIndex(h => h.Name == name);
+        if (index >= 0) _focusIndex = index;
+    }
+
+    /// <summary>
+    /// Handle a key press. Routes to modal, handles Tab, or dispatches to focused element.
+    /// </summary>
+    public void Handle(ConsoleKeyInfo key)
+    {
+        // Modal takes priority
+        if (_modalActive?.Invoke() == true)
+        {
+            _modalHandler?.Invoke(key);
+            return;
+        }
+
+        // Tab switches focus
+        if (key.Key == ConsoleKey.Tab)
+        {
+            if ((key.Modifiers & ConsoleModifiers.Shift) != 0)
+                FocusPrevious();
+            else
+                FocusNext();
+            return;
+        }
+
+        // Route to focused handler
+        if (_handlers.Count > 0)
+            _handlers[_focusIndex].Handler(key);
     }
 }

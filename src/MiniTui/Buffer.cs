@@ -5,7 +5,14 @@ namespace MiniTui;
 /// </summary>
 public record struct Cell(char Char, ConsoleColor Fg, ConsoleColor Bg)
 {
+    /// <summary>
+    /// An empty cell (space with default colors).
+    /// </summary>
     public static Cell Empty => new(' ', ConsoleColor.Gray, ConsoleColor.Black);
+
+    /// <summary>
+    /// Create a cell from a character with default colors.
+    /// </summary>
     public static Cell From(char c) => new(c, ConsoleColor.Gray, ConsoleColor.Black);
 }
 
@@ -16,10 +23,24 @@ public class Buffer
 {
     private readonly Cell[,] _cells;
 
+    /// <summary>
+    /// Buffer width in cells.
+    /// </summary>
     public int Width { get; }
+
+    /// <summary>
+    /// Buffer height in cells.
+    /// </summary>
     public int Height { get; }
+
+    /// <summary>
+    /// The full buffer area as a Rect.
+    /// </summary>
     public Rect Area => new(0, 0, Width, Height);
 
+    /// <summary>
+    /// Create a new buffer with the specified dimensions.
+    /// </summary>
     public Buffer(int width, int height)
     {
         Width = width;
@@ -28,8 +49,14 @@ public class Buffer
         Clear();
     }
 
+    /// <summary>
+    /// Clear the buffer to empty cells.
+    /// </summary>
     public void Clear() => Fill(Cell.Empty);
 
+    /// <summary>
+    /// Fill the entire buffer with a cell.
+    /// </summary>
     public void Fill(Cell cell)
     {
         for (var y = 0; y < Height; y++)
@@ -37,12 +64,18 @@ public class Buffer
             _cells[y, x] = cell;
     }
 
+    /// <summary>
+    /// Set a cell at the given position. Ignores out-of-bounds coordinates.
+    /// </summary>
     public void Set(int x, int y, Cell cell)
     {
         if (x >= 0 && x < Width && y >= 0 && y < Height)
             _cells[y, x] = cell;
     }
 
+    /// <summary>
+    /// Get a cell at the given position. Returns empty cell for out-of-bounds.
+    /// </summary>
     public Cell Get(int x, int y)
     {
         if (x >= 0 && x < Width && y >= 0 && y < Height)
@@ -168,10 +201,17 @@ public class Buffer
     }
 }
 
+/// <summary>
+/// Box drawing styles using Unicode box-drawing characters.
+/// </summary>
 public enum BoxStyle
 {
-    Single,   // ┌─┐
-    Double,   // ╔═╗
-    Rounded,  // ╭─╮
-    Heavy     // ┏━┓
+    /// <summary>Single line border (┌─┐)</summary>
+    Single,
+    /// <summary>Double line border (╔═╗)</summary>
+    Double,
+    /// <summary>Rounded corners (╭─╮)</summary>
+    Rounded,
+    /// <summary>Heavy/bold border (┏━┓)</summary>
+    Heavy
 }

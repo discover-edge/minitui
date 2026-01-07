@@ -3,8 +3,7 @@ using MiniTui;
 // === Demo Application ===
 // Shows off the MiniTui framework with multiple views
 
-var demoIndex = 0;
-var demos = new (string Name, Action<Terminal> Run)[]
+var demos = new (string Name, Action Run)[]
 {
     ("Counter", RunCounter),
     ("List Selection", RunList),
@@ -13,65 +12,56 @@ var demos = new (string Name, Action<Terminal> Run)[]
     ("Dashboard", RunDashboard),
 };
 
-// Demo picker
-using var terminal = new Terminal();
-var running = true;
+var demoNames = demos.Select(d => d.Name).ToList();
+var listState = ListState.Empty;
 
-while (running)
-{
-    terminal.Draw(buf =>
+var app = App.Create()
+    .Render((buf, screen) =>
     {
-        buf.DrawBoxWithTitle(buf.Area, " MiniTui Demos ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
+        buf.DrawBoxWithTitle(screen, " MiniTui Demos ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
 
-        var inner = buf.Area.Shrink(2);
+        var inner = screen.Shrink(2);
         buf.DrawText(inner.X, inner.Y, "Select a demo:", ConsoleColor.White);
 
-        for (var i = 0; i < demos.Length; i++)
-        {
-            var y = inner.Y + 2 + i;
-            var prefix = i == demoIndex ? "► " : "  ";
-            var fg = i == demoIndex ? ConsoleColor.Cyan : ConsoleColor.Gray;
-            buf.DrawText(inner.X, y, $"{prefix}{demos[i].Name}", fg);
-        }
+        var listArea = new Rect(inner.X, inner.Y + 2, 30, demos.Length + 2);
+        Widget.List()
+            .Items(demoNames)
+            .State(listState)
+            .Focused()
+            .Draw(buf, listArea);
 
-        Widgets.StatusBar(buf, buf.Area, "[↑/↓] Navigate  [Enter] Select  [q] Quit");
+        Widget.StatusBar()
+            .Left("[↑/↓] Navigate  [Enter] Select  [q] Quit")
+            .Draw(buf, screen);
     });
 
+app.RunWhile(() =>
+{
     var key = Input.Poll();
-    if (key != null)
-    {
-        switch (key.Value.Key)
-        {
-            case ConsoleKey.UpArrow:
-            case ConsoleKey.K:
-                demoIndex = (demoIndex - 1 + demos.Length) % demos.Length;
-                break;
-            case ConsoleKey.DownArrow:
-            case ConsoleKey.J:
-                demoIndex = (demoIndex + 1) % demos.Length;
-                break;
-            case ConsoleKey.Enter:
-                demos[demoIndex].Run(terminal);
-                terminal.Invalidate();
-                break;
-        }
+    if (key == null) return true;
+    if (Input.IsQuit(key)) return false;
 
-        if (Input.IsQuit(key))
-            running = false;
+    if (InputHelpers.IsListNavigationKey(key.Value))
+    {
+        listState = InputHelpers.HandleListNavigation(key.Value, listState, demos.Length, demos.Length);
+    }
+    else if (key.Value.Key == ConsoleKey.Enter)
+    {
+        demos[listState.SelectedIndex].Run();
+        app.Invalidate();
     }
 
-    Thread.Sleep(16);
-}
+    return true;
+});
 
 // === Demo Implementations ===
 
-void RunCounter(Terminal term)
+void RunCounter()
 {
     var count = 0;
-    
-    while (true)
-    {
-        term.Draw(buf =>
+
+    App.Create()
+        .Render((buf, screen) =>
         {
             var box = new Rect(2, 1, 40, 7);
             buf.DrawBoxWithTitle(box, " Counter ", ConsoleColor.Cyan, ConsoleColor.White);
@@ -80,107 +70,99 @@ void RunCounter(Terminal term)
             buf.DrawText(inner.X, inner.Y + 1, $"Count: {count}", ConsoleColor.Yellow);
             buf.DrawText(inner.X, inner.Y + 3, "[j/↓] -1   [k/↑] +1   [r] reset", ConsoleColor.DarkGray);
 
-            Widgets.StatusBar(buf, buf.Area, "[q] Back to menu");
-        });
-
-        var key = Input.Poll();
-        if (Input.IsQuit(key)) break;
-
-        if (key != null)
+            Widget.StatusBar()
+                .Left("[q] Back to menu")
+                .Draw(buf, screen);
+        })
+        .RunWhile(() =>
         {
-            switch (key.Value.Key)
-            {
-                case ConsoleKey.UpArrow:
-                case ConsoleKey.K:
-                    count++;
-                    break;
-                case ConsoleKey.DownArrow:
-                case ConsoleKey.J:
-                    count--;
-                    break;
-                case ConsoleKey.R:
-                    count = 0;
-                    break;
-            }
-        }
+            var key = Input.Poll();
+            if (Input.IsQuit(key)) return false;
 
-        Thread.Sleep(16);
-    }
+            if (key != null)
+            {
+                switch (key.Value.Key)
+                {
+                    case ConsoleKey.UpArrow:
+                    case ConsoleKey.K:
+                        count++;
+                        break;
+                    case ConsoleKey.DownArrow:
+                    case ConsoleKey.J:
+                        count--;
+                        break;
+                    case ConsoleKey.R:
+                        count = 0;
+                        break;
+                }
+            }
+
+            return true;
+        });
 }
 
-void RunList(Terminal term)
+void RunList()
 {
     var items = new[] { "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape", "Honeydew", "Kiwi", "Lemon", "Mango", "Nectarine", "Orange", "Papaya", "Quince" };
-    var selected = 0;
-    var scroll = 0;
-    
-    while (true)
-    {
-        term.Draw(buf =>
+    var listState = ListState.Empty;
+    var visibleHeight = 8;
+
+    App.Create()
+        .Render((buf, screen) =>
         {
             buf.DrawText(2, 1, "Select a fruit:", ConsoleColor.White);
-            
+
             var listArea = new Rect(2, 3, 30, 10);
-            Widgets.List(buf, listArea, items, selected, scroll);
+            Widget.List()
+                .Items(items)
+                .State(listState)
+                .Focused()
+                .Draw(buf, listArea);
 
             buf.DrawText(35, 3, "Selected:", ConsoleColor.Gray);
-            buf.DrawText(35, 4, items[selected], ConsoleColor.Cyan);
+            buf.DrawText(35, 4, items[listState.SelectedIndex], ConsoleColor.Cyan);
 
-            Widgets.StatusBar(buf, buf.Area, "[↑/↓] Navigate  [q] Back");
-        });
-
-        var key = Input.Poll();
-        if (Input.IsQuit(key)) break;
-
-        if (key != null)
+            Widget.StatusBar()
+                .Left("[↑/↓] Navigate  [q] Back")
+                .Draw(buf, screen);
+        })
+        .RunWhile(() =>
         {
-            switch (key.Value.Key)
-            {
-                case ConsoleKey.UpArrow:
-                case ConsoleKey.K:
-                    if (selected > 0)
-                    {
-                        selected--;
-                        if (selected < scroll) scroll = selected;
-                    }
-                    break;
-                case ConsoleKey.DownArrow:
-                case ConsoleKey.J:
-                    if (selected < items.Length - 1)
-                    {
-                        selected++;
-                        if (selected >= scroll + 8) scroll = selected - 7;
-                    }
-                    break;
-            }
-        }
+            var key = Input.Poll();
+            if (Input.IsQuit(key)) return false;
 
-        Thread.Sleep(16);
-    }
+            if (key != null && InputHelpers.IsListNavigationKey(key.Value))
+            {
+                listState = InputHelpers.HandleListNavigation(key.Value, listState, items.Length, visibleHeight);
+            }
+
+            return true;
+        });
 }
 
-void RunProgress(Terminal term)
+void RunProgress()
 {
     var progress = 0f;
     var autoRun = false;
-    
-    while (true)
-    {
-        if (autoRun)
+
+    App.Create()
+        .OnUpdate(() =>
         {
-            progress += 0.01f;
-            if (progress >= 1f)
+            if (autoRun)
             {
-                progress = 1f;
-                autoRun = false;
+                progress += 0.01f;
+                if (progress >= 1f)
+                {
+                    progress = 1f;
+                    autoRun = false;
+                }
             }
-        }
-
-        term.Draw(buf =>
+        })
+        .Render((buf, screen) =>
         {
-            buf.DrawBoxWithTitle(buf.Area.Shrink(1), " Progress Demo ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
+            buf.DrawBoxWithTitle(screen.Shrink(1), " Progress Demo ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
 
-            var inner = buf.Area.Shrink(3);
+            var inner = screen.Shrink(3);
 
             buf.DrawText(inner.X, inner.Y, "Download Progress:", ConsoleColor.White);
             buf.DrawProgressBar(new Rect(inner.X, inner.Y + 1, inner.Width, 1), progress, ConsoleColor.Green);
@@ -194,149 +176,126 @@ void RunProgress(Terminal term)
             var cpu = (float)(0.3 + 0.2 * Math.Sin(DateTime.Now.Ticks / 5000000.0));
             buf.DrawProgressBar(new Rect(inner.X, inner.Y + 9, inner.Width, 1), cpu, ConsoleColor.Yellow);
 
-            Widgets.StatusBar(buf, buf.Area, $"[Space] {(autoRun ? "Pause" : "Start")}  [r] Reset  [q] Back");
-        });
-
-        var key = Input.Poll();
-        if (Input.IsQuit(key)) break;
-
-        if (key != null)
+            Widget.StatusBar()
+                .Left($"[Space] {(autoRun ? "Pause" : "Start")}  [r] Reset  [q] Back")
+                .Draw(buf, screen);
+        })
+        .RunWhile(() =>
         {
-            switch (key.Value.Key)
-            {
-                case ConsoleKey.Spacebar:
-                    autoRun = !autoRun;
-                    break;
-                case ConsoleKey.R:
-                    progress = 0f;
-                    autoRun = false;
-                    break;
-            }
-        }
+            var key = Input.Poll();
+            if (Input.IsQuit(key)) return false;
 
-        Thread.Sleep(16);
-    }
+            if (key != null)
+            {
+                switch (key.Value.Key)
+                {
+                    case ConsoleKey.Spacebar:
+                        autoRun = !autoRun;
+                        break;
+                    case ConsoleKey.R:
+                        progress = 0f;
+                        autoRun = false;
+                        break;
+                }
+            }
+
+            return true;
+        });
 }
 
-void RunForm(Terminal term)
+void RunForm()
 {
-    var focus = new FocusManager(3);
-    var name = "";
-    var email = "";
+    var nameState = TextInputState.Empty;
+    var emailState = TextInputState.Empty;
     var subscribe = false;
-    var cursorPos = 0;
-    
-    while (true)
-    {
-        term.Draw(buf =>
-        {
-            buf.DrawBoxWithTitle(buf.Area.Shrink(1), " Registration Form ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
 
-            var inner = buf.Area.Shrink(3);
+    InputRouter router = null!;
+    router = new InputRouter()
+        .Add("name", key =>
+        {
+            nameState = InputHelpers.HandleTextInput(key, nameState);
+        })
+        .Add("email", key =>
+        {
+            emailState = InputHelpers.HandleTextInput(key, emailState);
+        })
+        .Add("subscribe", key =>
+        {
+            if (key.Key == ConsoleKey.Spacebar)
+                subscribe = !subscribe;
+        })
+        .StartWith("name");
+
+    App.Create()
+        .UseRouter(router)
+        .Render((buf, screen) =>
+        {
+            buf.DrawBoxWithTitle(screen.Shrink(1), " Registration Form ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
+
+            var inner = screen.Shrink(3);
 
             // Name field
             buf.DrawText(inner.X, inner.Y, "Name:", ConsoleColor.White);
-            Widgets.TextInput(buf, new Rect(inner.X, inner.Y + 1, 30, 3), name, focus.IsFocused(0), focus.IsFocused(0) ? cursorPos : -1);
+            Widgets.TextInput(buf, new Rect(inner.X, inner.Y + 1, 30, 3), nameState.Value, router.IsFocused("name"), nameState.CursorPos);
 
-            // Email field  
+            // Email field
             buf.DrawText(inner.X, inner.Y + 5, "Email:", ConsoleColor.White);
-            Widgets.TextInput(buf, new Rect(inner.X, inner.Y + 6, 30, 3), email, focus.IsFocused(1), focus.IsFocused(1) ? cursorPos : -1);
+            Widgets.TextInput(buf, new Rect(inner.X, inner.Y + 6, 30, 3), emailState.Value, router.IsFocused("email"), emailState.CursorPos);
 
             // Checkbox
-            Widgets.Checkbox(buf, inner.X, inner.Y + 10, "Subscribe to newsletter", subscribe, focus.IsFocused(2));
+            Widgets.Checkbox(buf, inner.X, inner.Y + 10, "Subscribe to newsletter", subscribe, router.IsFocused("subscribe"));
 
-            Widgets.StatusBar(buf, buf.Area, "[Tab] Next  [Space] Toggle  [q] Back");
-        });
-
-        var key = Input.Poll();
-        if (Input.IsQuit(key)) break;
-
-        if (key != null)
+            Widget.StatusBar()
+                .Left("[Tab] Next  [Space] Toggle  [q] Back")
+                .Draw(buf, screen);
+        })
+        .RunWhile(() =>
         {
-            if (!focus.HandleInput(key))
-            {
-                // Handle input for focused element
-                if (focus.Current < 2) // Text inputs
-                {
-                    ref var text = ref (focus.Current == 0 ? ref name : ref email);
-                    
-                    switch (key.Value.Key)
-                    {
-                        case ConsoleKey.Backspace when cursorPos > 0:
-                            text = text.Remove(cursorPos - 1, 1);
-                            cursorPos--;
-                            break;
-                        case ConsoleKey.Delete when cursorPos < text.Length:
-                            text = text.Remove(cursorPos, 1);
-                            break;
-                        case ConsoleKey.LeftArrow when cursorPos > 0:
-                            cursorPos--;
-                            break;
-                        case ConsoleKey.RightArrow when cursorPos < text.Length:
-                            cursorPos++;
-                            break;
-                        case ConsoleKey.Home:
-                            cursorPos = 0;
-                            break;
-                        case ConsoleKey.End:
-                            cursorPos = text.Length;
-                            break;
-                        default:
-                            if (!char.IsControl(key.Value.KeyChar))
-                            {
-                                text = text.Insert(cursorPos, key.Value.KeyChar.ToString());
-                                cursorPos++;
-                            }
-                            break;
-                    }
-                }
-                else if (focus.Current == 2 && key.Value.Key == ConsoleKey.Spacebar)
-                {
-                    subscribe = !subscribe;
-                }
-            }
-            else
-            {
-                // Focus changed, reset cursor
-                cursorPos = focus.Current switch
-                {
-                    0 => name.Length,
-                    1 => email.Length,
-                    _ => 0
-                };
-            }
-        }
+            var key = Input.Poll();
+            if (Input.IsQuit(key)) return false;
 
-        Thread.Sleep(16);
-    }
+            if (key != null)
+                router.Handle(key.Value);
+
+            return true;
+        });
 }
 
-void RunDashboard(Terminal term)
+void RunDashboard()
 {
     var data = new[] { "Users: 1,234", "Revenue: $45,678", "Orders: 567", "Growth: +12.3%" };
     var logs = new List<string> { "System started", "Connected to database", "Cache initialized" };
     var startTime = DateTime.Now;
-    
-    while (true)
-    {
-        // Simulate new log entries
-        if (Random.Shared.NextDouble() < 0.02)
-        {
-            var messages = new[] { "Request processed", "User logged in", "Data synced", "Cache miss", "API call completed" };
-            logs.Add($"{DateTime.Now:HH:mm:ss} - {messages[Random.Shared.Next(messages.Length)]}");
-            if (logs.Count > 8) logs.RemoveAt(0);
-        }
 
-        term.Draw(buf =>
+    App.Create()
+        .WithFrameDelay(50)
+        .OnUpdate(() =>
         {
-            var (top, bottom) = buf.Area.Shrink(1).SplitHorizontal(8);
-            var (left, right) = bottom.SplitVertical(buf.Width / 2);
+            // Simulate new log entries
+            if (Random.Shared.NextDouble() < 0.02)
+            {
+                var messages = new[] { "Request processed", "User logged in", "Data synced", "Cache miss", "API call completed" };
+                logs.Add($"{DateTime.Now:HH:mm:ss} - {messages[Random.Shared.Next(messages.Length)]}");
+                if (logs.Count > 8) logs.RemoveAt(0);
+            }
+        })
+        .Render((buf, screen) =>
+        {
+            var layout = Layout.Vertical(screen.Shrink(1))
+                .Add("stats", 8)
+                .AddFill("panels")
+                .Build();
+
+            var panelsLayout = Layout.Horizontal(layout["panels"])
+                .AddFill("logs")
+                .AddFill("activity")
+                .Build();
 
             // Stats boxes
-            buf.DrawBoxWithTitle(top, " Statistics ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
-            var statsInner = top.Shrink(2, 1);
+            buf.DrawBoxWithTitle(layout["stats"], " Statistics ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
+            var statsInner = layout["stats"].Shrink(2, 1);
             var boxWidth = statsInner.Width / 4;
-            
+
             for (var i = 0; i < data.Length; i++)
             {
                 var boxRect = new Rect(statsInner.X + i * boxWidth, statsInner.Y, boxWidth - 1, 4);
@@ -345,8 +304,9 @@ void RunDashboard(Terminal term)
             }
 
             // Logs panel
-            buf.DrawBoxWithTitle(left.Shrink(0, 1), " Logs ", ConsoleColor.DarkGray, ConsoleColor.Green);
-            var logsInner = left.Shrink(2, 2);
+            var logsArea = panelsLayout["logs"].Shrink(0, 1);
+            buf.DrawBoxWithTitle(logsArea, " Logs ", ConsoleColor.DarkGray, ConsoleColor.Green);
+            var logsInner = logsArea.Shrink(2, 1);
             for (var i = 0; i < Math.Min(logs.Count, logsInner.Height); i++)
             {
                 var log = logs[i];
@@ -356,23 +316,22 @@ void RunDashboard(Terminal term)
             }
 
             // Activity panel
-            buf.DrawBoxWithTitle(right.Shrink(0, 1), " Activity ", ConsoleColor.DarkGray, ConsoleColor.Magenta);
-            var actInner = right.Shrink(2, 2);
-            
+            var actArea = panelsLayout["activity"].Shrink(0, 1);
+            buf.DrawBoxWithTitle(actArea, " Activity ", ConsoleColor.DarkGray, ConsoleColor.Magenta);
+            var actInner = actArea.Shrink(2, 1);
+
             // Simple animated bar chart
             var elapsed = (DateTime.Now - startTime).TotalSeconds;
             for (var i = 0; i < 5; i++)
             {
                 var value = (float)(0.3 + 0.6 * Math.Sin(elapsed / 2 + i));
-                var barWidth = (int)(value * (actInner.Width - 10));
                 buf.DrawText(actInner.X, actInner.Y + i * 2, $"Svc {i + 1}", ConsoleColor.Gray);
                 buf.DrawProgressBar(new Rect(actInner.X + 7, actInner.Y + i * 2, actInner.Width - 8, 1), value, ConsoleColor.Cyan);
             }
 
-            Widgets.StatusBar(buf, buf.Area, $"Uptime: {DateTime.Now - startTime:hh\\:mm\\:ss}   [q] Back");
-        });
-
-        if (Input.IsQuit(Input.Poll())) break;
-        Thread.Sleep(50);
-    }
+            Widget.StatusBar()
+                .Left($"Uptime: {DateTime.Now - startTime:hh\\:mm\\:ss}   [q] Back")
+                .Draw(buf, screen);
+        })
+        .RunWhile(() => !Input.IsQuit(Input.Poll()));
 }

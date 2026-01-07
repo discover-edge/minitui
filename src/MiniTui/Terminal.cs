@@ -9,10 +9,24 @@ public class Terminal : IDisposable
     private readonly Buffer _previous;
     private bool _disposed;
 
+    /// <summary>
+    /// Terminal width in cells.
+    /// </summary>
     public int Width { get; private set; }
+
+    /// <summary>
+    /// Terminal height in cells.
+    /// </summary>
     public int Height { get; private set; }
+
+    /// <summary>
+    /// The full terminal area as a Rect.
+    /// </summary>
     public Rect Area => new(0, 0, Width, Height);
 
+    /// <summary>
+    /// Create a new terminal, entering alternate screen mode.
+    /// </summary>
     public Terminal()
     {
         // Save original state
@@ -135,6 +149,9 @@ public class Terminal : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Dispose the terminal, restoring original console state.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
