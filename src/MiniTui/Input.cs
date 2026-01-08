@@ -165,6 +165,25 @@ public record struct TimedMessage(string Text, DateTime Expiry)
 }
 
 /// <summary>
+/// State for a confirmation dialog.
+/// </summary>
+public record struct ConfirmState(bool IsActive, bool YesSelected, Action<bool>? OnComplete)
+{
+    /// <summary>Inactive state.</summary>
+    public static ConfirmState Inactive => new(false, true, null);
+
+    /// <summary>Show a confirmation dialog.</summary>
+    public static ConfirmState Show(Action<bool> onComplete, bool defaultYes = true) =>
+        new(true, defaultYes, onComplete);
+
+    /// <summary>Complete the confirmation with the selected result.</summary>
+    public readonly void Complete()
+    {
+        OnComplete?.Invoke(YesSelected);
+    }
+}
+
+/// <summary>
 /// Helper functions for handling widget input.
 /// </summary>
 public static class InputHelpers
@@ -297,6 +316,42 @@ public static class InputHelpers
     public static bool IsModalDismissKey(ConsoleKeyInfo key)
     {
         return key.Key is ConsoleKey.Escape or ConsoleKey.Enter or ConsoleKey.Q;
+    }
+
+    /// <summary>
+    /// Handle confirmation dialog input. Returns updated state (null if dialog should close).
+    /// </summary>
+    public static ConfirmState? HandleConfirmInput(ConsoleKeyInfo key, ConfirmState state)
+    {
+        switch (key.Key)
+        {
+            case ConsoleKey.LeftArrow:
+            case ConsoleKey.RightArrow:
+            case ConsoleKey.Tab:
+            case ConsoleKey.H:
+            case ConsoleKey.L:
+                // Toggle selection
+                return state with { YesSelected = !state.YesSelected };
+
+            case ConsoleKey.Enter:
+                // Confirm current selection
+                state.Complete();
+                return null;
+
+            case ConsoleKey.Y:
+                // Yes
+                state.OnComplete?.Invoke(true);
+                return null;
+
+            case ConsoleKey.N:
+            case ConsoleKey.Escape:
+                // No / Cancel
+                state.OnComplete?.Invoke(false);
+                return null;
+
+            default:
+                return state;
+        }
     }
 
     /// <summary>

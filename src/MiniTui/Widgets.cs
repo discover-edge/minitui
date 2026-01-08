@@ -307,6 +307,48 @@ public static class Widgets
             buf.DrawText(footerX, footerY, footer, ConsoleColor.DarkGray, ConsoleColor.Black);
         }
     }
+
+    /// <summary>
+    /// Draw a confirmation dialog centered on the screen.
+    /// </summary>
+    public static void Confirm(Buffer buf, string message, string yesText = "Yes", string noText = "No", bool yesSelected = true)
+    {
+        // Calculate dialog size
+        var buttonLine = $"  [{yesText}]    [{noText}]  ";
+        var width = Math.Max(message.Length + 4, buttonLine.Length + 2);
+        width = Math.Min(width, buf.Width - 4);
+        var height = 5; // border + message + blank + buttons + border
+
+        // Center on screen
+        var x = (buf.Width - width) / 2;
+        var y = (buf.Height - height) / 2;
+        var area = new Rect(x, y, width, height);
+
+        // Fill background
+        buf.FillRect(area, new Cell(' ', ConsoleColor.Gray, ConsoleColor.Black));
+
+        // Draw border
+        buf.DrawBox(area, ConsoleColor.DarkGray, BoxStyle.Single);
+
+        // Draw message centered
+        var msgX = area.X + (area.Width - message.Length) / 2;
+        buf.DrawText(msgX, area.Y + 1, message, ConsoleColor.White, ConsoleColor.Black);
+
+        // Draw buttons
+        var yesBtn = yesSelected ? $"[{yesText}]" : $" {yesText} ";
+        var noBtn = !yesSelected ? $"[{noText}]" : $" {noText} ";
+        var yesFg = yesSelected ? ConsoleColor.Black : ConsoleColor.Gray;
+        var yesBg = yesSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
+        var noFg = !yesSelected ? ConsoleColor.Black : ConsoleColor.Gray;
+        var noBg = !yesSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
+
+        var buttonsWidth = yesBtn.Length + 4 + noBtn.Length;
+        var btnX = area.X + (area.Width - buttonsWidth) / 2;
+        var btnY = area.Y + 3;
+
+        buf.DrawText(btnX, btnY, yesBtn, yesFg, yesBg);
+        buf.DrawText(btnX + yesBtn.Length + 4, btnY, noBtn, noFg, noBg);
+    }
 }
 
 /// <summary>
@@ -419,6 +461,34 @@ public class ModalBuilder
 }
 
 /// <summary>
+/// Fluent builder for Confirm dialog widget.
+/// </summary>
+public class ConfirmBuilder
+{
+    private string _message = "Are you sure?";
+    private string _yesText = "Yes";
+    private string _noText = "No";
+    private bool _yesSelected = true;
+
+    /// <summary>Set the confirmation message.</summary>
+    public ConfirmBuilder Message(string message) { _message = message; return this; }
+    /// <summary>Set the Yes button text.</summary>
+    public ConfirmBuilder YesText(string text) { _yesText = text; return this; }
+    /// <summary>Set the No button text.</summary>
+    public ConfirmBuilder NoText(string text) { _noText = text; return this; }
+    /// <summary>Set which button is selected.</summary>
+    public ConfirmBuilder Selected(bool yesSelected) { _yesSelected = yesSelected; return this; }
+    /// <summary>Set state from a ConfirmState.</summary>
+    public ConfirmBuilder State(ConfirmState state) { _yesSelected = state.YesSelected; return this; }
+
+    /// <summary>Draw the confirmation dialog centered on the buffer.</summary>
+    public void Draw(Buffer buf)
+    {
+        Widgets.Confirm(buf, _message, _yesText, _noText, _yesSelected);
+    }
+}
+
+/// <summary>
 /// Factory methods for widget builders.
 /// </summary>
 public static class Widget
@@ -431,4 +501,6 @@ public static class Widget
     public static StatusBarBuilder StatusBar() => new();
     /// <summary>Create a new modal widget builder.</summary>
     public static ModalBuilder Modal() => new();
+    /// <summary>Create a new confirmation dialog builder.</summary>
+    public static ConfirmBuilder Confirm() => new();
 }

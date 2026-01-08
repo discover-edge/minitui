@@ -3,7 +3,7 @@
 ## High Priority
 - [x] Scrollbar indicator for lists - show position in long lists (e.g., `[1-10 of 50]`)
 - [ ] Color themes - configurable color schemes instead of hardcoded colors
-- [ ] Confirmation dialog - `Widget.Confirm("Delete?").OnYes(...).OnNo(...)`
+- [x] Confirmation dialog - `Widget.Confirm().Message("Delete?")`
 - [ ] Tabs widget - for multi-panel UIs
 
 ## Medium Priority
