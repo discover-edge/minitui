@@ -13,6 +13,7 @@
 - [ ] Popup menu - context menus, dropdowns
 
 ## Polish
+- [ ] Handle terminal resize - detect and respond to window size changes
 - [ ] Debug mode - visualize focus, layout boundaries
 - [ ] Better text wrapping - for modals with long content
 - [ ] Mouse support - clicking to focus, scrolling
