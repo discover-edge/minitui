@@ -88,18 +88,29 @@ public static class Widgets
     /// <summary>
     /// Draw a list of selectable items.
     /// </summary>
-    public static void List(Buffer buf, Rect area, IReadOnlyList<string> items, int selectedIndex, int scrollOffset = 0, bool focused = false, string? title = null)
+    public static void List(Buffer buf, Rect area, IReadOnlyList<string> items, int selectedIndex, int scrollOffset = 0, bool focused = false, string? title = null, bool showScrollInfo = true)
     {
         var borderFg = focused ? ConsoleColor.Cyan : ConsoleColor.DarkGray;
         var titleFg = focused ? ConsoleColor.Yellow : ConsoleColor.Cyan;
 
-        if (title != null)
-            buf.DrawBoxWithTitle(area, title, borderFg, titleFg);
-        else
-            buf.DrawBox(area, borderFg);
-
         var inner = area.Shrink(1);
         var visibleCount = Math.Min(items.Count - scrollOffset, inner.Height);
+
+        // Build title with scroll info if needed
+        var displayTitle = title;
+        if (title != null && showScrollInfo && items.Count > 0)
+        {
+            var first = scrollOffset + 1;
+            var last = scrollOffset + visibleCount;
+            displayTitle = items.Count > inner.Height
+                ? $"{title} [{first}-{last} of {items.Count}]"
+                : $"{title} [{items.Count}]";
+        }
+
+        if (displayTitle != null)
+            buf.DrawBoxWithTitle(area, displayTitle, borderFg, titleFg);
+        else
+            buf.DrawBox(area, borderFg);
 
         for (var i = 0; i < visibleCount; i++)
         {
@@ -308,6 +319,7 @@ public class ListBuilder
     private int _scrollOffset;
     private bool _focused;
     private string? _title;
+    private bool _showScrollInfo = true;
 
     /// <summary>Set the list items to display.</summary>
     public ListBuilder Items(IReadOnlyList<string> items) { _items = items; return this; }
@@ -321,11 +333,13 @@ public class ListBuilder
     public ListBuilder Focused(bool focused = true) { _focused = focused; return this; }
     /// <summary>Set the list title.</summary>
     public ListBuilder Title(string title) { _title = title; return this; }
+    /// <summary>Show or hide scroll position info in title (default: true).</summary>
+    public ListBuilder ShowScrollInfo(bool show = true) { _showScrollInfo = show; return this; }
 
     /// <summary>Draw the list to the buffer.</summary>
     public void Draw(Buffer buf, Rect area)
     {
-        Widgets.List(buf, area, _items, _selectedIndex, _scrollOffset, _focused, _title);
+        Widgets.List(buf, area, _items, _selectedIndex, _scrollOffset, _focused, _title, _showScrollInfo);
     }
 }
 
