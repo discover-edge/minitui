@@ -663,9 +663,10 @@ public class CommandRegistry
 public class InputRouter
 {
     private readonly List<(string Name, Action<ConsoleKeyInfo> Handler)> _handlers = [];
+    private readonly List<(Func<bool> IsActive, Action<ConsoleKeyInfo> Handler)> _modals = [];
+    private readonly List<bool> _modalWasActive = [];
+    private readonly List<int> _activeOrder = []; // modal indices in activation order
     private int _focusIndex;
-    private Func<bool>? _modalActive;
-    private Action<ConsoleKeyInfo>? _modalHandler;
 
     /// <summary>
     /// Register a named focus element with its input handler.
@@ -678,11 +679,12 @@ public class InputRouter
 
     /// <summary>
     /// Configure modal handling. Modal takes priority when active.
+    /// Multiple modals can be registered; the most recently activated modal receives input.
     /// </summary>
     public InputRouter WithModal(Func<bool> isActive, Action<ConsoleKeyInfo> handler)
     {
-        _modalActive = isActive;
-        _modalHandler = handler;
+        _modals.Add((isActive, handler));
+        _modalWasActive.Add(false);
         return this;
     }
 
@@ -702,9 +704,9 @@ public class InputRouter
     public string CurrentFocus => _handlers.Count > 0 ? _handlers[_focusIndex].Name : "";
 
     /// <summary>
-    /// Check if a modal is currently active.
+    /// Check if any modal is currently active.
     /// </summary>
-    public bool IsModalActive => _modalActive?.Invoke() == true;
+    public bool IsModalActive => _activeOrder.Count > 0;
 
     /// <summary>
     /// Check if a named element is focused.
@@ -739,14 +741,35 @@ public class InputRouter
     }
 
     /// <summary>
-    /// Handle a key press. Routes to modal, handles Tab, or dispatches to focused element.
+    /// Handle a key press. Routes to active modal, handles Tab, or dispatches to focused element.
     /// </summary>
     public void Handle(ConsoleKeyInfo key)
     {
-        // Modal takes priority
-        if (_modalActive?.Invoke() == true)
+        // Detect modal state transitions
+        for (int i = 0; i < _modals.Count; i++)
         {
-            _modalHandler?.Invoke(key);
+            bool isActive = _modals[i].IsActive();
+            bool wasActive = _modalWasActive[i];
+
+            if (isActive && !wasActive)
+            {
+                // Modal just became active - add to top of stack
+                _activeOrder.Add(i);
+            }
+            else if (!isActive && wasActive)
+            {
+                // Modal just became inactive - remove from stack
+                _activeOrder.Remove(i);
+            }
+
+            _modalWasActive[i] = isActive;
+        }
+
+        // Top of stack gets input
+        if (_activeOrder.Count > 0)
+        {
+            int topIndex = _activeOrder[^1];
+            _modals[topIndex].Handler(key);
             return;
         }
 
