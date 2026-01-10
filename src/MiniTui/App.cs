@@ -94,6 +94,10 @@ public class App
 
         while (_running)
         {
+            // Check input first for responsiveness
+            if (Input.Poll() is { } key)
+                _router?.Handle(key);
+
             // Check for terminal resize
             terminal.CheckResize();
 
@@ -104,9 +108,6 @@ public class App
                 var screen = new Rect(0, 0, buf.Width, buf.Height);
                 _onRender(buf, screen);
             });
-
-            if (Input.Poll() is { } key)
-                _router?.Handle(key);
 
             // Auto-invalidate when modal is dismissed
             var isModalActive = _router?.IsModalActive ?? false;
@@ -136,6 +137,10 @@ public class App
 
         while (_running && condition())
         {
+            // Check input first for responsiveness
+            if (Input.Poll() is { } key)
+                _router?.Handle(key);
+
             // Check for terminal resize
             terminal.CheckResize();
 
@@ -146,9 +151,6 @@ public class App
                 var screen = new Rect(0, 0, buf.Width, buf.Height);
                 _onRender(buf, screen);
             });
-
-            if (Input.Poll() is { } key)
-                _router?.Handle(key);
 
             // Auto-invalidate when modal is dismissed
             var isModalActive = _router?.IsModalActive ?? false;
