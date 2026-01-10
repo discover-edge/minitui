@@ -11,6 +11,7 @@ var demos = new (string Name, Action Run)[]
     ("Form Demo", RunForm),
     ("Dashboard", RunDashboard),
     ("Command Registry", RunCommandDemo),
+    ("Tabs Demo", RunTabsDemo),
 };
 
 var demoNames = demos.Select(d => d.Name).ToList();
@@ -465,5 +466,79 @@ void RunCommandDemo()
             if (key != null)
                 router.Handle(key.Value);
             return running;
+        });
+}
+
+void RunTabsDemo()
+{
+    var tabsState = TabsState.Create(3);
+    var dailyItems = new List<string> { "Morning standup", "Code review", "Lunch break" };
+    var weeklyItems = new List<string> { "Sprint planning", "Retrospective", "Demo day", "1-on-1 meetings" };
+    var allItems = new List<string> { "Q1 Goals", "Annual review", "Team offsite", "Conference", "Training" };
+    var listState = ListState.Empty;
+
+    InputRouter router = null!;
+    router = new InputRouter()
+        .Add("tabs", key =>
+        {
+            var newState = InputHelpers.HandleTabsNavigation(key, tabsState);
+            if (newState.SelectedIndex != tabsState.SelectedIndex)
+            {
+                tabsState = newState;
+                listState = ListState.Empty; // Reset list when switching tabs
+            }
+        })
+        .Add("list", key =>
+        {
+            var items = GetCurrentItems();
+            listState = InputHelpers.HandleListNavigation(key, listState, items.Count, 8);
+        })
+        .StartWith("tabs");
+
+    List<string> GetCurrentItems() => tabsState.SelectedIndex switch
+    {
+        0 => dailyItems,
+        1 => weeklyItems,
+        _ => allItems
+    };
+
+    App.Create()
+        .UseRouter(router)
+        .Render((buf, screen) =>
+        {
+            buf.DrawBoxWithTitle(screen.Shrink(1), " Tasks ", ConsoleColor.DarkGray, ConsoleColor.Cyan);
+
+            var inner = screen.Shrink(2);
+
+            // Draw tabs
+            var tabsArea = new Rect(inner.X, inner.Y, inner.Width, 2);
+            var tabsHeight = Widget.Tabs()
+                .Tab("Daily")
+                .Tab("Weekly")
+                .Tab("All")
+                .State(() => tabsState)
+                .Focused(router.IsFocused("tabs"))
+                .Draw(buf, tabsArea);
+
+            // Draw list below tabs
+            var listArea = new Rect(inner.X, inner.Y + tabsHeight, inner.Width, inner.Height - tabsHeight - 1);
+            var items = GetCurrentItems();
+            Widget.List()
+                .Items(items.Count > 0 ? items : ["No items"])
+                .State(listState)
+                .Focused(router.IsFocused("list"))
+                .Draw(buf, listArea);
+
+            Widget.StatusBar()
+                .Left("[Tab] Switch focus  [←/→] Change tab  [↑/↓] Navigate  [q] Back")
+                .Draw(buf, screen);
+        })
+        .RunWhile(() =>
+        {
+            var key = Input.Poll();
+            if (Input.IsQuit(key)) return false;
+            if (key != null)
+                router.Handle(key.Value);
+            return true;
         });
 }
