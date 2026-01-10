@@ -5,8 +5,8 @@ namespace MiniTui;
 /// </summary>
 public class Terminal : IDisposable
 {
-    private readonly Buffer _current;
-    private readonly Buffer _previous;
+    private Buffer _current;
+    private Buffer _previous;
     private bool _disposed;
 
     /// <summary>
@@ -128,7 +128,7 @@ public class Terminal : IDisposable
     }
 
     /// <summary>
-    /// Check if terminal was resized. Call this periodically if you want resize support.
+    /// Check if terminal was resized. If so, recreates buffers and returns true.
     /// </summary>
     public bool CheckResize()
     {
@@ -139,13 +139,16 @@ public class Terminal : IDisposable
 
             if (newWidth != Width || newHeight != Height)
             {
-                // For simplicity, we don't resize buffers dynamically
-                // You'd need to recreate them or handle this more gracefully
+                Width = newWidth;
+                Height = newHeight;
+                _current = new Buffer(Width, Height);
+                _previous = new Buffer(Width, Height);
+                Console.Clear();
                 return true;
             }
         }
         catch { }
-        
+
         return false;
     }
 

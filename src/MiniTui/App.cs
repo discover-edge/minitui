@@ -94,6 +94,9 @@ public class App
 
         while (_running)
         {
+            // Check for terminal resize
+            terminal.CheckResize();
+
             _onUpdate?.Invoke();
 
             terminal.Draw(buf =>
@@ -133,6 +136,9 @@ public class App
 
         while (_running && condition())
         {
+            // Check for terminal resize
+            terminal.CheckResize();
+
             _onUpdate?.Invoke();
 
             terminal.Draw(buf =>
