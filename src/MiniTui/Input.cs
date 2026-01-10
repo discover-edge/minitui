@@ -184,6 +184,15 @@ public record struct ConfirmState(bool IsActive, bool YesSelected, Action<bool>?
 }
 
 /// <summary>
+/// State for a tabs widget.
+/// </summary>
+public record struct TabsState(int SelectedIndex, int TabCount)
+{
+    /// <summary>Create initial state with given tab count, first tab selected.</summary>
+    public static TabsState Create(int tabCount) => new(0, tabCount);
+}
+
+/// <summary>
 /// Helper functions for handling widget input.
 /// </summary>
 public static class InputHelpers
@@ -352,6 +361,25 @@ public static class InputHelpers
             default:
                 return state;
         }
+    }
+
+    /// <summary>
+    /// Handle tabs navigation keys. Returns new state after processing the key.
+    /// </summary>
+    public static TabsState HandleTabsNavigation(ConsoleKeyInfo key, TabsState state)
+    {
+        return key.Key switch
+        {
+            ConsoleKey.LeftArrow or ConsoleKey.H => state with
+            {
+                SelectedIndex = Math.Max(0, state.SelectedIndex - 1)
+            },
+            ConsoleKey.RightArrow or ConsoleKey.L => state with
+            {
+                SelectedIndex = Math.Min(state.TabCount - 1, state.SelectedIndex + 1)
+            },
+            _ => state
+        };
     }
 
     /// <summary>

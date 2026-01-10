@@ -349,6 +349,32 @@ public static class Widgets
         buf.DrawText(btnX, btnY, yesBtn, yesFg, yesBg);
         buf.DrawText(btnX + yesBtn.Length + 4, btnY, noBtn, noFg, noBg);
     }
+
+    /// <summary>
+    /// Draw a tab bar. Returns the height consumed (typically 2 - tabs + separator).
+    /// </summary>
+    public static int Tabs(Buffer buf, Rect area, IReadOnlyList<string> labels, int selectedIndex, bool focused = false)
+    {
+        var x = area.X;
+        var y = area.Y;
+
+        for (var i = 0; i < labels.Count; i++)
+        {
+            var label = $"[ {labels[i]} ]";
+            var isSelected = i == selectedIndex;
+            var fg = isSelected ? ConsoleColor.Black : ConsoleColor.Gray;
+            var bg = isSelected ? (focused ? ConsoleColor.Cyan : ConsoleColor.DarkGray) : ConsoleColor.Black;
+
+            buf.DrawText(x, y, label, fg, bg);
+            x += label.Length + 1;
+        }
+
+        // Separator line below tabs
+        if (area.Height > 1)
+            buf.DrawHLine(area.X, y + 1, area.Width, '─', ConsoleColor.DarkGray);
+
+        return 2; // Height consumed (tabs row + separator)
+    }
 }
 
 /// <summary>
@@ -489,6 +515,30 @@ public class ConfirmBuilder
 }
 
 /// <summary>
+/// Fluent builder for Tabs widget.
+/// </summary>
+public class TabsBuilder
+{
+    private readonly List<string> _labels = [];
+    private Func<TabsState>? _stateGetter;
+    private bool _focused;
+
+    /// <summary>Add a tab with the given label.</summary>
+    public TabsBuilder Tab(string label) { _labels.Add(label); return this; }
+    /// <summary>Set state from a getter function.</summary>
+    public TabsBuilder State(Func<TabsState> getter) { _stateGetter = getter; return this; }
+    /// <summary>Set whether the tabs are focused.</summary>
+    public TabsBuilder Focused(bool focused = true) { _focused = focused; return this; }
+
+    /// <summary>Draw the tabs to the buffer. Returns height consumed.</summary>
+    public int Draw(Buffer buf, Rect area)
+    {
+        var state = _stateGetter?.Invoke() ?? TabsState.Create(_labels.Count);
+        return Widgets.Tabs(buf, area, _labels, state.SelectedIndex, _focused);
+    }
+}
+
+/// <summary>
 /// Factory methods for widget builders.
 /// </summary>
 public static class Widget
@@ -503,4 +553,6 @@ public static class Widget
     public static ModalBuilder Modal() => new();
     /// <summary>Create a new confirmation dialog builder.</summary>
     public static ConfirmBuilder Confirm() => new();
+    /// <summary>Create a new tabs widget builder.</summary>
+    public static TabsBuilder Tabs() => new();
 }
