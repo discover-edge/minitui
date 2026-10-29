@@ -52,7 +52,7 @@ public sealed class GaugeBuilder
         {
             var i = x - inner.X;
             if (i < full) buf.SetString(x, y, "█", filled, 1);
-            else if (i == full && partial > 0) buf.SetString(x, y, Eighths[partial].ToString(), filled, 1);
+            else if (i == full && PartialGlyph(partial) is { } glyph) buf.SetString(x, y, glyph, filled, 1);
             else buf.SetString(x, y, "░", empty, 1);
         }
 
@@ -60,6 +60,11 @@ public sealed class GaugeBuilder
         var label = _label ?? new Line(string.Create(CultureInfo.InvariantCulture, $"{Math.Round(_ratio * 100)}%"));
         DrawLabel(buf, inner, label, full + (partial >= 4 ? 1 : 0), filled);
     }
+
+    // Basic glyphs round to the nearest of empty, ▌ and █
+    private static string? PartialGlyph(int eighths) => eighths == 0 ? null
+        : !Glyphs.Basic ? Eighths[eighths].ToString()
+        : eighths switch { <= 2 => null, <= 5 => "▌", _ => "█" };
 
     // Over the filled part the label is reversed, so it reads as text on the bar color
     private static void DrawLabel(Buffer buf, Rect inner, Line label, int filledCells, Style filled)

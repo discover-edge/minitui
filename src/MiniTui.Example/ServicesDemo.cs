@@ -92,7 +92,7 @@ internal static class ServicesDemo
                     s.Version,
                     new Line($"{s.LatencyMs} ms") with { Alignment = Alignment.Right }))
                 .State(selection)
-                .HighlightSymbol("▶ ")
+                .HighlightSymbol("> ")
                 .Focused()
                 .Draw(buf, area);
 

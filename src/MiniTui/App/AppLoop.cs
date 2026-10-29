@@ -79,6 +79,7 @@ public partial class App
             _terminal = terminal;
             if (_captureConsole) capture = ConsoleCapture.Start(Log);
             using var theme = Theme.Use(_theme ?? DefaultTheme(backend));
+            using var glyphs = Glyphs.Use(Glyphs.DetectBasic(backend));
 
             t_current = this;
             if (readsConsole) Interlocked.Increment(ref s_consoleApps);

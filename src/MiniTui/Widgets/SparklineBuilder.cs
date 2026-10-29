@@ -49,9 +49,14 @@ public sealed class SparklineBuilder
             level -= 8L * firstRow;
             for (var row = firstRow; row < inner.Height && level > 0; row++, level -= 8)
             {
-                var glyph = Levels[(int)Math.Min(level, 8) - 1];
-                buf.SetString(x0 + i, inner.Bottom - 1 - row, glyph.ToString(), style, 1);
+                if (Glyph((int)Math.Min(level, 8)) is { } glyph)
+                    buf.SetString(x0 + i, inner.Bottom - 1 - row, glyph, style, 1);
             }
         }
     }
+
+    // Basic glyphs round to the nearest of empty, ▄ and █
+    private static string? Glyph(int eighths) => !Glyphs.Basic
+        ? Levels[eighths - 1].ToString()
+        : eighths switch { <= 2 => null, <= 5 => "▄", _ => "█" };
 }

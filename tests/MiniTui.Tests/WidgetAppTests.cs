@@ -21,8 +21,10 @@ public class WidgetAppTests
         var time = new FakeTimeProvider();
         var backend = new TestBackend(20, 2);
         var spinning = true;
+        var ticks = 0;
         var app = AppHarness.Create(backend, new ScriptedInputSource())
             .WithTimeProvider(time)
+            .OnEvent(e => { if (e is TickEvent) ticks++; })
             .Render((buf, area) => { if (spinning) Widget.Spinner().Frames(SpinnerFrames.Line).Draw(buf, area); });
 
         var run = AppHarness.Run(app);
@@ -35,17 +37,19 @@ public class WidgetAppTests
         time.Advance(TimeSpan.FromMilliseconds(100));
         await WaitFor(() => backend.Lines[0].StartsWith('\\'));
 
+        // OnUi completes before that iteration's frame, so a second round trip means the spinner-less frame was drawn.
+        // Count ticks rather than frames: posted actions redraw too, but only the timer ticks.
         await AppHarness.OnUi(app, () => spinning = false);
-        await AppHarness.OnUi(app, () => 0);
-        var draws = backend.DrawCount;
+        var before = await AppHarness.OnUi(app, () => ticks);
         time.Advance(TimeSpan.FromSeconds(5));
         await Task.Delay(50);
-        var after = backend.DrawCount;
+        var after = await AppHarness.OnUi(app, () => ticks);
         app.Quit();
         await run;
 
-        // With no tick rate configured, nothing redraws once the spinner is gone
-        Assert.Equal(draws, after);
+        // With no tick rate configured, the ticks stop once the spinner is gone
+        Assert.Equal(1, before);
+        Assert.Equal(before, after);
     }
 
     [Fact]

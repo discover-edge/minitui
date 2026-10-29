@@ -30,7 +30,7 @@ public sealed class SpinnerBuilder
     private Style? _style;
     private TimeProvider? _time;
 
-    /// <summary>The animation. The default is <see cref="SpinnerFrames.Braille"/>.</summary>
+    /// <summary>The animation. The default is <see cref="SpinnerFrames.Braille"/>, drawn as <see cref="SpinnerFrames.Line"/> in conhost, whose fonts lack braille.</summary>
     public SpinnerBuilder Frames(SpinnerFrames frames) { _frames = frames; return this; }
 
     /// <summary>Text after the spinner.</summary>
@@ -53,7 +53,7 @@ public sealed class SpinnerBuilder
         {
             SpinnerFrames.Line => LineFrames,
             SpinnerFrames.Dots => DotFrames,
-            _ => BrailleFrames,
+            _ => Glyphs.Basic ? LineFrames : BrailleFrames,
         };
         var time = _time ?? app?.Time ?? TimeProvider.System;
         var frame = frames[(int)(time.GetUtcNow().ToUnixTimeMilliseconds() / (long)FrameTime.TotalMilliseconds % frames.Length)];

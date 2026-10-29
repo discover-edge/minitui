@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Text editing (§8.4): any non-control character including surrogate pairs, cursor movement and deletion by grapheme cluster, Ctrl+←/→ by word, Ctrl+Backspace/Ctrl+W, Ctrl+U and Ctrl+K, and horizontal scrolling by display width. The text field shows the terminal cursor.
 - `KeyMap` (`Add`, `Handle`, `Hints`, `HelpLines`) and `KeyBinding` (`Parse`, `Matches`).
 - Spinners and visible toasts make the app tick while they're drawn, even with `WithTickRate(null)`.
+- In conhost (the classic Windows console, whose fonts have no fallback), widgets draw only glyphs its fonts have: gauges and sparklines use half and full blocks, the braille spinner becomes the line spinner, and rounded borders become single. Windows Terminal and other terminals keep the full glyphs.
 - Example: **Services** (the §3.1 async program against a fake HTTP API) and **Widgets** (every widget, theme toggle, Unicode panel) demos.
 - `Constraint` (`Length`, `Percentage`, `Ratio`, `Min`, `Max`, `Fill(weight)`), `Flex` and `Direction` for layouts.
 - `Layout.Add(name, Constraint)`, `Spacing`, `Margin`, `Flex` and `Layout.Split(area, direction, constraints)`.

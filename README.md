@@ -180,6 +180,9 @@ Widget.Table()
 | `Button()`, `Checkbox()` | Themed controls. |
 | `Modal()`, `Confirm()` | Centered dialogs; modal text wraps and scrolls with `State(ScrollState)`. |
 
+In conhost (the classic Windows console), whose fonts lack eighth blocks, braille and rounded corners,
+widgets switch to half and full blocks, the line spinner and single borders. Windows Terminal is unaffected.
+
 Spinners and visible toasts make the app tick (every 100 ms and 250 ms) even with `WithTickRate(null)`,
 and only while they're drawn. `toasts.Push(text, ToastLevel.Error)` is thread-safe; each toast shows
 for 4 seconds (or the `duration` you pass) from when it first appears.

@@ -118,7 +118,9 @@ public sealed class BlockBuilder
 
     private void DrawBorders(Buffer buf, Rect area, Style style)
     {
-        var (tl, tr, bl, br, h, v) = _borderType switch
+        // Conhost fonts have no rounded corners
+        var type = _borderType == BoxStyle.Rounded && Glyphs.Basic ? BoxStyle.Single : _borderType;
+        var (tl, tr, bl, br, h, v) = type switch
         {
             BoxStyle.Double => ("╔", "╗", "╚", "╝", "═", "║"),
             BoxStyle.Rounded => ("╭", "╮", "╰", "╯", "─", "│"),
