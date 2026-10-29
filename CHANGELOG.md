@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Event loop (§6): keys, ticks, resizes, posted actions and redraw requests go through one queue, handled on the thread that called `Run()`. Keys are read on a background thread.
+- `App.OnKey`, `OnEvent` (`KeyEvent`, `ResizeEvent`, `TickEvent`), `OnError` (`ErrorAction.Continue`/`Quit`/`Rethrow`) and `OnSetup(Action<App>)`.
+- `App.Post`, `RequestRedraw` and `Quit` are thread-safe. `App.RunTask` starts async work whose continuations resume on the UI thread (a `SynchronizationContext` is installed while running); its exceptions go to `OnError`.
+- `App.RunAsync`, `Stopping` (cancelled on quit), `Size` and `Log`.
+- `App.WithTickRate` (default 250 ms; `null` redraws only on events), `WithTimeProvider`, `WithBackend`, `WithInput`, `WithColorMode` and `CaptureConsoleOutput`.
+- `Loadable<T>` and `LoadStatus`: async load state with stale values, last-load-wins, cancellation and `Match`/`Switch`.
+- `LogBuffer` and `LogEntry`. While an app runs, `Console.Out` and `Console.Error` go into `app.Log`; error lines are written to stderr on exit.
+- `InputRouter.Global`, `InputRouter.Refresh` and `Add(name, handler, capturesText)`.
 - `ITerminalBackend` and `CellUpdate`. `Terminal(ITerminalBackend)` draws through any backend.
 - `AnsiBackend`, the new default: one buffered UTF-8 write per frame, synchronized output (`?2026`), cursor and SGR tracking so only changes are emitted, colors downsampled to the detected `ColorMode`. An unchanged frame writes zero bytes and allocates nothing.
 - `LegacyConsoleBackend`, used automatically on Windows consoles where VT can't be enabled (16 colors, no alternate screen). Line wrap is turned off while it runs, so the bottom-right cell doesn't scroll the screen.
@@ -27,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Rect.IsEmpty`, `Intersect`, `Clamp`, `Inner(Margin)`, `Rows()` and `Columns()`, and the `Margin` type.
 
 ### Changed
+- Version 0.8.0.
+- The app draws a frame only when something happened (input, tick, posted action, resize, redraw request) instead of every 16 ms.
+- In `RunWhile`, the condition is called once per key, with `Input.Poll()` returning that key, and once per wake-up without one. While an app reads the console, `Input.Poll()` elsewhere returns null instead of stealing its keys.
+- An app started from inside another app receives the keys the outer app hadn't handled yet, and returns the ones it didn't handle when it exits.
+- `OnSetup` runs on the UI thread after the terminal is entered, so it can `Post` and start loads.
 - On Windows, VT processing is enabled and the output encoding is set to UTF-8 while an app runs; both are restored afterwards.
 - `Buffer.Set` and `FillRect` store a symbol that starts with a zero-width character (a lone combining mark, ZWJ, VS16) as a space, and `SetString` skips such graphemes, so they can't merge with the neighbouring cell on screen.
 - `MiniTui.csproj` now builds with `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, missing XML docs (CS1591) as errors, `IsAotCompatible`, and deterministic/CI builds.
@@ -39,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Layout` moved to `Layout/Layout.cs`, `Buffer`/`Geometry` to `Core/` (no API change).
 
 ### Deprecated
+- `App.WithFrameDelay`. Use `WithTickRate`.
 - `Cell(char, ConsoleColor, ConsoleColor)`, `Cell.Char` and `Cell.From(char)`. Use `new Cell(string, Color, Color, Modifiers)`, `Cell.Symbol` and `Cell.Empty with { Symbol = ... }`.
 
 ### Removed
@@ -50,6 +64,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A frame is one write instead of thousands of console calls (D5).
 - The terminal is restored on SIGTERM, SIGHUP, SIGQUIT, process exit and unhandled exceptions.
 - Nested apps share the terminal session: the inner app doesn't clear the screen, and the outer app redraws fully when it exits, without `app.Invalidate()` (D17).
+- All pending keys are handled before the next frame (up to 256 per frame), so pasted text and key repeat are no longer throttled to one key per frame (D3).
+- `RunWhile` no longer drops keys: a key is either taken by the condition through `Input.Poll()` or passed to the router, never lost (D4).
+- `InputRouter` recomputes the modal stack every loop iteration (`Refresh`), so a modal opened from code is active at the next render without a key press (D12).
+- An idle app no longer redraws every 16 ms (D16).
 - README license section now states MIT, matching `LICENSE` and the package metadata (D18).
 - README box-style examples show the actual box-drawing glyphs (D18).
 - Drawing never throws for any coordinates or `Rect`, and `Rect.Shrink` never returns a negative size; an over-shrunk rect collapses to its center (D6). `Widgets.List`, `Table` and `Modal` no longer throw on narrow areas.

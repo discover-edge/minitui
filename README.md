@@ -47,17 +47,53 @@ App.Create()
 
 ### `App`
 
-Fluent builder for TUI applications. Handles the main loop, input routing, and modal auto-invalidation.
+Fluent builder for TUI applications. It runs an event loop: keys, ticks, resizes and posted actions
+go through one queue, and a frame is drawn only when something happened. All callbacks run on the
+thread that called `Run()`.
 
 ```csharp
 App.Create()
-    .UseRouter(router)           // Optional: attach input router
-    .OnSetup(() => { })          // Optional: run once before loop
-    .OnUpdate(() => { })         // Optional: run each frame before render
-    .WithFrameDelay(16)          // Optional: milliseconds between frames (default 16)
+    .UseRouter(router)                         // Optional: attach input router
+    .OnSetup(app => { })                       // Optional: run once before the first frame
+    .OnKey(key => false)                       // Optional: see keys first; true = handled
+    .OnEvent(e => { })                         // Optional: KeyEvent, ResizeEvent, TickEvent
+    .OnUpdate(() => { })                       // Optional: run each loop iteration before render
+    .OnError(ex => ErrorAction.Continue)       // Optional: default restores the terminal and rethrows
+    .WithTickRate(TimeSpan.FromMilliseconds(100)) // Optional: default 250 ms; null = redraw only on events
     .Render((buf, screen) => { })
-    .Run();                      // Or .RunWhile(() => condition)
+    .Run();                                    // Or .RunWhile(() => condition), or await .RunAsync()
 ```
+
+Ctrl+C always quits (unless `OnKey` takes it). In `RunWhile`, the condition runs once per key
+(`Input.Poll()` returns that key) and once per wake-up without one; a key the condition takes
+isn't passed to the router.
+
+From any thread, `app.Post(action)` runs code on the UI thread, `app.RequestRedraw()` asks for a
+frame and `app.Quit()` stops the loop. `app.RunTask(ct => WorkAsync(ct))` starts async work whose
+`await`s resume on the UI thread; its exceptions go to `OnError`, and `ct` is `app.Stopping`.
+
+While running, `Console.Out` and `Console.Error` are redirected into `app.Log` (a `LogBuffer` of
+the last 1,000 lines) so stray writes can't corrupt the screen. Error lines are written to stderr
+on exit. Turn this off with `.CaptureConsoleOutput(false)`.
+
+### `Loadable<T>`
+
+The state of an async load, for drawing loading, loaded and failed states:
+
+```csharp
+var services = new Loadable<IReadOnlyList<Service>>();
+
+app.OnSetup(a => services.Load(a, ct => api.ListAsync(ct)))  // cancels any load in flight
+   .Render((buf, screen) => services.Switch(
+       idle:    () => { },
+       loading: stale => DrawTable(buf, screen, stale),       // previous value, if any
+       loaded:  list  => DrawTable(buf, screen, list),
+       failed:  ex    => buf.SetString(0, 0, ex.Message, new Style(Color.Red))));
+```
+
+State changes happen on the UI thread and redraw. A newer load replaces an older one, and a failed
+fetch sets `Failed` instead of going to `OnError`. Pass a `lifetime` token to ignore results once
+its owner is gone.
 
 ### `InputRouter`
 
@@ -67,6 +103,8 @@ Routes keyboard input to named focus elements with Tab navigation.
 var router = new InputRouter()
     .Add("list", key => { /* handle list input */ })
     .Add("input", key => { /* handle text input */ })
+    .Add("search", key => { /* handle typing */ }, capturesText: true)
+    .Global(key => key.KeyChar == '?' && (showHelp = true)) // runs before focus routing, not while typing
     .WithModal(() => showHelp, _ => showHelp = false)
     .StartWith("input");
 
@@ -194,8 +232,27 @@ Assert.Equal("Hello", backend.Lines[0].TrimEnd());
 Assert.Equal(Color.Reset, backend.CellAt(0, 0).Fg);
 ```
 
-`ScriptedInputSource` (`Enqueue`, `EnqueueText`) provides scripted key presses through the
-`IInputSource` interface; the app loop will accept one in a future release.
+To test a whole app, give it a `TestBackend` and a `ScriptedInputSource` (`Enqueue`, `EnqueueText`):
+
+```csharp
+var backend = new TestBackend(40, 10);
+var input = new ScriptedInputSource().EnqueueText("kkq");
+var count = 0;
+
+var app = App.Create().WithBackend(backend).WithInput(input).WithTickRate(null);
+app.OnKey(key =>
+    {
+        if (key.KeyChar == 'k') count++;
+        if (key.KeyChar == 'q') app.Quit();
+        return true;
+    })
+    .Render((buf, _) => buf.SetString(0, 0, $"Count: {count}", Style.Default))
+    .Run();
+
+Assert.Equal(2, count);  // q quits before another frame is drawn; check screens with RunAsync while running
+```
+
+`WithTimeProvider(new FakeTimeProvider())` (from `Microsoft.Extensions.TimeProvider.Testing`) controls ticks.
 
 ### `Rect` & `Vec2`
 
@@ -215,7 +272,7 @@ foreach (var row in area.Rows()) { /* one Rect per row */ }
 Input handling and state management.
 
 ```csharp
-var key = Input.Poll();          // Non-blocking
+var key = Input.Poll();          // Non-blocking; inside RunWhile, the key the app is delivering
 if (Input.IsQuit(key)) break;    // Check for q/Esc/Ctrl+C
 
 // State types
@@ -317,7 +374,7 @@ MiniTui/
 ├── src/
 │   ├── MiniTui.sln
 │   ├── MiniTui/
-│   │   ├── App.cs          # Fluent app builder
+│   │   ├── App/            # App builder and loop, Loadable, LogBuffer, events
 │   │   ├── Core/           # Color, Style, Cell, Buffer, Rect/Vec2/Margin
 │   │   ├── Text/           # Span, Line, Text, sanitizing, Unicode width
 │   │   ├── Layout/         # Layout builder

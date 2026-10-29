@@ -1,0 +1,25 @@
+namespace MiniTui.Tests;
+
+// Keeps the README's app-testing example honest.
+public class ReadmeSnippetTests
+{
+    [Fact]
+    public void TestingAWholeApp()
+    {
+        var backend = new TestBackend(40, 10);
+        var input = new ScriptedInputSource().EnqueueText("kkq");
+        var count = 0;
+
+        var app = App.Create().WithBackend(backend).WithInput(input).WithTickRate(null).CaptureConsoleOutput(false);
+        app.OnKey(key =>
+            {
+                if (key.KeyChar == 'k') count++;
+                if (key.KeyChar == 'q') app.Quit();
+                return true;
+            })
+            .Render((buf, _) => buf.SetString(0, 0, $"Count: {count}", Style.Default))
+            .Run();
+
+        Assert.Equal(2, count);
+    }
+}

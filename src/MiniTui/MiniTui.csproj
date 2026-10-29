@@ -23,7 +23,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MiniTui</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>discover-edge</Authors>
     <Description>A minimal, immediate-mode TUI framework for .NET inspired by ratatui</Description>
     <PackageTags>tui;terminal;console;ui;immediate-mode</PackageTags>

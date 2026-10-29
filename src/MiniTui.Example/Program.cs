@@ -147,6 +147,7 @@ void RunProgress()
     var autoRun = false;
 
     App.Create()
+        .WithTickRate(TimeSpan.FromMilliseconds(30))
         .OnUpdate(() =>
         {
             if (autoRun)
@@ -269,7 +270,7 @@ void RunDashboard()
     var startTime = DateTime.Now;
 
     App.Create()
-        .WithFrameDelay(50)
+        .WithTickRate(TimeSpan.FromMilliseconds(50))
         .OnUpdate(() =>
         {
             // Simulate new log entries
