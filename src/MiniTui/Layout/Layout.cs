@@ -55,18 +55,6 @@ public class Layout
     }
 
     /// <summary>
-    /// Add a region with a fixed size.
-    /// </summary>
-    [Obsolete("Use Add(name, Constraint.Length(size)) instead.")]
-    public Layout Add(string name, int size) => Add(name, Constraint.Length(Math.Max(0, size)));
-
-    /// <summary>
-    /// Add a region that fills remaining space.
-    /// </summary>
-    [Obsolete("Use Add(name, Constraint.Fill()) instead.")]
-    public Layout AddFill(string name) => Add(name, Constraint.Fill());
-
-    /// <summary>
     /// Leave <paramref name="cells"/> empty cells between regions. Reduced if it doesn't fit.
     /// </summary>
     public Layout Spacing(int cells)

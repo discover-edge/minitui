@@ -29,17 +29,4 @@ public readonly record struct Cell(string Symbol, Color Fg, Color Bg, Modifiers 
 
     /// <summary>True for the cell that follows a wide character.</summary>
     public bool IsContinuation => Symbol.Length == 0;
-
-    /// <summary>Create a cell from a character and console colors.</summary>
-    [Obsolete("Use new Cell(string, Color, Color, Modifiers) instead.")]
-    public Cell(char c, ConsoleColor fg, ConsoleColor bg)
-        : this(Symbols.Of(c), fg, bg, Modifiers.None) { }
-
-    /// <summary>The first UTF-16 code unit of <see cref="Symbol"/>, or a space for a continuation cell.</summary>
-    [Obsolete("Use Symbol instead.")]
-    public char Char => Symbol.Length > 0 ? Symbol[0] : ' ';
-
-    /// <summary>Create a cell from a character with the terminal's default colors.</summary>
-    [Obsolete("Use Cell.Empty with { Symbol = ... } instead.")]
-    public static Cell From(char c) => Empty with { Symbol = Symbols.Of(c) };
 }

@@ -1,6 +1,4 @@
 // Regression tests for the baseline defects in docs/SPEC.md §2.
-// Some use the 0.7 Cell(char, ConsoleColor, ConsoleColor) shim on purpose.
-#pragma warning disable CS0618
 
 using Buffer = MiniTui.Buffer;
 
@@ -38,77 +36,78 @@ public class DefectTests
     }
 
     [Fact]
-    public void D9_DrawText_WideCharacterOccupiesTwoColumns()
+    public void D9_SetString_WideCharacterOccupiesTwoColumns()
     {
         var buf = new Buffer(5, 1);
 
-        buf.DrawText(0, 0, "日x");
+        buf.SetString(0, 0, "日x", Style.Default);
 
-        Assert.Equal('日', buf.Get(0, 0).Char);
-        Assert.Equal('x', buf.Get(2, 0).Char);
+        Assert.Equal("日", buf.Get(0, 0).Symbol);
+        Assert.True(buf.Get(1, 0).IsContinuation);
+        Assert.Equal("x", buf.Get(2, 0).Symbol);
     }
 
     [Fact]
-    public void D9_DrawText_DoesNotSplitSurrogatePairs()
+    public void D9_SetString_DoesNotSplitSurrogatePairs()
     {
         var buf = new Buffer(5, 1);
 
-        buf.DrawText(0, 0, "👍x");
+        buf.SetString(0, 0, "👍x", Style.Default);
 
-        Assert.False(char.IsSurrogate(buf.Get(1, 0).Char));
-        Assert.Equal('x', buf.Get(2, 0).Char);
+        Assert.Equal("👍", buf.Get(0, 0).Symbol);
+        Assert.Equal("x", buf.Get(2, 0).Symbol);
     }
 
     [Fact]
-    public void D10_DrawText_KeepsExistingBackground()
+    public void D10_SetString_KeepsExistingBackground()
     {
         var buf = new Buffer(3, 1);
-        buf.FillRect(buf.Area, new Cell(' ', ConsoleColor.Gray, ConsoleColor.Blue));
+        buf.FillRect(buf.Area, Cell.Empty with { Bg = Color.Blue });
 
-        buf.DrawText(0, 0, "x", ConsoleColor.White);
+        buf.SetString(0, 0, "x", new Style(Color.White));
 
-        Assert.Equal(new Cell('x', ConsoleColor.White, ConsoleColor.Blue), buf.Get(0, 0));
+        Assert.Equal(new Cell("x", Color.White, Color.Blue, Modifiers.None), buf.Get(0, 0));
     }
 
     [Fact]
-    public void D10_DrawBox_KeepsExistingBackground()
+    public void D10_Block_KeepsExistingBackground()
     {
         var buf = new Buffer(3, 3);
-        buf.FillRect(buf.Area, new Cell(' ', ConsoleColor.Gray, ConsoleColor.Blue));
+        buf.FillRect(buf.Area, Cell.Empty with { Bg = Color.Blue });
 
-        buf.DrawBox(buf.Area, ConsoleColor.White);
+        Widget.Block().BorderStyle(new Style(Color.White)).Draw(buf, buf.Area);
 
-        Assert.Equal(new Cell('┌', ConsoleColor.White, ConsoleColor.Blue), buf.Get(0, 0));
+        Assert.Equal(new Cell("┌", Color.White, Color.Blue, Modifiers.None), buf.Get(0, 0));
     }
 
     [Fact]
     public void D10_EmptyCell_DoesNotHardcodeBlackBackground()
     {
-        Assert.NotEqual(new Cell(' ', ConsoleColor.Gray, ConsoleColor.Black), Cell.Empty);
+        Assert.Equal(Color.Reset, Cell.Empty.Bg);
     }
 
     [Fact]
-    public void D14_DrawText_ReplacesControlCharacters()
+    public void D14_SetString_ReplacesControlCharacters()
     {
         var buf = new Buffer(6, 1);
 
-        buf.DrawText(0, 0, "\x1b[31mX");
+        buf.SetString(0, 0, "\x1b[31mX", Style.Default);
 
-        Assert.Equal('�', buf.Get(0, 0).Char);
-        Assert.Equal('[', buf.Get(1, 0).Char);
-        Assert.Equal('X', buf.Get(5, 0).Char);
+        Assert.Equal("\uFFFD", buf.Get(0, 0).Symbol);
+        Assert.Equal("[", buf.Get(1, 0).Symbol);
+        Assert.Equal("X", buf.Get(5, 0).Symbol);
     }
 
     [Theory]
-    [InlineData('\0')]
-    [InlineData('\x7f')]
-    [InlineData('\u009b')]
-    public void D14_Cell_ReplacesControlCharacters(char c)
+    [InlineData("\0")]
+    [InlineData("\x7f")]
+    [InlineData("\u009b")]
+    public void D14_Cell_ReplacesControlCharacters(string c)
     {
         var buf = new Buffer(1, 1);
 
-        buf.Set(0, 0, new Cell(c, ConsoleColor.Gray, ConsoleColor.Black));
+        buf.Set(0, 0, Cell.Empty with { Symbol = c });
 
-        Assert.Equal('�', buf.Get(0, 0).Char);
+        Assert.Equal("\uFFFD", buf.Get(0, 0).Symbol);
     }
 }

@@ -1,6 +1,3 @@
-// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
-#pragma warning disable CS0618
-
 using Microsoft.Extensions.Time.Testing;
 
 namespace MiniTui.Tests;
@@ -248,21 +245,18 @@ public class AppLoopTests
     }
 
     [Fact]
-    public async Task OnEvent_SeesKeys_AndOnKeyHandledKeysSkipTheRouter()
+    public async Task OnEvent_SeesKeys_AndOnKeyHandledKeysSkipRouting()
     {
         var input = new ScriptedInputSource().EnqueueText("ab");
         var events = new List<Event>();
         var routed = new List<char>();
-        App app = null!;
-        app = AppHarness.Create(new TestBackend(20, 5), input)
-            .UseRouter(new InputRouter().Add("main", key =>
-            {
-                routed.Add(key.KeyChar);
-                app.Quit();
-            }))
-            .OnEvent(events.Add)
-            .OnKey(key => key.KeyChar == 'a')
-            .Render((_, _) => { });
+        var app = AppHarness.Create(new TestBackend(20, 5), input);
+        app.Screens.Push(new RecordingScreen(key =>
+        {
+            routed.Add(key.KeyChar);
+            app.Quit();
+        }));
+        app.OnEvent(events.Add).OnKey(key => key.KeyChar == 'a');
 
         await AppHarness.Run(app);
 
@@ -333,52 +327,49 @@ public class AppLoopTests
     }
 
     [Fact]
-    public async Task WithFrameDelay_MapsToTheTickRate()
-    {
-        var time = new FakeTimeProvider();
-        var backend = new TestBackend(20, 5);
-        var app = AppHarness.Create(backend, new ScriptedInputSource()).WithTimeProvider(time).WithFrameDelay(50)
-            .Render((_, _) => { });
-
-        var run = AppHarness.Run(app);
-        await WaitFor(() => backend.DrawCount == 1);
-        time.Advance(TimeSpan.FromMilliseconds(50));
-        await WaitFor(() => backend.DrawCount == 2);
-        app.Quit();
-        await run;
-    }
-
-    [Fact]
     public async Task NestedApp_GetsTheKeysTheOuterAppHasNotHandled_AndReturnsTheRest()
     {
-        // The Example's pattern: the outer menu starts a demo app from its RunWhile condition
+        // An app run from inside another app's key handler, on the same input
         var input = new ScriptedInputSource().EnqueueText("ab\rcdqef").Enqueue(AppHarness.Key('q'));
         var backend = new TestBackend(20, 5);
         var outer = new List<char>();
         var inner = new List<char>();
 
         var app = AppHarness.Create(backend, input).Render((_, _) => { });
-        await AppHarness.RunWhile(app, () =>
+        app.OnKey(key =>
         {
-            var key = Input.Poll();
-            if (key is null) return true;
-            if (key.Value.KeyChar == 'q') return false;
-            outer.Add(key.Value.KeyChar);
-            if (key.Value.Key == ConsoleKey.Enter)
+            if (key.KeyChar == 'q')
             {
-                AppHarness.Create(backend, input).Render((_, _) => { }).RunWhile(() =>
-                {
-                    var k = Input.Poll();
-                    if (k?.KeyChar == 'q') return false;
-                    if (k is not null) inner.Add(k.Value.KeyChar);
-                    return true;
-                });
+                app.Quit();
+                return true;
             }
+            outer.Add(key.KeyChar);
+            if (key.Key != ConsoleKey.Enter) return true;
+
+            var nested = AppHarness.Create(backend, input).Render((_, _) => { });
+            nested.OnKey(k =>
+            {
+                if (k.KeyChar == 'q') nested.Quit();
+                else inner.Add(k.KeyChar);
+                return true;
+            }).Run();
             return true;
         });
+        await AppHarness.Run(app);
 
         Assert.Equal(['a', 'b', '\r', 'e', 'f'], outer);
         Assert.Equal(['c', 'd'], inner);
+    }
+
+    private sealed class RecordingScreen(Action<ConsoleKeyInfo> onKey) : Screen
+    {
+        public override bool HandleKey(ConsoleKeyInfo key)
+        {
+            onKey(key);
+            return true;
+        }
+
+        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx) { }
     }
 
     private static async Task WaitFor(Func<bool> condition)

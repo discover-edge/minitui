@@ -1,13 +1,23 @@
 # MiniTui
 
-A minimal, immediate-mode TUI (Text User Interface) framework for C#. No dependencies, no magic.
+A minimal, immediate-mode TUI (Text User Interface) framework for .NET, inspired by
+[Ratatui](https://ratatui.rs). No runtime dependencies.
 
-## Philosophy
+- **Immediate mode:** you describe the UI every frame. No retained widget tree, no diffing of components.
+- **Fast, flicker-free output:** double-buffered; only changed cells are sent to the terminal, in one write.
+- **Correct text:** display-width measuring for CJK and emoji, and no escape-sequence injection from data.
+- **Async-first:** HTTP calls never block the UI; results come back on the UI thread.
+- **Scales up:** screens, components, focus scopes, overlays and scoped key bindings for larger tools.
+- **Safe terminal:** restored on exit, Ctrl+C, crashes, SIGTERM/SIGHUP and window close.
 
-- **Immediate mode**: You describe the UI every frame. No hidden state, no retained widgets.
-- **Double-buffered**: Only changed cells write to the terminal. Fast and flicker-free.
-- **Fluent APIs**: Chainable builders guide you through configuration.
-- **Composable**: Everything builds from simple primitives.
+## Install
+
+```bash
+dotnet add package MiniTui
+```
+
+Requires .NET 10. Works in Windows Terminal, conhost (with reduced glyphs), macOS Terminal, iTerm2, tmux,
+SSH sessions and Linux terminals. It's trim- and AOT-compatible.
 
 ## Quick Start
 
@@ -24,7 +34,7 @@ progress bars, a dashboard, a command line and tabs, plus:
 
 Esc or `q` goes back, `?` lists the keys for the current screen, and Ctrl+C quits.
 
-## Usage Pattern
+## A small app
 
 A small app is one render callback and a `KeyMap`:
 
@@ -48,7 +58,61 @@ app.OnKey(keys.Handle)
     .Run();
 ```
 
-A larger app is a stack of screens built from components (see [Screens and components](#screens-and-components)):
+## Async data and HTTP
+
+Load data with a `Loadable<T>` and draw each state. Loads run off the UI thread; their results, and every
+`await` in `RunTask`, come back on it.
+
+```csharp
+var services = new Loadable<IReadOnlyList<ServiceDto>>();
+var selection = new SelectionState();
+var toasts = new ToastQueue();
+var app = App.Create();
+
+var keys = new KeyMap()
+    .Add("r", "Refresh", () => services.Load(app, ct => api.ListAsync(ct)))   // cancels a load in flight
+    .Add("j,down", "Down", () => selection.Next(services.Value?.Count ?? 0))
+    .Add("k,up", "Up", () => selection.Previous(services.Value?.Count ?? 0))
+    .Add("q,ctrl+c", "Quit", () => app.Quit());
+
+app.OnSetup(a => services.Load(a, ct => api.ListAsync(ct)))
+    .OnKey(keys.Handle)
+    .OnError(ex => { toasts.Push(ex.Message, ToastLevel.Error); return ErrorAction.Continue; })
+    .Render((buf, screen) =>
+    {
+        var layout = Layout.Vertical(screen).Add("body", Constraint.Fill()).Add("status", Constraint.Length(1)).Build();
+
+        services.Switch(
+            idle:    () => Widget.Paragraph().Text("Press r to load").Draw(buf, layout["body"]),
+            loading: stale => DrawTable(buf, layout["body"], stale),     // the previous value, if any
+            loaded:  list  => DrawTable(buf, layout["body"], list),
+            failed:  ex    => Widget.Paragraph().Text(new Line(ex.Message, Theme.Current.Error)).Wrap(WrapMode.Word)
+                                  .Block(Widget.Block().Title(" Error ")).Draw(buf, layout["body"]));
+
+        Widget.StatusBar().Left(keys.Hints(screen.Width / 2)).Draw(buf, layout["status"]);
+        Widget.Toasts().Queue(toasts).Draw(buf, screen);
+    })
+    .Run();
+
+void DrawTable(Buffer buf, Rect area, IReadOnlyList<ServiceDto>? list) =>
+    Widget.Table()
+        .Block(Widget.Block().Title(" Services "))
+        .Header("Name", "Status", "Version")
+        .Columns(Constraint.Fill(), Constraint.Length(10), Constraint.Length(12))
+        .Rows(list ?? [], s => new Row(s.Name, new Line(s.Status, s.Healthy ? Theme.Current.Success : Theme.Current.Error), s.Version))
+        .State(selection)
+        .Focused()
+        .Draw(buf, area);
+```
+
+`Loadable<T>` holds `Status` (`Idle`, `Loading`, `Loaded`, `Failed`), the last `Value` (kept while
+reloading and after a failure), `Error` and `LoadedAt`. State changes happen on the UI thread and redraw.
+A newer load replaces an older one, and a failed fetch sets `Failed` instead of going to `OnError`. Pass a
+`lifetime` token (or use `Component.Load`) to ignore results once their owner is gone.
+
+## Larger apps: screens and components
+
+A larger app is a stack of screens built from components:
 
 ```csharp
 var app = App.Create().WithTheme(Theme.Default);   // status bar with key hints and a breadcrumb
@@ -86,58 +150,6 @@ sealed class ServicesScreen(ServicesClient api) : Screen
     }
 }
 ```
-
-## Core Types
-
-### `App`
-
-Fluent builder for TUI applications. It runs an event loop: keys, ticks, resizes and posted actions
-go through one queue, and a frame is drawn only when something happened. All callbacks run on the
-thread that called `Run()`.
-
-```csharp
-App.Create()
-    .OnSetup(app => { })                       // Optional: run once before the first frame
-    .OnKey(key => false)                       // Optional: see keys first; true = handled
-    .OnEvent(e => { })                         // Optional: KeyEvent, ResizeEvent, TickEvent
-    .OnUpdate(() => { })                       // Optional: run each loop iteration before render
-    .OnError(ex => ErrorAction.Continue)       // Optional: default restores the terminal and rethrows
-    .WithTickRate(TimeSpan.FromMilliseconds(100)) // Optional: default 250 ms; null = redraw only on events
-    .Render((buf, screen) => { })
-    .Run();                                    // Or await .RunAsync()
-```
-
-Ctrl+C always quits (unless `OnKey` takes it). An app uses either a `Render` callback or `Screens`;
-`Overlays` (dialogs) and `Toasts` work with both.
-
-From any thread, `app.Post(action)` runs code on the UI thread, `app.RequestRedraw()` asks for a
-frame and `app.Quit()` stops the loop. `app.RunTask(ct => WorkAsync(ct))` starts async work whose
-`await`s resume on the UI thread; its exceptions go to `OnError`, and `ct` is `app.Stopping`.
-
-While running, `Console.Out` and `Console.Error` are redirected into `app.Log` (a `LogBuffer` of
-the last 1,000 lines) so stray writes can't corrupt the screen. Error lines are written to stderr
-on exit. Turn this off with `.CaptureConsoleOutput(false)`.
-
-### `Loadable<T>`
-
-The state of an async load, for drawing loading, loaded and failed states:
-
-```csharp
-var services = new Loadable<IReadOnlyList<Service>>();
-
-app.OnSetup(a => services.Load(a, ct => api.ListAsync(ct)))  // cancels any load in flight
-   .Render((buf, screen) => services.Switch(
-       idle:    () => { },
-       loading: stale => DrawTable(buf, screen, stale),       // previous value, if any
-       loaded:  list  => DrawTable(buf, screen, list),
-       failed:  ex    => buf.SetString(0, 0, ex.Message, new Style(Color.Red))));
-```
-
-State changes happen on the UI thread and redraw. A newer load replaces an older one, and a failed
-fetch sets `Failed` instead of going to `OnError`. Pass a `lifetime` token to ignore results once
-its owner is gone.
-
-### Screens and components
 
 Components are plain classes that hold state, handle keys and render every frame; there's no retained
 widget tree. A parent renders its children explicitly with `child.Render(buf, rect, ctx.For(child))`.
@@ -188,20 +200,7 @@ sealed class FilesScreen : Screen
 - **Overlays:** `app.Overlays.ConfirmAsync(message)`, `ShowMessageAsync(title, text)`, `ShowHelp()`, or
   `Show(new CommandLineOverlay(registry))` and your own `Overlay` subclasses.
 
-Test a screen with `ComponentHarness`, which runs the app one step at a time on a test terminal:
-
-```csharp
-using var harness = new ComponentHarness(new ServicesScreen(fakeApi), width: 80, height: 24);
-harness.Press("j j enter");                       // KeyBinding names
-Assert.IsType<DetailScreen>(harness.App.Screens.Top);
-harness.Type("hello");
-Assert.Contains(harness.Lines, l => l.Contains("hello"));
-```
-
-Each call handles the keys, posted work and `await` continuations until nothing is in flight, then draws
-a frame.
-
-### `Layout`
+## Layout
 
 Fluent builder for creating named layout regions. Sizes are computed with exact integer
 arithmetic: regions never overlap, never leave the area, and rounding never drops a cell.
@@ -232,7 +231,7 @@ When the fixed sizes don't fit, `Length`, `Percentage` and `Ratio` shrink propor
 then `Min`. Space that nothing can grow into is placed by `.Flex(Flex.Start | End | Center |
 SpaceBetween)`. `.Margin(new Margin(1))` insets the area first.
 
-### `Widget`
+## Widgets
 
 Factory for fluent widget builders. Every widget draws with `Theme.Current`, measures text by display
 width (truncating with `…`), and never throws, whatever the area.
@@ -241,7 +240,7 @@ width (truncating with `…`), and never throws, whatever the area.
 Widget.Table()
     .Block(Widget.Block().Title(" Services "))
     .Header("Name", "Status", "Version")
-    .Columns(Constraint.Fill(), Constraint.Length(10), Constraint.Length(12))  // §7 constraints
+    .Columns(Constraint.Fill(), Constraint.Length(10), Constraint.Length(12))  // layout constraints
     .Rows(services, s => new Row(s.Name, new Line(s.Status, Theme.Current.Success), s.Version))
     .State(selection)                       // SelectionState: scrolled to keep the selection visible
     .Focused()
@@ -263,7 +262,6 @@ Widget.Table()
 | `TextField()`, `CommandLine()` | Single-line input from `TextFieldState` / `CommandLineState`, scrolled by display width, with the terminal cursor shown. |
 | `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
 | `Button()`, `Checkbox()` | Themed controls. |
-| `Modal()`, `Confirm()` | Centered dialogs; modal text wraps and scrolls with `State(ScrollState)`. |
 
 In conhost (the classic Windows console), whose fonts lack eighth blocks, braille and rounded corners,
 widgets switch to half and full blocks, the line spinner and single borders. Windows Terminal is unaffected.
@@ -272,11 +270,12 @@ Spinners and visible toasts make the app tick (every 100 ms and 250 ms) even wit
 and only while they're drawn. `toasts.Push(text, ToastLevel.Error)` is thread-safe; each toast shows
 for 4 seconds (or the `duration` you pass) from when it first appears.
 
-### `Theme`
+## Theming
 
 The styles widgets draw with. `Theme.Default` leaves backgrounds to the terminal except for bars,
 buttons and selections, so light terminal themes work. `Theme.Monochrome` uses only bold, underline
-and reverse; the app picks it automatically when the terminal has no colors (`NO_COLOR`).
+and reverse. When the terminal has no colors (`NO_COLOR`), the app uses it in place of `Theme.Default`,
+even if you chose `Theme.Default` explicitly, so the selection stays visible; custom themes are used as is.
 
 ```csharp
 app.WithTheme(Theme.Default with { Selection = new Style(Color.Black, Color.Yellow) });
@@ -285,7 +284,7 @@ app.WithTheme(Theme.Default with { Selection = new Style(Color.Black, Color.Yell
 `Theme.Current` is the running app's theme on its UI thread. `WithTheme` can be called while running.
 Builders take `.Style(...)` (and `HighlightStyle`, `BorderStyle`, …) overrides, patched over the theme.
 
-### State classes and `KeyMap`
+## Keys and widget state
 
 Widget state is a mutable class that handles its own keys; widgets write render-time facts (viewport
 size, scroll offset) back into it while drawing.
@@ -293,7 +292,7 @@ size, scroll offset) back into it while drawing.
 | State | Keys | Used by |
 |---|---|---|
 | `SelectionState` | ↑ ↓ j k PgUp PgDn Home End, plus `Next`/`Previous`/`PageDown`/`First`/`Last` | List, Table |
-| `ScrollState` | ↑ ↓ j k PgUp PgDn Home End | Paragraph, Modal |
+| `ScrollState` | ↑ ↓ j k PgUp PgDn Home End | Paragraph, MessageDialog |
 | `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end) | TextField |
 | `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
 | `TabBarState` | ← → h l | TabBar |
@@ -317,7 +316,7 @@ tab backspace delete insert up down left right home end pgup pgdn space f1`–`f
 matches what was typed, so `"R"` and `"shift+r"` both mean Shift+R. `KeyBinding.Parse` throws
 `FormatException` for anything else.
 
-### `Buffer`
+## Drawing on the `Buffer`
 
 Your canvas. Draw to it, the terminal handles the rest.
 
@@ -353,7 +352,7 @@ var merged = baseStyle.Patch(style);
 implicitly. `UnicodeWidth.Of(text)` and `UnicodeWidth.Truncate(text, maxWidth)` measure and cut text
 by display width.
 
-### `Terminal`
+## The terminal
 
 Manages the actual console. Double-buffers for performance: each frame, only the cells that changed
 are sent to the backend, as one write.
@@ -374,22 +373,32 @@ Colors are downsampled to what the terminal supports (`NO_COLOR`, `COLORTERM`, `
 `ColorCapability.Detect`). Stdin and stdout must be a terminal: if either is redirected,
 `TerminalNotSupportedException` is thrown.
 
-### Backends and testing
+### Backends
 
 `Terminal` draws through an `ITerminalBackend`:
 
 - `AnsiBackend`, the default: ANSI/VT escape sequences, synchronized output, 16/256/truecolor.
 - `LegacyConsoleBackend`: the `System.Console` API, used automatically on Windows consoles without VT support (16 colors).
-- `TestBackend`: an in-memory screen for testing your own rendering.
+- `TestBackend`: an in-memory screen for tests (see [Testing](#testing)).
+
+## Testing
+
+### Screens and components
+
+Test a screen with `ComponentHarness`, which runs the app one step at a time on a test terminal:
 
 ```csharp
-var backend = new TestBackend(40, 10);
-using (var terminal = new Terminal(backend))
-    terminal.Draw(buf => buf.SetString(0, 0, "Hello", Style.Default));
-
-Assert.Equal("Hello", backend.Lines[0].TrimEnd());
-Assert.Equal(Color.Reset, backend.CellAt(0, 0).Fg);
+using var harness = new ComponentHarness(new ServicesScreen(fakeApi), width: 80, height: 24);
+harness.Press("j j enter");                       // KeyBinding names
+Assert.IsType<DetailScreen>(harness.App.Screens.Top);
+harness.Type("hello");
+Assert.Contains(harness.Lines, l => l.Contains("hello"));
 ```
+
+Each call handles the keys, posted work and `await` continuations until nothing is in flight, then draws
+a frame.
+
+### Whole apps and rendering
 
 To test a whole app, give it a `TestBackend` and a `ScriptedInputSource` (`Enqueue`, `EnqueueText`):
 
@@ -413,6 +422,48 @@ Assert.Equal(2, count);  // q quits before another frame is drawn; check screens
 
 `WithTimeProvider(new FakeTimeProvider())` (from `Microsoft.Extensions.TimeProvider.Testing`) controls ticks.
 
+To test your own drawing code, draw into a `Terminal` over a `TestBackend`:
+
+```csharp
+var backend = new TestBackend(40, 10);
+using (var terminal = new Terminal(backend))
+    terminal.Draw(buf => buf.SetString(0, 0, "Hello", Style.Default));
+
+Assert.Equal("Hello", backend.Lines[0].TrimEnd());
+Assert.Equal(Color.Reset, backend.CellAt(0, 0).Fg);
+```
+
+## Reference
+
+### `App`
+
+Fluent builder for TUI applications. It runs an event loop: keys, ticks, resizes and posted actions
+go through one queue, and a frame is drawn only when something happened. All callbacks run on the
+thread that called `Run()`.
+
+```csharp
+App.Create()
+    .OnSetup(app => { })                       // Optional: run once before the first frame
+    .OnKey(key => false)                       // Optional: see keys first; true = handled
+    .OnEvent(e => { })                         // Optional: KeyEvent, ResizeEvent, TickEvent
+    .OnUpdate(() => { })                       // Optional: run each loop iteration before render
+    .OnError(ex => ErrorAction.Continue)       // Optional: default restores the terminal and rethrows
+    .WithTickRate(TimeSpan.FromMilliseconds(100)) // Optional: default 250 ms; null = redraw only on events
+    .Render((buf, screen) => { })
+    .Run();                                    // Or await .RunAsync()
+```
+
+Ctrl+C always quits (unless `OnKey` takes it). An app uses either a `Render` callback or `Screens`;
+`Overlays` (dialogs) and `Toasts` work with both.
+
+From any thread, `app.Post(action)` runs code on the UI thread, `app.RequestRedraw()` asks for a
+frame and `app.Quit()` stops the loop. `app.RunTask(ct => WorkAsync(ct))` starts async work whose
+`await`s resume on the UI thread; its exceptions go to `OnError`, and `ct` is `app.Stopping`.
+
+While running, `Console.Out` and `Console.Error` are redirected into `app.Log` (a `LogBuffer` of
+the last 1,000 lines) so stray writes can't corrupt the screen. Error lines are written to stderr
+on exit. Turn this off with `.CaptureConsoleOutput(false)`.
+
 ### `Rect` & `Vec2`
 
 Geometry helpers with layout utilities.
@@ -425,21 +476,6 @@ var content = area.Inner(new Margin(Left: 1, Top: 2, Right: 1, Bottom: 0));
 var visible = area.Intersect(screen);
 foreach (var row in area.Rows()) { /* one Rect per row */ }
 ```
-
-### Replaced APIs
-
-These 0.7 APIs still work in 0.9 but are obsolete, and are removed in 1.0:
-
-| Obsolete | Use instead |
-|---|---|
-| `RunWhile`, `Input.Poll`, `Input.Read`, `WithFrameDelay` | `Run`/`RunAsync` with `OnKey`, a `KeyMap` or screens; `WithTickRate` |
-| `Input.IsKey`, `IsChar`, `IsQuit`, `InputHelpers.IsListNavigationKey` | `KeyMap`, `KeyBinding` |
-| `InputRouter`, `UseRouter`, `FocusManager` | screens, components and `FocusScope` |
-| `Widget.Modal`, `Widget.Confirm`, `ConfirmState`, `HandleConfirmInput`, `InputRouter.WithModal`, `IsModalDismissKey` | `app.Overlays.ShowMessageAsync`, `ConfirmAsync`, custom `Overlay`s |
-| `ListState`, `TextInputState`, `CommandInputState`, `TabsState` and `InputHelpers.Handle*` | `SelectionState`, `TextFieldState`, `CommandLineState`, `TabBarState` |
-| `Widgets.*` (static), `Widget.CommandInput`, `Widget.Tabs` | the `Widget.*` builders, `Widget.CommandLine`, `Widget.TabBar` |
-| `Buffer.DrawText`, `DrawTextCentered`, `DrawBox`, `DrawBoxWithTitle`, `DrawProgressBar` | `SetString`, `Widget.Paragraph`, `Widget.Block`, `Widget.Gauge` |
-| `Layout.Add(name, int)`, `AddFill` | `Add(name, Constraint.Length(n))`, `Constraint.Fill()` |
 
 ### `ParsedCommand`
 
@@ -464,6 +500,25 @@ Widget.StatusBar()
     .Message(status, "Default status text")
     .Draw(buf, area);
 ```
+
+### `CommandRegistry`
+
+Commands with aliases, usage, descriptions and subcommands, for a `:` command line:
+
+```csharp
+var commands = CommandRegistry.Create()
+    .Add("add", "a").Usage("<text>").Description("Add a note").Handler(cmd => notes.Add(cmd.ArgsAsString))
+    .Add("quit", "q").Handler(_ => CommandResult.Quit())
+    .Build();
+
+app.Keys.Add(":", "Command", () => app.Overlays.Show(new CommandLineOverlay(commands)));
+```
+
+## Upgrading from 0.7
+
+1.0 removes the 0.7 APIs that were obsolete in 0.8 and 0.9: `RunWhile`/`Input.Poll`, `InputRouter`, the
+value-type widget states, the static `Widgets` functions and the `ConsoleColor` drawing methods.
+[docs/MIGRATION-0.7-to-1.0.md](docs/MIGRATION-0.7-to-1.0.md) maps each one to its replacement.
 
 ## Extending
 
@@ -520,15 +575,15 @@ MiniTui/
 │   │   ├── Layout/         # Layout builder, constraints and solver
 │   │   ├── Terminal/       # Terminal, backends, ANSI encoder, session, input sources
 │   │   ├── Components/     # Component, FocusScope, screens, overlays, dialogs, key routing, ComponentHarness
-│   │   ├── Input/          # KeyMap, KeyBinding and the widget state classes
-│   │   ├── Widgets/        # Theme and one file per widget builder
-│   │   ├── Input.cs        # Commands, plus the obsolete Input, InputHelpers, InputRouter and 0.7 states
-│   │   └── Widgets.cs      # Widget factory and the obsolete static Widgets functions
+│   │   ├── Input/          # KeyMap, KeyBinding, commands and the widget state classes
+│   │   ├── Widgets/        # Theme, the Widget factory and one file per widget builder
+│   │   └── PublicAPI.*.txt # The tracked public API (Microsoft.CodeAnalysis.PublicApiAnalyzers)
 │   └── MiniTui.Example/
 │       ├── Program.cs      # Creates the app and pushes the menu screen
 │       └── Screens/        # One screen per demo, plus shared controls
 ├── tests/
 │   └── MiniTui.Tests/      # xUnit tests
+├── docs/                   # SPEC.md and the 0.7 → 1.0 migration guide
 ├── tools/
 │   └── GenWidthTable.cs    # Generates the Unicode width table
 └── README.md
@@ -540,6 +595,9 @@ MiniTui/
 dotnet build src/MiniTui.sln -warnaserror
 dotnet test src/MiniTui.sln
 ```
+
+CI builds and tests on Ubuntu, Windows and macOS and requires at least 85% line coverage of `src/MiniTui`.
+A change to the public API fails the build (RS0016/RS0017) until `PublicAPI.Unshipped.txt` is updated.
 
 The Unicode width table (`src/MiniTui/Text/UnicodeWidthTable.g.cs`) is generated from the Unicode
 Character Database. To regenerate it, run from the repository root:

@@ -14,9 +14,6 @@ public partial class App
     // The app running on this thread, for Input.Poll. Nested apps restore the outer one on exit.
     [ThreadStatic] private static App? t_current;
 
-    // Apps currently reading the console, so Input.Poll on another thread doesn't steal their keys.
-    private static int s_consoleApps;
-
     private volatile bool _running;
     private IInputSource? _activeInput;
     private int _uiThreadId;
@@ -28,9 +25,6 @@ public partial class App
     private ConsoleKeyInfo[]? _pendingKeys;
     private int _pendingIndex;
 
-    // The key RunWhile's condition can take with Input.Poll
-    private ConsoleKeyInfo? _offeredKey;
-
     private int _tickPending;
     private long _lastTick;
     private ITimer? _ticker;
@@ -38,28 +32,17 @@ public partial class App
 
     // The fastest tick rate a widget asked for while drawing the current frame (toasts, spinners)
     private TimeSpan? _frameTickRequest;
-    private bool _modalWasActive;
     private RunScope? _run;
     private Theme? _activeTheme;
+    private bool _noColor;
     private bool _basicGlyphs;
 
     /// <summary>The app whose loop is running on the current thread.</summary>
     internal static App? Current => t_current;
 
-    /// <summary>True while any app reads console input.</summary>
-    internal static bool ConsoleInputInUse => Volatile.Read(ref s_consoleApps) > 0;
-
-    /// <summary>Take the key offered to RunWhile's condition. Returns null after the first call.</summary>
-    internal ConsoleKeyInfo? TakeOfferedKey()
+    private void RunCore(CancellationToken cancellationToken)
     {
-        var key = _offeredKey;
-        _offeredKey = null;
-        return key;
-    }
-
-    private void RunCore(Func<bool>? condition, CancellationToken cancellationToken)
-    {
-        StartRun(condition, cancellationToken);
+        StartRun(cancellationToken);
         try
         {
             using (EnterUi())
@@ -80,7 +63,7 @@ public partial class App
     /// Enter the terminal and start input, ticks and console capture. Runs no user code. Pair with <see cref="EndRun"/>;
     /// user code runs inside <see cref="EnterUi"/>.
     /// </summary>
-    internal void StartRun(Func<bool>? condition, CancellationToken cancellationToken)
+    internal void StartRun(CancellationToken cancellationToken)
     {
         if (_onRender is null && Screens.Count == 0 && _onSetup is null)
             throw new InvalidOperationException("Render callback is required. Call Render() or push a screen before Run().");
@@ -88,22 +71,21 @@ public partial class App
 
         if (_stopping.IsCancellationRequested) _stopping = new CancellationTokenSource();
         _failure = null;
-        _modalWasActive = false;
         _uiThreadId = Environment.CurrentManagedThreadId;
         _running = true;
 
         var input = _input ?? InputPump.Console;
-        var run = new RunScope(condition, input, ReferenceEquals(input, InputPump.Console), t_current);
+        var run = new RunScope(input, t_current);
         _run = run;
         try
         {
             var backend = _backend ?? Terminal.CreateDefaultBackend(_colorMode);
             run.Terminal = new Terminal(backend);
             _terminal = run.Terminal;
-            _activeTheme = _theme ?? DefaultTheme(backend);
+            _noColor = ColorModeOf(backend) == ColorMode.None;
+            _activeTheme = ResolveTheme(_theme);
             _basicGlyphs = Glyphs.DetectBasic(backend);
             if (_captureConsole) run.Capture = ConsoleCapture.Start(Log);
-            if (run.ReadsConsole) Interlocked.Increment(ref s_consoleApps);
 
             run.Subscription = InputPump.Subscribe(input, keys => _queue.Writer.TryWrite(new KeyBatch(keys)));
             _activeInput = input;
@@ -157,15 +139,13 @@ public partial class App
         }
 
         // 2. Drain the queue in FIFO order
-        var condition = run.Condition;
-        var sawKey = false;
         for (var budget = MaxItemsPerIteration; budget > 0 && _running && TryTake(out var item); budget--)
         {
             switch (item)
             {
                 case ConsoleKeyInfo key:
-                    sawKey = dirty = true;
-                    Guard(() => HandleKey(key, condition));
+                    dirty = true;
+                    Guard(() => HandleKey(key));
                     break;
                 case Action action:
                     dirty = true;
@@ -182,13 +162,9 @@ public partial class App
             }
         }
 
-        // RunWhile's condition runs once per key (in HandleKey), or once per wake-up without one
-        if (condition is not null && !sawKey && _running)
-            Guard(() => { if (!condition()) Quit(); });
         if (!_running) return false;
 
-        // 3–5. Modal state, update, render
-        Guard(RefreshRouter);
+        // 3–4. Update, render
         Guard(() => _onUpdate?.Invoke());
         if (!_running) return false;
         if (dirty)
@@ -212,7 +188,6 @@ public partial class App
         if (run.ResizeHooked) TerminalSession.Resized -= OnResizeSignal;
         run.Cancellation.Dispose();
         run.Subscription?.Dispose();
-        if (run.ReadsConsole && run.Subscription is not null) Interlocked.Decrement(ref s_consoleApps);
 
         // Restore the writers before leaving the terminal, and replay stderr after, so it lands on the real screen
         run.Capture?.Restore();
@@ -253,11 +228,9 @@ public partial class App
     }
 
     /// <summary>What a run started and must undo.</summary>
-    private sealed class RunScope(Func<bool>? condition, IInputSource input, bool readsConsole, App? previousApp)
+    private sealed class RunScope(IInputSource input, App? previousApp)
     {
-        public Func<bool>? Condition { get; } = condition;
         public IInputSource Input { get; } = input;
-        public bool ReadsConsole { get; } = readsConsole;
         public App? PreviousApp { get; } = previousApp;
         public Terminal? Terminal { get; set; }
         public ConsoleCapture? Capture { get; set; }
@@ -295,42 +268,19 @@ public partial class App
         }
     }
 
-    private void HandleKey(ConsoleKeyInfo key, Func<bool>? condition)
+    private void HandleKey(ConsoleKeyInfo key)
     {
         _onEvent?.Invoke(new KeyEvent(key));
-        var handled = _onKey?.Invoke(key) == true;
+        if (_onKey?.Invoke(key) == true) return;
 
         // Ctrl+C always quits unless OnKey took it
-        if (!handled && Input.IsCtrlC(key))
+        if (KeyInput.IsCtrlC(key))
         {
             Quit();
             return;
         }
 
-        if (condition is not null)
-        {
-            _offeredKey = handled ? null : key;
-            bool keepRunning;
-            try
-            {
-                keepRunning = condition();
-            }
-            finally
-            {
-                // The condition took the key with Input.Poll, so the router mustn't see it too (D4)
-                if (!handled && _offeredKey is null) handled = true;
-                _offeredKey = null;
-            }
-
-            if (!keepRunning)
-            {
-                Quit();
-                return;
-            }
-        }
-
-        if (!handled) handled = KeyRouter.Route(this, key);
-        if (!handled) _router?.Handle(key);
+        KeyRouter.Route(this, key);
     }
 
     /// <summary>
@@ -377,17 +327,6 @@ public partial class App
         var crumbWidth = UnicodeWidth.Of(crumb);
         var hints = KeyRouter.Hints(this, row.Width - 2 - crumbWidth - (crumbWidth > 0 ? 1 : 0));
         Widget.StatusBar().Left(hints).Right(crumb).Draw(buf, row);
-    }
-
-    private void RefreshRouter()
-    {
-        if (_router is null) return;
-        _router.Refresh();
-
-        // A dismissed modal leaves nothing behind, but redraw fully to be safe on odd terminals
-        var active = _router.IsModalActive;
-        if (_modalWasActive && !active) _terminal?.Invalidate();
-        _modalWasActive = active;
     }
 
     private void WaitForWork()
@@ -451,7 +390,6 @@ public partial class App
         while (_queue.Reader.TryRead(out _)) { }
         _pendingKeys = null;
         _pendingIndex = 0;
-        _offeredKey = null;
     }
 
     /// <summary>
@@ -464,16 +402,20 @@ public partial class App
         if (_frameTickRequest is not { } current || rate < current) _frameTickRequest = rate;
     }
 
-    private static Theme DefaultTheme(ITerminalBackend backend)
+    private static ColorMode? ColorModeOf(ITerminalBackend backend) => backend switch
     {
-        var mode = backend switch
-        {
-            AnsiBackend ansi => ansi.ColorMode,
-            LegacyConsoleBackend legacy => legacy.ColorMode,
-            _ => (ColorMode?)null,
-        };
-        return mode == ColorMode.None ? Theme.Monochrome : Theme.Default;
-    }
+        AnsiBackend ansi => ansi.ColorMode,
+        LegacyConsoleBackend legacy => legacy.ColorMode,
+        _ => null,
+    };
+
+    /// <summary>
+    /// The theme to draw with. On a terminal without colors (<c>NO_COLOR</c>), <see cref="Theme.Default"/>, chosen or
+    /// not, becomes <see cref="Theme.Monochrome"/>, since its selection would otherwise be invisible.
+    /// A custom theme is used as is.
+    /// </summary>
+    private Theme ResolveTheme(Theme? theme) =>
+        _noColor && (theme is null || ReferenceEquals(theme, Theme.Default)) ? Theme.Monochrome : theme ?? Theme.Default;
 
     private void StartTicker()
     {

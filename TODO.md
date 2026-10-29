@@ -1,20 +1,22 @@
 # MiniTui TODO
 
-## High Priority
+## Done in 1.0
 - [x] Scrollbar indicator for lists - show position in long lists (e.g., `[1-10 of 50]`)
-- [ ] Color themes - configurable color schemes instead of hardcoded colors
-- [x] Confirmation dialog - `Widget.Confirm().Message("Delete?")`
-- [x] Tabs widget - for multi-panel UIs
-
-## Medium Priority
-- [ ] Table widget - columns with headers, sorting
-- [ ] Toast/notification widget - auto-dismiss visual messages
-- [ ] Spinner/loading indicator - for async operations
-- [ ] Popup menu - context menus, dropdowns
-
-## Polish
+- [x] Color themes - configurable color schemes instead of hardcoded colors (`Theme`, `App.WithTheme`)
+- [x] Confirmation dialog (`app.Overlays.ConfirmAsync`)
+- [x] Tabs widget (`Widget.TabBar`)
+- [x] Table widget - columns with headers, sorting markers, constraint widths, scrolling (`Widget.Table`)
+- [x] Toast/notification widget - auto-dismiss visual messages (`ToastQueue`, `Widget.Toasts`)
+- [x] Spinner/loading indicator - for async operations (`Widget.Spinner`, `Loadable<T>`)
 - [x] Handle terminal resize - detect and respond to window size changes
-- [ ] Debug mode - visualize focus, layout boundaries
-- [ ] Better text wrapping - for modals with long content
-- [ ] Mouse support - clicking to focus, scrolling
-- [ ] Multi-line text input widget
+- [x] Better text wrapping - for modals with long content (`Widget.Paragraph`, `MessageDialog`)
+
+## Post-1.0
+- [ ] Raw input parser (Unix stdin bytes; Windows `ReadConsoleInput`) for reliable Alt modifiers
+- [ ] Mouse support - clicking to focus, scrolling (SGR 1006)
+- [ ] Bracketed paste (`?2004`)
+- [ ] Popup menu - context menus, dropdowns (PopupMenu/Select)
+- [ ] Multi-line text input widget (TextArea)
+- [ ] Canvas (braille 2×4), line Chart and BarChart
+- [ ] Debug mode - visualize focus, layout boundaries and frame time
+- [ ] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT)

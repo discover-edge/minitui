@@ -22,5 +22,9 @@ internal static class KeyInput
         return key.Key == ConsoleKey.A + (upper - 'A') && (key.Modifiers & ConsoleModifiers.Control) != 0;
     }
 
+    /// <summary>Ctrl+C, which the terminal delivers as a key while an app is running.</summary>
+    public static bool IsCtrlC(ConsoleKeyInfo key) =>
+        key.KeyChar == '\x03' || (key.Key == ConsoleKey.C && (key.Modifiers & ConsoleModifiers.Control) != 0);
+
     public static bool HasControl(ConsoleKeyInfo key) => (key.Modifiers & ConsoleModifiers.Control) != 0;
 }

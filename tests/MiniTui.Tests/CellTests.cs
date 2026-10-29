@@ -1,4 +1,3 @@
-#pragma warning disable CS0618 // Exercises the 0.7 compatibility shims.
 
 namespace MiniTui.Tests;
 
@@ -31,36 +30,14 @@ public class CellTests
     }
 
     [Fact]
-    public void ObsoleteCharConstructor_MapsToSymbolAndNamedColors()
-    {
-        var cell = new Cell('x', ConsoleColor.Red, ConsoleColor.Blue);
-
-        Assert.Equal(new Cell("x", Color.Red, Color.Blue, Modifiers.None), cell);
-        Assert.Equal('x', cell.Char);
-    }
-
-    [Fact]
-    public void ObsoleteChar_IsFirstUtf16UnitOrSpace()
-    {
-        Assert.Equal('\uD83D', (Cell.Empty with { Symbol = "👍" }).Char);
-        Assert.Equal(' ', (Cell.Empty with { Symbol = "" }).Char);
-    }
-
-    [Fact]
-    public void ObsoleteFrom_UsesDefaultColors()
-    {
-        Assert.Equal(Cell.Empty with { Symbol = "q" }, Cell.From('q'));
-    }
-
-    [Fact]
     public void AsciiSymbols_AreCached()
     {
-        Assert.Same(new Cell('a', ConsoleColor.Gray, ConsoleColor.Black).Symbol, Cell.From('a').Symbol);
+        Assert.Same(Symbols.Of('a'), Symbols.Of('a'));
     }
 
     [Fact]
-    public void ObsoleteCharConstructor_ReplacesLoneSurrogate()
+    public void LoneSurrogate_IsReplaced()
     {
-        Assert.Equal("�", new Cell('\uD83D', ConsoleColor.Gray, ConsoleColor.Black).Symbol);
+        Assert.Equal("\uFFFD", Symbols.Of('\uD83D'));
     }
 }

@@ -144,43 +144,20 @@ public class Buffer
     // ========== Drawing Primitives ==========
 
     /// <summary>
-    /// Draw a string at the given position. Truncates if it exceeds buffer width.
-    /// A null <paramref name="bg"/> keeps the existing background.
+    /// Draw a horizontal line of <paramref name="c"/>, patching each cell with <paramref name="style"/>.
     /// </summary>
-    [Obsolete("Use SetString(x, y, text, style) instead.")]
-    public void DrawText(int x, int y, string text, ConsoleColor fg = ConsoleColor.Gray, ConsoleColor? bg = null) =>
-        SetString(x, y, text, new Style(fg, bg is { } b ? b : null));
-
-    /// <summary>
-    /// Draw text centered within a rect.
-    /// A null <paramref name="bg"/> keeps the existing background.
-    /// </summary>
-    [Obsolete("Use Widget.Paragraph().Alignment(Alignment.Center) or SetString instead.")]
-    public void DrawTextCentered(Rect area, string text, ConsoleColor fg = ConsoleColor.Gray, ConsoleColor? bg = null)
+    public void DrawHLine(int x, int y, int length, char c = '─', Style style = default)
     {
-        ArgumentNullException.ThrowIfNull(text);
-        var x = area.X + (area.Width - UnicodeWidth.Of(text)) / 2;
-        var y = area.Y + area.Height / 2;
-        DrawText(x, y, text, fg, bg);
-    }
-
-    /// <summary>
-    /// Draw a horizontal line.
-    /// </summary>
-    public void DrawHLine(int x, int y, int length, char c = '─', ConsoleColor fg = ConsoleColor.Gray)
-    {
-        var style = new Style(fg);
         var (from, to) = Clip(x, length, Width);
         for (var i = from; i < to; i++)
             PatchChar(i, y, c, style);
     }
 
     /// <summary>
-    /// Draw a vertical line.
+    /// Draw a vertical line of <paramref name="c"/>, patching each cell with <paramref name="style"/>.
     /// </summary>
-    public void DrawVLine(int x, int y, int length, char c = '│', ConsoleColor fg = ConsoleColor.Gray)
+    public void DrawVLine(int x, int y, int length, char c = '│', Style style = default)
     {
-        var style = new Style(fg);
         var (from, to) = Clip(y, length, Height);
         for (var i = from; i < to; i++)
             PatchChar(x, i, c, style);
@@ -198,37 +175,6 @@ public class Buffer
         for (var x = clip.X; x < clip.Right; x += step)
             Put(x, y, x + step > clip.Right ? cell with { Symbol = " " } : cell);
     }
-
-    /// <summary>
-    /// Draw a box border using Unicode box-drawing characters.
-    /// </summary>
-    [Obsolete("Use Widget.Block() instead.")]
-    public void DrawBox(Rect rect, ConsoleColor fg = ConsoleColor.Gray, BoxStyle style = BoxStyle.Single) =>
-        new BlockBuilder().BorderType(style).BorderStyle(new Style(fg)).Draw(this, rect);
-
-    /// <summary>
-    /// Draw a box with a title in the top border, starting two columns in.
-    /// </summary>
-    [Obsolete("Use Widget.Block().Title(...) instead.")]
-    public void DrawBoxWithTitle(Rect rect, string title, ConsoleColor fg = ConsoleColor.Gray, ConsoleColor titleFg = ConsoleColor.White, BoxStyle style = BoxStyle.Single)
-    {
-        ArgumentNullException.ThrowIfNull(title);
-        var block = new BlockBuilder().BorderType(style).BorderStyle(new Style(fg));
-        if (title.Length > 0) block.Title(title).TitleStyle(new Style(titleFg)).TitleInset(1);
-        block.Draw(this, rect);
-    }
-
-    /// <summary>
-    /// Draw a one-row progress bar.
-    /// </summary>
-    [Obsolete("Use Widget.Gauge() instead.")]
-    public void DrawProgressBar(Rect rect, float progress, ConsoleColor fillFg = ConsoleColor.Green, ConsoleColor emptyFg = ConsoleColor.DarkGray) =>
-        new GaugeBuilder()
-            .Ratio(float.IsNaN(progress) ? 0 : progress)
-            .Label("")
-            .FilledStyle(new Style(fillFg))
-            .EmptyStyle(new Style(emptyFg))
-            .Draw(this, rect with { Height = 1 });
 
     // ========== Invariant-preserving writes ==========
 

@@ -1,6 +1,3 @@
-// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
-#pragma warning disable CS0618
-
 using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;

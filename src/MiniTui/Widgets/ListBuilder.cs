@@ -45,10 +45,6 @@ public class ListBuilder
     /// <summary>The selection. The list clamps it and scrolls to keep it visible.</summary>
     public ListBuilder State(SelectionState state) { _state = state; return this; }
 
-    /// <summary>Set state from a ListState.</summary>
-    [Obsolete("Use State(SelectionState) instead.")]
-    public ListBuilder State(ListState state) => Selected(state.SelectedIndex).ScrollOffset(state.ScrollOffset);
-
     /// <summary>Set the selected item index.</summary>
     public ListBuilder Selected(int index)
     {
