@@ -11,8 +11,8 @@ public class SmokeTests
 
         buf.DrawText(1, 0, "hi", ConsoleColor.Green);
 
-        Assert.Equal(new Cell('h', ConsoleColor.Green, ConsoleColor.Black), buf.Get(1, 0));
-        Assert.Equal(new Cell('i', ConsoleColor.Green, ConsoleColor.Black), buf.Get(2, 0));
+        Assert.Equal(new Cell("h", Color.Green, Color.Reset, Modifiers.None), buf.Get(1, 0));
+        Assert.Equal(new Cell("i", Color.Green, Color.Reset, Modifiers.None), buf.Get(2, 0));
         Assert.Equal(Cell.Empty, buf.Get(0, 0));
     }
 
@@ -23,7 +23,7 @@ public class SmokeTests
 
         buf.DrawBox(buf.Area);
 
-        Assert.Equal('┌', buf.Get(0, 0).Char);
-        Assert.Equal('┘', buf.Get(2, 2).Char);
+        Assert.Equal("┌", buf.Get(0, 0).Symbol);
+        Assert.Equal("┘", buf.Get(2, 2).Symbol);
     }
 }

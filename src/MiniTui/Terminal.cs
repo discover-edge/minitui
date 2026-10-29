@@ -8,6 +8,10 @@ public class Terminal : IDisposable
     private Buffer _current;
     private Buffer _previous;
     private bool _disposed;
+    private bool _fullRedraw;
+    private bool _cursorVisible;
+    private Color _lastFg;
+    private Color _lastBg;
 
     /// <summary>
     /// Terminal width in cells.
@@ -65,54 +69,79 @@ public class Terminal : IDisposable
     /// <summary>
     /// Flush changes to actual terminal. Only writes cells that changed.
     /// </summary>
+    /// <remarks>
+    /// Interim System.Console implementation: colors are downsampled to 16 and modifiers are not shown.
+    /// Phase 2 replaces this with the ANSI backend.
+    /// </remarks>
     private void Flush()
     {
-        var lastFg = ConsoleColor.Gray;
-        var lastBg = ConsoleColor.Black;
-        Console.ForegroundColor = lastFg;
-        Console.BackgroundColor = lastBg;
+        Console.ResetColor();
+        _lastFg = Color.Reset;
+        _lastBg = Color.Reset;
 
         for (var y = 0; y < Height; y++)
         {
             for (var x = 0; x < Width; x++)
             {
                 var cell = _current.Get(x, y);
-                var prev = _previous.Get(x, y);
 
-                // Only write changed cells - massive performance win
-                if (cell != prev)
+                // Only write changed cells; the terminal draws a wide head's continuation itself
+                if (cell.IsContinuation || (!_fullRedraw && cell == _previous.Get(x, y)))
+                    continue;
+
+                ApplyColors(cell.Fg, cell.Bg);
+                try
                 {
-                    // Only change colors when needed
-                    if (cell.Fg != lastFg)
-                    {
-                        Console.ForegroundColor = cell.Fg;
-                        lastFg = cell.Fg;
-                    }
-                    if (cell.Bg != lastBg)
-                    {
-                        Console.BackgroundColor = cell.Bg;
-                        lastBg = cell.Bg;
-                    }
-
-                    try
-                    {
-                        Console.SetCursorPosition(x, y);
-                        Console.Write(cell.Char);
-                    }
-                    catch
-                    {
-                        // Ignore write errors (can happen on resize)
-                    }
-
-                    _previous.Set(x, y, cell);
+                    Console.SetCursorPosition(x, y);
+                    Console.Write(cell.Symbol);
+                }
+                catch
+                {
+                    // Ignore write errors (can happen on resize)
                 }
             }
         }
 
-        // Reset cursor to bottom-left to avoid visual artifacts
+        _fullRedraw = false;
+        UpdateCursor(_current.CursorRequest);
+        (_current, _previous) = (_previous, _current);
+    }
+
+    private void ApplyColors(Color fg, Color bg)
+    {
+        fg = fg.ToMode(ColorMode.Ansi16);
+        bg = bg.ToMode(ColorMode.Ansi16);
+        if (fg == _lastFg && bg == _lastBg) return;
+
+        if ((fg.Kind == ColorKind.Reset && _lastFg.Kind != ColorKind.Reset)
+            || (bg.Kind == ColorKind.Reset && _lastBg.Kind != ColorKind.Reset))
+        {
+            Console.ResetColor();
+            _lastFg = Color.Reset;
+            _lastBg = Color.Reset;
+        }
+
+        if (fg != _lastFg) Console.ForegroundColor = fg.ToConsoleColor();
+        if (bg != _lastBg) Console.BackgroundColor = bg.ToConsoleColor();
+        _lastFg = fg;
+        _lastBg = bg;
+    }
+
+    private void UpdateCursor((int X, int Y)? request)
+    {
         try
         {
-            Console.SetCursorPosition(0, Height - 1);
+            if (request is var (x, y))
+            {
+                Console.SetCursorPosition(x, y);
+                if (!_cursorVisible) Console.CursorVisible = _cursorVisible = true;
+            }
+            else
+            {
+                if (_cursorVisible) Console.CursorVisible = _cursorVisible = false;
+                // Reset cursor to bottom-left to avoid visual artifacts
+                Console.SetCursorPosition(0, Height - 1);
+            }
         }
         catch { }
     }
@@ -120,12 +149,7 @@ public class Terminal : IDisposable
     /// <summary>
     /// Force a complete redraw next frame (useful after terminal resize).
     /// </summary>
-    public void Invalidate()
-    {
-        for (var y = 0; y < Height; y++)
-        for (var x = 0; x < Width; x++)
-            _previous.Set(x, y, new Cell('\0', ConsoleColor.Black, ConsoleColor.Black));
-    }
+    public void Invalidate() => _fullRedraw = true;
 
     /// <summary>
     /// Check if terminal was resized. If so, recreates buffers and returns true.
