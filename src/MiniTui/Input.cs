@@ -8,8 +8,16 @@ public static class Input
     /// <summary>
     /// Non-blocking key poll. Returns null if no key is available.
     /// </summary>
+    /// <remarks>
+    /// Inside <see cref="App.RunWhile"/>'s condition, this returns the key the app is delivering (once), and a key
+    /// taken this way isn't passed to the router. Elsewhere while an app reads the console, it returns null rather
+    /// than steal the app's keys.
+    /// </remarks>
     public static ConsoleKeyInfo? Poll()
     {
+        if (App.Current is { } app) return app.TakeOfferedKey();
+        if (App.ConsoleInputInUse) return null;
+        if (InputPump.TryTakeOrphan(InputPump.Console, out var orphan)) return orphan;
         if (Console.KeyAvailable)
             return Console.ReadKey(intercept: true);
         return null;
@@ -696,18 +704,31 @@ public class CommandRegistry
 /// </summary>
 public class InputRouter
 {
-    private readonly List<(string Name, Action<ConsoleKeyInfo> Handler)> _handlers = [];
+    private readonly List<(string Name, Action<ConsoleKeyInfo> Handler, bool CapturesText)> _handlers = [];
+    private readonly List<Func<ConsoleKeyInfo, bool>> _globals = [];
     private readonly List<(Func<bool> IsActive, Action<ConsoleKeyInfo> Handler)> _modals = [];
     private readonly List<bool> _modalWasActive = [];
     private readonly List<int> _activeOrder = []; // modal indices in activation order
     private int _focusIndex;
 
     /// <summary>
-    /// Register a named focus element with its input handler.
+    /// Register a named focus element with its input handler. Set <paramref name="capturesText"/> for text fields,
+    /// so global handlers don't see the keys typed into them.
     /// </summary>
-    public InputRouter Add(string name, Action<ConsoleKeyInfo> handler)
+    public InputRouter Add(string name, Action<ConsoleKeyInfo> handler, bool capturesText = false)
     {
-        _handlers.Add((name, handler));
+        _handlers.Add((name, handler, capturesText));
+        return this;
+    }
+
+    /// <summary>
+    /// Register a handler that sees keys before the focused element (but after an active modal).
+    /// Return true if it handled the key. Skipped while the focused element captures text.
+    /// </summary>
+    public InputRouter Global(Func<ConsoleKeyInfo, bool> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        _globals.Add(handler);
         return this;
     }
 
@@ -775,11 +796,11 @@ public class InputRouter
     }
 
     /// <summary>
-    /// Handle a key press. Routes to active modal, handles Tab, or dispatches to focused element.
+    /// Recompute which modals are active. <see cref="App"/> calls this every loop iteration, so a modal opened
+    /// from code (not a key press) is active at the next render.
     /// </summary>
-    public void Handle(ConsoleKeyInfo key)
+    public void Refresh()
     {
-        // Detect modal state transitions
         for (int i = 0; i < _modals.Count; i++)
         {
             bool isActive = _modals[i].IsActive();
@@ -798,6 +819,14 @@ public class InputRouter
 
             _modalWasActive[i] = isActive;
         }
+    }
+
+    /// <summary>
+    /// Handle a key press. Routes to the active modal, then global handlers, then Tab, then the focused element.
+    /// </summary>
+    public void Handle(ConsoleKeyInfo key)
+    {
+        Refresh();
 
         // Top of stack gets input
         if (_activeOrder.Count > 0)
@@ -805,6 +834,13 @@ public class InputRouter
             int topIndex = _activeOrder[^1];
             _modals[topIndex].Handler(key);
             return;
+        }
+
+        var capturesText = _handlers.Count > 0 && _handlers[_focusIndex].CapturesText;
+        if (!capturesText)
+        {
+            foreach (var global in _globals)
+                if (global(key)) return;
         }
 
         // Tab switches focus

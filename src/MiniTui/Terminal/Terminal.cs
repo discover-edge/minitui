@@ -134,9 +134,10 @@ public class Terminal : IDisposable
     private static (int Width, int Height) Sanitize((int Width, int Height) size) =>
         (Math.Max(0, size.Width), Math.Max(0, size.Height));
 
-    private static ITerminalBackend CreateDefaultBackend()
+    /// <summary>The console backend for this platform, downsampling to <paramref name="colorMode"/> or the detected mode.</summary>
+    internal static ITerminalBackend CreateDefaultBackend(ColorMode? colorMode = null)
     {
-        var mode = ColorCapability.Detect();
+        var mode = ColorCapability.Detect(colorMode);
         if (OperatingSystem.IsWindows() && !Console.IsOutputRedirected && !WindowsConsole.SupportsVirtualTerminal())
             return new LegacyConsoleBackend(mode);
         return new AnsiBackend(mode);

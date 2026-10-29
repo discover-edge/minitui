@@ -11,6 +11,9 @@ public sealed class LegacyConsoleBackend : ITerminalBackend, IConsoleDevice
     private bool _entered;
     private bool _savedTreatControlCAsInput;
     private uint? _savedOutputMode;
+
+    // The real stdout, taken on Enter: an app may redirect Console.Out into its log while running
+    private TextWriter _out = Console.Out;
     private bool _cursorVisible = true;
     private (int X, int Y)? _lastCursor;
     private int _height = 24;
@@ -43,6 +46,7 @@ public sealed class LegacyConsoleBackend : ITerminalBackend, IConsoleDevice
                 throw new TerminalNotSupportedException(
                     "MiniTui requires an interactive terminal (stdin/stdout must not be redirected).");
 
+            _out = Console.Out;
             _savedTreatControlCAsInput = Console.TreatControlCAsInput;
             Console.TreatControlCAsInput = true;
 
@@ -108,7 +112,7 @@ public sealed class LegacyConsoleBackend : ITerminalBackend, IConsoleDevice
                 Try(() =>
                 {
                     Console.SetCursorPosition(x, y);
-                    Console.Write(cell.Symbol);
+                    _out.Write(cell.Symbol);
                 });
             }
             Console.ResetColor();
