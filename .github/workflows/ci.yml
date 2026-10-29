@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/MiniTui.sln
+
+      - name: Build
+        run: dotnet build src/MiniTui.sln --configuration Release --no-restore -warnaserror
+
+      - name: Test
+        if: matrix.os != 'ubuntu-latest'
+        run: dotnet test src/MiniTui.sln --configuration Release --no-build
+
+      - name: Test with coverage
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet test src/MiniTui.sln --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: ./coverage/**/coverage.cobertura.xml
+
+      - name: Pack (dry run)
+        run: dotnet pack src/MiniTui/MiniTui.csproj --configuration Release --no-build --output ./nupkg

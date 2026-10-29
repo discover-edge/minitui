@@ -163,5 +163,6 @@ public class Terminal : IDisposable
         Console.ResetColor();
         Console.CursorVisible = true;
         Console.Clear();
+        GC.SuppressFinalize(this);
     }
 }

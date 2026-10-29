@@ -21,14 +21,24 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Determine version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            echo "VERSION_ARG=-p:Version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          fi
+
       - name: Restore dependencies
         run: dotnet restore src/MiniTui.sln
 
       - name: Build
-        run: dotnet build src/MiniTui.sln --configuration Release --no-restore
+        run: dotnet build src/MiniTui.sln --configuration Release --no-restore -warnaserror $VERSION_ARG
+
+      - name: Test
+        run: dotnet test src/MiniTui.sln --configuration Release --no-build
 
       - name: Pack
-        run: dotnet pack src/MiniTui/MiniTui.csproj --configuration Release --no-build --output ./nupkg
+        run: dotnet pack src/MiniTui/MiniTui.csproj --configuration Release --no-build --output ./nupkg $VERSION_ARG
 
       - name: Push to GitHub Packages
         run: dotnet nuget push ./nupkg/*.nupkg --source "https://nuget.pkg.github.com/discover-edge/index.json" --api-key ${{ secrets.GITHUB_TOKEN }}

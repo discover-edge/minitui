@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace MiniTui;
 
 /// <summary>
 /// A single terminal cell with character and colors.
 /// </summary>
+[SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Public API since 0.1; renaming would break consumers.")]
 public record struct Cell(char Char, ConsoleColor Fg, ConsoleColor Bg)
 {
     /// <summary>
@@ -204,6 +207,7 @@ public class Buffer
 /// <summary>
 /// Box drawing styles using Unicode box-drawing characters.
 /// </summary>
+[SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Public API since 0.1; renaming would break consumers.")]
 public enum BoxStyle
 {
     /// <summary>Single line border (┌─┐)</summary>

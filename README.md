@@ -243,29 +243,39 @@ public static class BufferExtensions
 ## Box Styles
 
 ```csharp
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Single);   // +-+
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Double);   // +=+
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Rounded);  // ,-,
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Heavy);    // +~+
+buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Single);   // ┌─┐
+buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Double);   // ╔═╗
+buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Rounded);  // ╭─╮
+buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Heavy);    // ┏━┓
 ```
 
 ## Project Structure
 
 ```
 MiniTui/
-+-- src/
-|   +-- MiniTui/
-|   |   +-- App.cs          # Fluent app builder
-|   |   +-- Buffer.cs       # Cell, Buffer, BoxStyle
-|   |   +-- Geometry.cs     # Vec2, Rect, Layout
-|   |   +-- Input.cs        # Input, InputHelpers, InputRouter, state types
-|   |   +-- Terminal.cs     # Terminal rendering
-|   |   +-- Widgets.cs      # Widget drawing functions and builders
-|   +-- MiniTui.Example/
-|       +-- Program.cs      # Demo application
-+-- README.md
+├── src/
+│   ├── MiniTui.sln
+│   ├── MiniTui/
+│   │   ├── App.cs          # Fluent app builder
+│   │   ├── Buffer.cs       # Cell, Buffer, BoxStyle
+│   │   ├── Geometry.cs     # Vec2, Rect, Layout
+│   │   ├── Input.cs        # Input, InputHelpers, InputRouter, state types
+│   │   ├── Terminal.cs     # Terminal rendering
+│   │   └── Widgets.cs      # Widget drawing functions and builders
+│   └── MiniTui.Example/
+│       └── Program.cs      # Demo application
+├── tests/
+│   └── MiniTui.Tests/      # xUnit tests
+└── README.md
+```
+
+## Building and Testing
+
+```bash
+dotnet build src/MiniTui.sln -warnaserror
+dotnet test src/MiniTui.sln
 ```
 
 ## License
 
-Do whatever you want with this. It's a starting point, not a product.
+MIT. See [LICENSE](LICENSE).
