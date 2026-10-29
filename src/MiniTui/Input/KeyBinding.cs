@@ -95,6 +95,38 @@ public readonly record struct KeyBinding(ConsoleKey Key, char? Char, ConsoleModi
         return new KeyBinding(0, c, modifiers);
     }
 
+    /// <summary>A single character without Ctrl or Alt, which a text field would type.</summary>
+    internal bool IsPlainCharacter => Key == 0 && (Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == 0;
+
+    /// <summary>A key press that matches this binding, for tests and <see cref="ComponentHarness"/>.</summary>
+    internal ConsoleKeyInfo ToKeyInfo()
+    {
+        var shift = (Modifiers & ConsoleModifiers.Shift) != 0;
+        var alt = (Modifiers & ConsoleModifiers.Alt) != 0;
+        var ctrl = (Modifiers & ConsoleModifiers.Control) != 0;
+        if (Key == 0)
+        {
+            var c = Char ?? ' ';
+            var key = char.IsAsciiLetter(c) ? ConsoleKey.A + (char.ToLowerInvariant(c) - 'a')
+                : char.IsAsciiDigit(c) ? ConsoleKey.D0 + (c - '0') : 0;
+            return new ConsoleKeyInfo(c, key, char.IsAsciiLetterUpper(c), alt, ctrl);
+        }
+
+        var keyChar = Key switch
+        {
+            >= ConsoleKey.A and <= ConsoleKey.Z when ctrl => (char)(Key - ConsoleKey.A + 1),
+            >= ConsoleKey.A and <= ConsoleKey.Z => Char ?? '\0',
+            >= ConsoleKey.D0 and <= ConsoleKey.D9 => Char ?? '\0',
+            ConsoleKey.Enter => '\r',
+            ConsoleKey.Tab => '\t',
+            ConsoleKey.Escape => '\x1b',
+            ConsoleKey.Spacebar => ' ',
+            ConsoleKey.Backspace => '\b',
+            _ => '\0',
+        };
+        return new ConsoleKeyInfo(keyChar, Key, shift, alt, ctrl);
+    }
+
     /// <summary>True if <paramref name="key"/> is this combination.</summary>
     public bool Matches(ConsoleKeyInfo key)
     {

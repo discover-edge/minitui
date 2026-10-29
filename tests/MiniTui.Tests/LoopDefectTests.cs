@@ -1,3 +1,6 @@
+// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
+#pragma warning disable CS0618
+
 namespace MiniTui.Tests;
 
 // Regression tests for the loop defects in docs/SPEC.md §2 (D3, D4, D12, D16) and the §6.3 acceptance list.

@@ -43,12 +43,19 @@ public sealed class KeyMap
 
     /// <summary>Run the handler of the first binding that matches <paramref name="key"/>.</summary>
     /// <returns>True if a binding matched.</returns>
-    public bool Handle(ConsoleKeyInfo key)
+    public bool Handle(ConsoleKeyInfo key) => Handle(key, skipPlainCharacters: false);
+
+    /// <summary>The bindings, in add order.</summary>
+    internal IReadOnlyList<Entry> Entries => _entries;
+
+    /// <summary>Like <see cref="Handle(ConsoleKeyInfo)"/>, optionally skipping single-character bindings without Ctrl or Alt (§9.4 text capture).</summary>
+    internal bool Handle(ConsoleKeyInfo key, bool skipPlainCharacters)
     {
         foreach (var entry in _entries)
         {
             foreach (var binding in entry.Bindings)
             {
+                if (skipPlainCharacters && binding.IsPlainCharacter) continue;
                 if (!binding.Matches(key)) continue;
                 entry.Handler();
                 return true;
@@ -89,15 +96,17 @@ public sealed class KeyMap
     /// Only whole hints that fit in <paramref name="maxWidth"/> columns are included; if even the first doesn't
     /// fit, it's truncated with <c>…</c>.
     /// </summary>
-    public string Hints(int maxWidth)
+    public string Hints(int maxWidth) =>
+        FitHints(_entries.Where(e => e.ShowInHints).Select(e => $"{e.Labels[0]} {e.Description}"), maxWidth);
+
+    /// <summary>Join hints with two spaces, keeping only whole hints that fit; the first is truncated if even it doesn't.</summary>
+    internal static string FitHints(IEnumerable<string> hints, int maxWidth)
     {
         if (maxWidth <= 0) return "";
         var result = "";
         var width = 0;
-        foreach (var entry in _entries)
+        foreach (var hint in hints)
         {
-            if (!entry.ShowInHints) continue;
-            var hint = $"{entry.Labels[0]} {entry.Description}";
             var hintWidth = UnicodeWidth.Of(hint);
             var separator = result.Length == 0 ? 0 : 2;
             if (width + separator + hintWidth > maxWidth)
@@ -108,7 +117,7 @@ public sealed class KeyMap
         return result;
     }
 
-    private sealed record Entry(
+    internal sealed record Entry(
         KeyBinding[] Bindings, string[] Labels, string Description, Action Handler, string? Group, bool ShowInHints)
     {
         public string KeysLabel { get; } = string.Join(", ", Labels);

@@ -107,6 +107,7 @@ public sealed class Loadable<T>
         if (Status != LoadStatus.Loading) _statusBeforeLoad = Status;
         Status = LoadStatus.Loading;
         app.RequestRedraw();
+        app.BeginWork();
         _ = Fetch(app, fetch, cts, generation, lifetime);
     }
 
@@ -127,6 +128,7 @@ public sealed class Loadable<T>
         }
 
         app.Post(() => Complete(generation, cts, value, error, lifetime));
+        app.EndWork();
     }
 
     private void Complete(int generation, CancellationTokenSource cts, T? value, Exception? error, CancellationToken lifetime)

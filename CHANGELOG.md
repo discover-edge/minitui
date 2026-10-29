@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Components (§9): `Component` (keys, `HandleKey`, `CapturesText`, children, `Lifetime`, `Load`, mount/activate hooks, `Component.From`), `RenderContext` and `FocusScope`.
+- `Screen` and `App.Screens` (`ScreenStack`: `Push`, `Pop`, `Replace`, `PopTo`). With screens, the app draws the top screen and a status bar with key hints and a breadcrumb (`WithChrome`), and quits when the last screen is popped (`QuitWhenEmpty`).
+- `Overlay` and `App.Overlays` (`OverlayStack`: `Show`, `Close`, `ConfirmAsync`, `ShowMessageAsync`, `ShowHelp`), with the built-in `ConfirmDialog`, `MessageDialog`, `HelpOverlay` and `CommandLineOverlay`. Overlays are modal and work in render-callback apps too.
+- Key routing (§9.4): the `OnKey` hook, then the top overlay, or the focus chain innermost first, then `App.Keys` (with `?` for help and `ctrl+c` built in), then Esc pops the screen. Text-capturing components keep single-character bindings from firing while you type.
+- `App.Toasts`, drawn by the app over everything else.
+- `ComponentHarness` for testing screens: `Press`, `Type`, `RunUntilIdle`, `Lines`, `CellAt`.
 - `Theme` (`Default`, `Monochrome`, `Current`) and `App.WithTheme`. Every widget draws with the theme; backgrounds are left to the terminal except for bars, buttons and selections. Apps use `Monochrome` automatically when the terminal has no colors (`NO_COLOR`).
 - Widget builders: `Widget.Block` (`Borders`), `Paragraph` (`WrapMode`, `Paragraph.MeasureLines`), `Table` (`Row`, column constraints, sort markers, only visible rows formatted), `Scrollbar`, `Gauge`, `Sparkline`, `Spinner` (`SpinnerFrames`), `Toasts` (`ToastQueue`, `ToastLevel`), `TextField`, `CommandLine`, `TabBar`, `Button` and `Checkbox`.
 - `List` builder: `Items(list, format)` (only visible items are formatted), `State(SelectionState)`, `HighlightSymbol`, `Block`, `Style` and `HighlightStyle`.
@@ -54,7 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StatusBar` draws on the area's row when the area is one row high, and truncates the left text when both sides don't fit.
 - `Modal` wraps its text, scrolls it with `State(ScrollState)`, and leaves a 2-cell margin around it.
 - `Layout` uses a deterministic constraint algorithm (§7.2). The indexer builds the layout if needed, and an unknown region name throws `KeyNotFoundException` naming it. Adding two regions with the same name throws `ArgumentException`.
-- Version 0.8.0.
+- Version 0.9.0.
+- The Example is one app with a stack of screens, with no nested `App.Run`; every demo uses the current APIs. Services gains a detail screen and delete with a confirm dialog.
+- `App.RunTask` runs its work under the app's synchronization context even when called from another context, so its awaits resume on the UI thread.
 - The app draws a frame only when something happened (input, tick, posted action, resize, redraw request) instead of every 16 ms.
 - In `RunWhile`, the condition is called once per key, with `Input.Poll()` returning that key, and once per wake-up without one. While an app reads the console, `Input.Poll()` elsewhere returns null instead of stealing its keys.
 - An app started from inside another app receives the keys the outer app hadn't handled yet, and returns the ones it didn't handle when it exits.
@@ -71,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Layout` moved to `Layout/Layout.cs`, `Buffer`/`Geometry` to `Core/` (no API change).
 
 ### Deprecated
+- `App.RunWhile`, `Input.Poll` and `Input.Read`. Use `Run` or `RunAsync` with `OnKey`, a `KeyMap` or screens.
+- `Input.IsKey`, `IsChar`, `IsQuit` and `InputHelpers.IsListNavigationKey`. Use `KeyMap` and `KeyBinding`.
+- `InputRouter`, `App.UseRouter` and `FocusManager`. Use screens, components and `FocusScope`.
+- `Widget.Modal`, `Widget.Confirm`, `ModalBuilder`, `ConfirmBuilder`, `ConfirmState`, `InputHelpers.HandleConfirmInput`, `InputRouter.WithModal` and `InputHelpers.IsModalDismissKey`. Use `App.Overlays`.
+- The static `Widgets` class. Use the `Widget.*` builders; `Widgets` becomes internal in 1.0.
+- `Buffer.DrawText`, `DrawTextCentered`, `DrawBox`, `DrawBoxWithTitle` and `DrawProgressBar`. Use `SetString`, `Widget.Paragraph`, `Widget.Block` and `Widget.Gauge`.
 - `ListState`, `TextInputState`, `CommandInputState`, `CommandInputResult`, `TabsState` and `InputHelpers.HandleListNavigation`, `HandleTextInput`, `IsTextEditKey`, `HandleCommandInput`, `HandleTabsNavigation`. Use `SelectionState`, `TextFieldState`, `CommandLineState` and `TabBarState`.
 - `Widgets.TextInput`, `Widgets.CommandInput`, `Widgets.Tabs`, `Widget.CommandInput()`, `Widget.Tabs()`, `CommandInputBuilder`, `TabsBuilder` and `ListBuilder.State(ListState)`. Use `Widget.TextField()`, `Widget.CommandLine()`, `Widget.TabBar()` and `State(SelectionState)`.
 - `Layout.Add(name, int)` and `Layout.AddFill(name)`. Use `Add(name, Constraint.Length(n))` and `Add(name, Constraint.Fill())`.

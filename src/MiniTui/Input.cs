@@ -13,6 +13,7 @@ public static class Input
     /// taken this way isn't passed to the router. Elsewhere while an app reads the console, it returns null rather
     /// than steal the app's keys.
     /// </remarks>
+    [Obsolete("Use App.OnKey, KeyMap or screens instead.")]
     public static ConsoleKeyInfo? Poll()
     {
         if (App.Current is { } app) return app.TakeOfferedKey();
@@ -26,23 +27,27 @@ public static class Input
     /// <summary>
     /// Blocking key read. Waits for a key press.
     /// </summary>
+    [Obsolete("Use App.OnKey, KeyMap or screens instead.")]
     public static ConsoleKeyInfo Read() => Console.ReadKey(intercept: true);
 
     /// <summary>
     /// Check if a specific key was pressed. Convenience for common patterns.
     /// </summary>
+    [Obsolete("Use KeyMap or KeyBinding instead.")]
     public static bool IsKey(ConsoleKeyInfo? key, ConsoleKey target) 
         => key?.Key == target;
 
     /// <summary>
     /// Check if a specific character was pressed.
     /// </summary>
+    [Obsolete("Use KeyMap or KeyBinding instead.")]
     public static bool IsChar(ConsoleKeyInfo? key, char target)
         => key?.KeyChar == target;
 
     /// <summary>
     /// Check for common exit keys (q, Escape, Ctrl+C).
     /// </summary>
+    [Obsolete("Use KeyMap or KeyBinding instead.")]
     public static bool IsQuit(ConsoleKeyInfo? key)
     {
         if (key == null) return false;
@@ -188,6 +193,7 @@ public record struct TimedMessage(string Text, DateTime Expiry)
 /// <summary>
 /// State for a confirmation dialog.
 /// </summary>
+[Obsolete("Use App.Overlays.ConfirmAsync instead.")]
 public record struct ConfirmState(bool IsActive, bool YesSelected, Action<bool>? OnComplete)
 {
     /// <summary>Inactive state.</summary>
@@ -302,6 +308,7 @@ public static class InputHelpers
     /// <summary>
     /// Check if the key is a list navigation key.
     /// </summary>
+    [Obsolete("Use the return value of SelectionState.HandleKey instead.")]
     public static bool IsListNavigationKey(ConsoleKeyInfo key)
     {
         return key.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow
@@ -313,6 +320,7 @@ public static class InputHelpers
     /// <summary>
     /// Check if the key should dismiss a modal (Escape, Enter, or Q).
     /// </summary>
+    [Obsolete("Use overlays (App.Overlays) instead.")]
     public static bool IsModalDismissKey(ConsoleKeyInfo key)
     {
         return key.Key is ConsoleKey.Escape or ConsoleKey.Enter or ConsoleKey.Q;
@@ -321,6 +329,7 @@ public static class InputHelpers
     /// <summary>
     /// Handle confirmation dialog input. Returns updated state (null if dialog should close).
     /// </summary>
+    [Obsolete("Use App.Overlays.ConfirmAsync instead.")]
     public static ConfirmState? HandleConfirmInput(ConsoleKeyInfo key, ConfirmState state)
     {
         switch (key.Key)
@@ -397,6 +406,7 @@ public static class InputHelpers
 /// <summary>
 /// Simple focus manager for navigating between UI elements.
 /// </summary>
+[Obsolete("Use Component and FocusScope instead.")]
 public class FocusManager
 {
     private int _current;
@@ -639,6 +649,7 @@ public class CommandRegistry
 /// <summary>
 /// Routes input to focused elements with fluent configuration.
 /// </summary>
+[Obsolete("Use screens, components and FocusScope instead (§9.4).")]
 public class InputRouter
 {
     private readonly List<(string Name, Action<ConsoleKeyInfo> Handler, bool CapturesText)> _handlers = [];
@@ -673,6 +684,7 @@ public class InputRouter
     /// Configure modal handling. Modal takes priority when active.
     /// Multiple modals can be registered; the most recently activated modal receives input.
     /// </summary>
+    [Obsolete("Use overlays (App.Overlays) instead.")]
     public InputRouter WithModal(Func<bool> isActive, Action<ConsoleKeyInfo> handler)
     {
         _modals.Add((isActive, handler));

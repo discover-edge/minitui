@@ -147,6 +147,7 @@ public class Buffer
     /// Draw a string at the given position. Truncates if it exceeds buffer width.
     /// A null <paramref name="bg"/> keeps the existing background.
     /// </summary>
+    [Obsolete("Use SetString(x, y, text, style) instead.")]
     public void DrawText(int x, int y, string text, ConsoleColor fg = ConsoleColor.Gray, ConsoleColor? bg = null) =>
         SetString(x, y, text, new Style(fg, bg is { } b ? b : null));
 
@@ -154,6 +155,7 @@ public class Buffer
     /// Draw text centered within a rect.
     /// A null <paramref name="bg"/> keeps the existing background.
     /// </summary>
+    [Obsolete("Use Widget.Paragraph().Alignment(Alignment.Center) or SetString instead.")]
     public void DrawTextCentered(Rect area, string text, ConsoleColor fg = ConsoleColor.Gray, ConsoleColor? bg = null)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -200,12 +202,14 @@ public class Buffer
     /// <summary>
     /// Draw a box border using Unicode box-drawing characters.
     /// </summary>
+    [Obsolete("Use Widget.Block() instead.")]
     public void DrawBox(Rect rect, ConsoleColor fg = ConsoleColor.Gray, BoxStyle style = BoxStyle.Single) =>
         new BlockBuilder().BorderType(style).BorderStyle(new Style(fg)).Draw(this, rect);
 
     /// <summary>
     /// Draw a box with a title in the top border, starting two columns in.
     /// </summary>
+    [Obsolete("Use Widget.Block().Title(...) instead.")]
     public void DrawBoxWithTitle(Rect rect, string title, ConsoleColor fg = ConsoleColor.Gray, ConsoleColor titleFg = ConsoleColor.White, BoxStyle style = BoxStyle.Single)
     {
         ArgumentNullException.ThrowIfNull(title);
@@ -217,6 +221,7 @@ public class Buffer
     /// <summary>
     /// Draw a one-row progress bar.
     /// </summary>
+    [Obsolete("Use Widget.Gauge() instead.")]
     public void DrawProgressBar(Rect rect, float progress, ConsoleColor fillFg = ConsoleColor.Green, ConsoleColor emptyFg = ConsoleColor.DarkGray) =>
         new GaugeBuilder()
             .Ratio(float.IsNaN(progress) ? 0 : progress)

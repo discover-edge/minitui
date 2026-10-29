@@ -18,7 +18,9 @@ public partial class App
     private readonly Channel<object> _queue = Channel.CreateUnbounded<object>(
         new UnboundedChannelOptions { SingleReader = true });
 
+#pragma warning disable CS0618 // Kept for the obsolete UseRouter until 1.0
     private InputRouter? _router;
+#pragma warning restore CS0618
     private Action<App>? _onSetup;
     private Action<Buffer, Rect>? _onRender;
     private Action? _onUpdate;
@@ -34,7 +36,22 @@ public partial class App
     private Theme? _theme;
     private CancellationTokenSource _stopping = new();
 
-    private App() { }
+    private bool _chromeStatusBar = true;
+    private bool _chromeBreadcrumb = true;
+    private bool _quitWhenEmpty = true;
+
+    // Async work in flight (loads, RunTask) and dialogs waiting for the user, for ComponentHarness.RunUntilIdle
+    private int _pendingWork;
+    private int _awaitingUser;
+
+    private App()
+    {
+        Screens = new ScreenStack(this);
+        Overlays = new OverlayStack(this);
+        Keys = new KeyMap()
+            .Add("?", "Help", Overlays.ShowHelp)
+            .Add("ctrl+c", "Quit", Quit, showInHints: false);
+    }
 
     /// <summary>
     /// Create a new App builder.
@@ -44,6 +61,7 @@ public partial class App
     /// <summary>
     /// Configure the input router for handling keyboard input.
     /// </summary>
+    [Obsolete("Use screens, components and FocusScope instead (§9.4).")]
     public App UseRouter(InputRouter router)
     {
         _router = router;
@@ -73,9 +91,48 @@ public partial class App
     /// <summary>
     /// Configure the render callback, called with the buffer and screen rect whenever a frame is drawn.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Screens have been pushed; an app uses either screens or a render callback.</exception>
     public App Render(Action<Buffer, Rect> render)
     {
+        if (Screens.Count > 0)
+            throw new InvalidOperationException("A Render callback can't be used with screens; use one or the other.");
         _onRender = render;
+        return this;
+    }
+
+    /// <summary>
+    /// The app's screens (§9.3). An app either pushes screens or sets a <see cref="Render"/> callback.
+    /// With screens, the app draws the top screen, a status bar (see <see cref="WithChrome"/>), overlays and toasts.
+    /// </summary>
+    public ScreenStack Screens { get; }
+
+    /// <summary>Modal overlays and dialogs, drawn over the screens (or over the <see cref="Render"/> output).</summary>
+    public OverlayStack Overlays { get; }
+
+    /// <summary>Toasts the app draws in the top-right corner, over everything else.</summary>
+    public ToastQueue Toasts { get; } = new();
+
+    /// <summary>
+    /// Global key bindings, tried after the focus chain when screens are used (§9.4).
+    /// Built in: <c>?</c> shows help and <c>ctrl+c</c> quits.
+    /// </summary>
+    public KeyMap Keys { get; }
+
+    /// <summary>
+    /// With screens, reserve the bottom row for a status bar showing key hints on the left and, if
+    /// <paramref name="breadcrumb"/> is set, the screen titles on the right. On by default.
+    /// </summary>
+    public App WithChrome(bool statusBar = true, bool breadcrumb = true)
+    {
+        _chromeStatusBar = statusBar;
+        _chromeBreadcrumb = breadcrumb;
+        return this;
+    }
+
+    /// <summary>Quit when the last screen is popped. On by default.</summary>
+    public App QuitWhenEmpty(bool quit = true)
+    {
+        _quitWhenEmpty = quit;
         return this;
     }
 
@@ -184,7 +241,11 @@ public partial class App
     {
         ArgumentNullException.ThrowIfNull(theme);
         _theme = theme;
-        if (_running) InvokeOnUiThread(() => Theme.ReplaceCurrent(theme));
+        if (_running) InvokeOnUiThread(() =>
+        {
+            _activeTheme = theme;
+            Theme.ReplaceCurrent(theme);
+        });
         return this;
     }
 
@@ -231,7 +292,21 @@ public partial class App
     {
         ArgumentNullException.ThrowIfNull(work);
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        InvokeOnUiThread(() => _ = RunTaskCore(work, completion));
+        BeginWork();
+        InvokeOnUiThread(() =>
+        {
+            // Run under the app's context even if the caller's thread has another one, so awaits resume on the UI thread
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new MiniTuiSynchronizationContext(this));
+            try
+            {
+                _ = RunTaskCore(work, completion);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
+        });
         return completion.Task;
     }
 
@@ -292,10 +367,39 @@ public partial class App
     /// (which <see cref="Input.Poll"/> returns while it runs) and once per wake-up without a key.
     /// The app stops when it returns false.
     /// </summary>
+    [Obsolete("Use Run with OnKey, KeyMap or screens instead.")]
     public void RunWhile(Func<bool> condition)
     {
         ArgumentNullException.ThrowIfNull(condition);
         RunCore(condition, CancellationToken.None);
+    }
+
+    internal bool HasRenderCallback => _onRender is not null;
+
+    /// <summary>Async loads and tasks in flight.</summary>
+    internal int PendingWork => Volatile.Read(ref _pendingWork);
+
+    /// <summary>Dialogs waiting for the user, which tasks in flight may be awaiting.</summary>
+    internal int AwaitingUser => Volatile.Read(ref _awaitingUser);
+
+    internal void BeginWork() => Interlocked.Increment(ref _pendingWork);
+
+    internal void EndWork() => Interlocked.Decrement(ref _pendingWork);
+
+    internal void BeginUserWait() => Interlocked.Increment(ref _awaitingUser);
+
+    internal void EndUserWait() => Interlocked.Decrement(ref _awaitingUser);
+
+    /// <summary>Run now on the UI thread (or before the app runs), otherwise post.</summary>
+    internal void OnUiThread(Action action)
+    {
+        if (_running && !IsUiThread) Post(action);
+        else action();
+    }
+
+    internal void OnScreensEmpty()
+    {
+        if (_quitWhenEmpty && _running) Quit();
     }
 
     /// <summary>The clock the app runs on.</summary>
@@ -329,6 +433,7 @@ public partial class App
         }
         finally
         {
+            EndWork();
             completion.TrySetResult();
         }
     }

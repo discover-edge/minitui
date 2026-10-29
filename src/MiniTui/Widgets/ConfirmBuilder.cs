@@ -3,6 +3,7 @@ namespace MiniTui;
 /// <summary>
 /// A yes/no dialog centered on the screen.
 /// </summary>
+[Obsolete("Use App.Overlays.ConfirmAsync instead.")]
 public class ConfirmBuilder
 {
     private string _message = "Are you sure?";
