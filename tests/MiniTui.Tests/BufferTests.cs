@@ -333,3 +333,34 @@ public class BufferTests
         AssertLines(buf, " 日本 ");
     }
 }
+
+public class BufferZeroWidthTests
+{
+    [Theory]
+    [InlineData("\u0301")]
+    [InlineData("\u200D")]
+    [InlineData("\u200B")]
+    [InlineData("\uFE0F")]
+    public void Set_ZeroWidthSymbol_IsStoredAsSpace(string symbol)
+    {
+        var buf = new MiniTui.Buffer(2, 1);
+
+        buf.Set(0, 0, Cell.Empty with { Symbol = symbol });
+
+        Assert.Equal(" ", buf.Get(0, 0).Symbol);
+    }
+}
+
+public class BufferLeadingZeroWidthTests
+{
+    [Fact]
+    public void SetString_SkipsAGraphemeThatStartsWithAZeroWidthRune()
+    {
+        var buf = new MiniTui.Buffer(3, 1);
+
+        var written = buf.SetString(0, 0, "️ab", Style.Default);
+
+        Assert.Equal(2, written);
+        Assert.Equal("ab ", buf.ToLines()[0]);
+    }
+}

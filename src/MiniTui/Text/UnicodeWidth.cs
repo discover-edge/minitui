@@ -44,10 +44,7 @@ public static class UnicodeWidth
         var emojiPresentation = InTable(UnicodeWidthTable.EmojiPresentation, first.Value);
         if (grapheme.Contains('‍') && emojiPresentation) return 2;
 
-        var category = Rune.GetUnicodeCategory(first);
-        if (category is UnicodeCategory.NonSpacingMark or UnicodeCategory.EnclosingMark or UnicodeCategory.Format
-            || first.Value == 0x200B)
-            return 0;
+        if (IsZeroWidthRune(first)) return 0;
 
         if (emojiPresentation || InTable(UnicodeWidthTable.EastAsianWide, first.Value)) return 2;
         return 1;
@@ -94,6 +91,20 @@ public static class UnicodeWidth
         }
         return string.Concat(span[..end], ellipsis);
     }
+
+    /// <summary>
+    /// True when the grapheme starts with a zero-width rune (rule 5's test). Such a grapheme can
+    /// only occur at the start of a string, and on screen it would attach to the previous cell.
+    /// </summary>
+    internal static bool StartsWithZeroWidth(ReadOnlySpan<char> grapheme) =>
+        !grapheme.IsEmpty
+        && Rune.DecodeFromUtf16(grapheme, out var first, out _) == System.Buffers.OperationStatus.Done
+        && IsZeroWidthRune(first);
+
+    private static bool IsZeroWidthRune(Rune rune) =>
+        Rune.GetUnicodeCategory(rune) is UnicodeCategory.NonSpacingMark or UnicodeCategory.EnclosingMark
+            or UnicodeCategory.Format
+        || rune.Value == 0x200B;
 
     private static bool InTable(ReadOnlySpan<uint> table, int codePoint)
     {

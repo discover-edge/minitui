@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `ITerminalBackend` and `CellUpdate`. `Terminal(ITerminalBackend)` draws through any backend.
+- `AnsiBackend`, the new default: one buffered UTF-8 write per frame, synchronized output (`?2026`), cursor and SGR tracking so only changes are emitted, colors downsampled to the detected `ColorMode`. An unchanged frame writes zero bytes and allocates nothing.
+- `LegacyConsoleBackend`, used automatically on Windows consoles where VT can't be enabled (16 colors, no alternate screen). Line wrap is turned off while it runs, so the bottom-right cell doesn't scroll the screen.
+- `TestBackend`, an in-memory screen for testing apps (`Lines`, `CellAt`, `CursorPosition`, `CursorVisible`).
+- `IInputSource`, `ConsoleInputSource` and `ScriptedInputSource`.
+- `TerminalNotSupportedException`, thrown when stdin or stdout is redirected.
+- `TerminalLease`: terminals share a process-wide, ref-counted session.
 - `tests/MiniTui.Tests` xUnit project with smoke tests, included in `src/MiniTui.sln`.
 - CI workflow (`.github/workflows/ci.yml`): build with `-warnaserror`, test, and pack dry run on Ubuntu, Windows and macOS; code coverage collected on Ubuntu.
 - Symbol packages (`.snupkg`), SourceLink repository metadata and embedded untracked sources.
@@ -20,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Rect.IsEmpty`, `Intersect`, `Clamp`, `Inner(Margin)`, `Rows()` and `Columns()`, and the `Margin` type.
 
 ### Changed
+- On Windows, VT processing is enabled and the output encoding is set to UTF-8 while an app runs; both are restored afterwards.
+- `Buffer.Set` and `FillRect` store a symbol that starts with a zero-width character (a lone combining mark, ZWJ, VS16) as a space, and `SetString` skips such graphemes, so they can't merge with the neighbouring cell on screen.
 - `MiniTui.csproj` now builds with `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, missing XML docs (CS1591) as errors, `IsAotCompatible`, and deterministic/CI builds.
 - The publish workflow runs tests before packing and takes the package version from the tag (`v1.2.3` → `1.2.3`).
 - `Terminal.Dispose()` calls `GC.SuppressFinalize`.
@@ -36,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stale duplicate solution file `src/MiniTui/MiniTui.sln` (D19). `src/MiniTui.sln` is the canonical solution.
 
 ### Fixed
+- Ctrl+C is delivered as input (`TreatControlCAsInput`) and quits `App.Run`/`RunWhile`, instead of killing the process with the terminal left in TUI mode. `Input.IsQuit` also recognises Ctrl+C sent as `\x03` (D1).
+- Apps run on the alternate screen and never call `Console.Clear()`, so the user's screen and scrollback are preserved (D2).
+- A frame is one write instead of thousands of console calls (D5).
+- The terminal is restored on SIGTERM, SIGHUP, SIGQUIT, process exit and unhandled exceptions.
+- Nested apps share the terminal session: the inner app doesn't clear the screen, and the outer app redraws fully when it exits, without `app.Invalidate()` (D17).
 - README license section now states MIT, matching `LICENSE` and the package metadata (D18).
 - README box-style examples show the actual box-drawing glyphs (D18).
 - Drawing never throws for any coordinates or `Rect`, and `Rect.Shrink` never returns a negative size; an over-shrunk rect collapses to its center (D6). `Widgets.List`, `Table` and `Modal` no longer throw on narrow areas.
