@@ -158,13 +158,44 @@ by display width.
 
 ### `Terminal`
 
-Manages the actual console. Double-buffers for performance.
+Manages the actual console. Double-buffers for performance: each frame, only the cells that changed
+are sent to the backend, as one write.
 
 ```csharp
 using var terminal = new Terminal();
 terminal.Draw(buf => { /* render here */ });
 terminal.Invalidate(); // Force full redraw next frame
 ```
+
+MiniTui runs on the terminal's alternate screen, so your shell's screen and scrollback are left
+untouched. The terminal is restored on normal exit, Ctrl+C, unhandled exceptions, and
+SIGTERM/SIGHUP. Ctrl+C is delivered as a key and quits `App.Run`/`RunWhile`. An app started from
+inside another app shares its terminal, and the outer app redraws itself when the inner one exits,
+so no `Invalidate()` is needed.
+
+Colors are downsampled to what the terminal supports (`NO_COLOR`, `COLORTERM`, `TERM`, ...; see
+`ColorCapability.Detect`). Stdin and stdout must be a terminal: if either is redirected,
+`TerminalNotSupportedException` is thrown.
+
+### Backends and testing
+
+`Terminal` draws through an `ITerminalBackend`:
+
+- `AnsiBackend`, the default: ANSI/VT escape sequences, synchronized output, 16/256/truecolor.
+- `LegacyConsoleBackend`: the `System.Console` API, used automatically on Windows consoles without VT support (16 colors).
+- `TestBackend`: an in-memory screen for testing your own rendering.
+
+```csharp
+var backend = new TestBackend(40, 10);
+using (var terminal = new Terminal(backend))
+    terminal.Draw(buf => buf.SetString(0, 0, "Hello", Style.Default));
+
+Assert.Equal("Hello", backend.Lines[0].TrimEnd());
+Assert.Equal(Color.Reset, backend.CellAt(0, 0).Fg);
+```
+
+`ScriptedInputSource` (`Enqueue`, `EnqueueText`) provides scripted key presses through the
+`IInputSource` interface; the app loop will accept one in a future release.
 
 ### `Rect` & `Vec2`
 
@@ -290,9 +321,8 @@ MiniTui/
 │   │   ├── Core/           # Color, Style, Cell, Buffer, Rect/Vec2/Margin
 │   │   ├── Text/           # Span, Line, Text, sanitizing, Unicode width
 │   │   ├── Layout/         # Layout builder
-│   │   ├── Terminal/       # Color capability detection
+│   │   ├── Terminal/       # Terminal, backends, ANSI encoder, session, input sources
 │   │   ├── Input.cs        # Input, InputHelpers, InputRouter, state types
-│   │   ├── Terminal.cs     # Terminal rendering
 │   │   └── Widgets.cs      # Widget drawing functions and builders
 │   └── MiniTui.Example/
 │       └── Program.cs      # Demo application

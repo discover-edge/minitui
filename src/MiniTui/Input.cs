@@ -40,8 +40,14 @@ public static class Input
         if (key == null) return false;
         return key.Value.KeyChar == 'q' 
             || key.Value.Key == ConsoleKey.Escape
-            || (key.Value.Key == ConsoleKey.C && key.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
+            || IsCtrlC(key.Value);
     }
+
+    /// <summary>
+    /// Ctrl+C, which the terminal delivers as a key while an app is running.
+    /// </summary>
+    internal static bool IsCtrlC(ConsoleKeyInfo key) =>
+        key.KeyChar == '\x03' || (key.Key == ConsoleKey.C && key.Modifiers.HasFlag(ConsoleModifiers.Control));
 }
 
 /// <summary>

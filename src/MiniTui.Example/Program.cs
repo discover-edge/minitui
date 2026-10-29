@@ -50,7 +50,6 @@ app.RunWhile(() =>
     else if (key.Value.Key == ConsoleKey.Enter)
     {
         demos[listState.SelectedIndex].Run();
-        app.Invalidate();
     }
 
     return true;

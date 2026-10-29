@@ -94,9 +94,12 @@ public class App
 
         while (_running)
         {
-            // Check input first for responsiveness
+            // Check input first for responsiveness. Ctrl+C arrives as a key, and always quits.
             if (Input.Poll() is { } key)
+            {
+                if (Input.IsCtrlC(key)) break;
                 _router?.Handle(key);
+            }
 
             // Check for terminal resize
             terminal.CheckResize();
@@ -137,9 +140,12 @@ public class App
 
         while (_running && condition())
         {
-            // Check input first for responsiveness
+            // Check input first for responsiveness. Ctrl+C arrives as a key, and always quits.
             if (Input.Poll() is { } key)
+            {
+                if (Input.IsCtrlC(key)) break;
                 _router?.Handle(key);
+            }
 
             // Check for terminal resize
             terminal.CheckResize();

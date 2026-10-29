@@ -63,7 +63,7 @@ public class Buffer
 
     /// <summary>
     /// Set a cell at the given position. Ignores out-of-bounds coordinates.
-    /// The symbol is sanitized, and wide characters overwrite the cell to their right.
+    /// The symbol is sanitized (a zero-width symbol becomes a space), and wide characters overwrite the cell to their right.
     /// A wide character that would start in the last column is written as a space.
     /// </summary>
     public void Set(int x, int y, Cell cell)
@@ -283,6 +283,9 @@ public class Buffer
         var symbol = cell.Symbol;
         if (symbol.Length == 1 && symbol[0] is >= ' ' and <= '~') return cell;
         var clean = Sanitizer.Symbol(symbol);
+
+        // A lone zero-width symbol (combining mark, ZWJ, ...) would merge with the previous cell on screen
+        if (UnicodeWidth.StartsWithZeroWidth(clean)) clean = " ";
         return ReferenceEquals(clean, symbol) ? cell : cell with { Symbol = clean };
     }
 
@@ -315,7 +318,7 @@ public class Buffer
             span = span[length..];
 
             var w = UnicodeWidth.OfGrapheme(grapheme);
-            if (w == 0) continue;
+            if (w == 0 || UnicodeWidth.StartsWithZeroWidth(grapheme)) continue;
             if (col + w > limit) return (int)(col - x);
             if (col >= 0)
                 PatchSymbol((int)col, y, length == 1 ? Symbols.Of(grapheme[0]) : grapheme.ToString(), w, style);
