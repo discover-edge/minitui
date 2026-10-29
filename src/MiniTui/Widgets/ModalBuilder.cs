@@ -4,6 +4,7 @@ namespace MiniTui;
 /// A dialog centered on the screen, drawn over existing content. The text wraps, and scrolls with a
 /// <see cref="ScrollState"/> when it doesn't fit. The dialog leaves a 2-cell margin around it.
 /// </summary>
+[Obsolete("Use App.Overlays.ShowMessageAsync or a custom Overlay instead.")]
 public class ModalBuilder
 {
     private const int ScreenMargin = 2;

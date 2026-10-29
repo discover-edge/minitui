@@ -70,6 +70,19 @@ internal static class WidgetText
         return new Line(spans, line.Alignment);
     }
 
+    /// <summary>The end of <paramref name="text"/> that fits in <paramref name="width"/> columns, starting with <c>…</c> if cut.</summary>
+    public static string TruncateStart(string text, int width)
+    {
+        if (width <= 0) return "";
+        if (UnicodeWidth.Of(text) <= width) return text;
+        var graphemes = UnicodeWidth.Graphemes(text).ToList();
+        var used = 1;
+        var start = graphemes.Count;
+        while (start > 0 && used + UnicodeWidth.OfGrapheme(graphemes[start - 1]) <= width)
+            used += UnicodeWidth.OfGrapheme(graphemes[--start]);
+        return Ellipsis + string.Concat(graphemes.Skip(start));
+    }
+
     /// <summary>A ─ line, clipped to the buffer.</summary>
     public static void HorizontalLine(Buffer buf, int x, int y, int width, Style style)
     {

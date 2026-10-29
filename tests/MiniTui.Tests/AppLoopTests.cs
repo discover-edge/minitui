@@ -1,3 +1,6 @@
+// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
+#pragma warning disable CS0618
+
 using Microsoft.Extensions.Time.Testing;
 
 namespace MiniTui.Tests;
@@ -334,10 +337,8 @@ public class AppLoopTests
     {
         var time = new FakeTimeProvider();
         var backend = new TestBackend(20, 5);
-#pragma warning disable CS0618
         var app = AppHarness.Create(backend, new ScriptedInputSource()).WithTimeProvider(time).WithFrameDelay(50)
             .Render((_, _) => { });
-#pragma warning restore CS0618
 
         var run = AppHarness.Run(app);
         await WaitFor(() => backend.DrawCount == 1);

@@ -15,36 +15,76 @@ A minimal, immediate-mode TUI (Text User Interface) framework for C#. No depende
 dotnet run --project src/MiniTui.Example
 ```
 
-This launches a demo app showcasing counters, lists, forms, progress bars, and a dashboard, plus:
+This launches one app with a stack of screens: a menu, and a demo screen for counters, lists, a form,
+progress bars, a dashboard, a command line and tabs, plus:
 
-- **Services**: an async table of 500 services from a fake HTTP API (slow, and failing 20% of the time), with
-  refresh, cancellation, error toasts and a `?` key-help modal.
+- **Services**: an async table of 500 services from a fake HTTP API (slow, and failing 20% of the time),
+  with refresh and cancellation, a detail screen (Enter), delete with a confirm dialog (`d`) and error toasts.
 - **Widgets**: every widget on one screen, a theme toggle (`t`) and a Unicode sample panel.
 
+Esc or `q` goes back, `?` lists the keys for the current screen, and Ctrl+C quits.
+
 ## Usage Pattern
+
+A small app is one render callback and a `KeyMap`:
 
 ```csharp
 using MiniTui;
 
 var count = 0;
+var app = App.Create();
+var keys = new KeyMap()
+    .Add("k,up", "+1", () => count++)
+    .Add("j,down", "-1", () => count--)
+    .Add("q", "Quit", app.Quit);
 
-App.Create()
+app.OnKey(keys.Handle)
     .Render((buf, screen) =>
     {
-        buf.DrawBox(new Rect(2, 1, 30, 5), ConsoleColor.Cyan);
-        buf.DrawText(4, 2, $"Count: {count}", ConsoleColor.White);
-        buf.DrawText(4, 3, "[j] dec  [k] inc  [q] quit", ConsoleColor.DarkGray);
+        var inner = Widget.Block().Title(" Counter ").Draw(buf, new Rect(2, 1, 30, 5));
+        buf.SetString(inner.X + 1, inner.Y + 1, $"Count: {count}", Style.Default.Bold());
+        Widget.StatusBar().Left(keys.Hints(screen.Width)).Draw(buf, screen);
     })
-    .RunWhile(() =>
+    .Run();
+```
+
+A larger app is a stack of screens built from components (see [Screens and components](#screens-and-components)):
+
+```csharp
+var app = App.Create().WithTheme(Theme.Default);   // status bar with key hints and a breadcrumb
+app.Keys.Add("q", "Quit", app.Quit);               // global; "?" help and "ctrl+c" quit are built in
+app.Screens.Push(new ServicesScreen(api));
+app.Run();
+
+sealed class ServicesScreen(ServicesClient api) : Screen
+{
+    readonly Loadable<IReadOnlyList<ServiceDto>> services = new();
+    readonly SelectionState selection = new();
+    public override string Title => "Services";
+
+    protected override void OnMount()
     {
-        var key = Input.Poll();
-        if (Input.IsQuit(key)) return false;
+        Keys.Add("r", "Refresh", () => Load(services, api.ListAsync))
+            .Add("enter", "Open", () => App.Screens.Push(new DetailScreen(api, services.Value![selection.Selected])))
+            .Add("d", "Delete", () => App.RunTask(_ => DeleteAsync()));
+        Load(services, api.ListAsync);                 // cancelled automatically when the screen is popped
+    }
 
-        if (key?.KeyChar == 'j') count--;
-        if (key?.KeyChar == 'k') count++;
+    public override bool HandleKey(ConsoleKeyInfo key) => selection.HandleKey(key, services.Value?.Count ?? 0);
 
-        return true;
-    });
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.Table().Header("Name", "Status").Rows(services.Value ?? [], s => new Row(s.Name, s.Status))
+            .State(selection).Focused(ctx.Focused).Draw(buf, area);
+
+    async Task DeleteAsync()
+    {
+        var svc = services.Value![selection.Selected];
+        if (!await App.Overlays.ConfirmAsync($"Delete {svc.Name}?")) return;
+        await api.DeleteAsync(svc.Id, Lifetime);       // resumes on the UI thread
+        App.Toasts.Push($"Deleted {svc.Name}", ToastLevel.Success);
+        Load(services, api.ListAsync);
+    }
+}
 ```
 
 ## Core Types
@@ -57,7 +97,6 @@ thread that called `Run()`.
 
 ```csharp
 App.Create()
-    .UseRouter(router)                         // Optional: attach input router
     .OnSetup(app => { })                       // Optional: run once before the first frame
     .OnKey(key => false)                       // Optional: see keys first; true = handled
     .OnEvent(e => { })                         // Optional: KeyEvent, ResizeEvent, TickEvent
@@ -65,12 +104,11 @@ App.Create()
     .OnError(ex => ErrorAction.Continue)       // Optional: default restores the terminal and rethrows
     .WithTickRate(TimeSpan.FromMilliseconds(100)) // Optional: default 250 ms; null = redraw only on events
     .Render((buf, screen) => { })
-    .Run();                                    // Or .RunWhile(() => condition), or await .RunAsync()
+    .Run();                                    // Or await .RunAsync()
 ```
 
-Ctrl+C always quits (unless `OnKey` takes it). In `RunWhile`, the condition runs once per key
-(`Input.Poll()` returns that key) and once per wake-up without one; a key the condition takes
-isn't passed to the router.
+Ctrl+C always quits (unless `OnKey` takes it). An app uses either a `Render` callback or `Screens`;
+`Overlays` (dialogs) and `Toasts` work with both.
 
 From any thread, `app.Post(action)` runs code on the UI thread, `app.RequestRedraw()` asks for a
 frame and `app.Quit()` stops the loop. `app.RunTask(ct => WorkAsync(ct))` starts async work whose
@@ -99,22 +137,69 @@ State changes happen on the UI thread and redraw. A newer load replaces an older
 fetch sets `Failed` instead of going to `OnError`. Pass a `lifetime` token to ignore results once
 its owner is gone.
 
-### `InputRouter`
+### Screens and components
 
-Routes keyboard input to named focus elements with Tab navigation.
+Components are plain classes that hold state, handle keys and render every frame; there's no retained
+widget tree. A parent renders its children explicitly with `child.Render(buf, rect, ctx.For(child))`.
 
 ```csharp
-var router = new InputRouter()
-    .Add("list", key => { /* handle list input */ })
-    .Add("input", key => { /* handle text input */ })
-    .Add("search", key => { /* handle typing */ }, capturesText: true)
-    .Global(key => key.KeyChar == '?' && (showHelp = true)) // runs before focus routing, not while typing
-    .WithModal(() => showHelp, _ => showHelp = false)
-    .StartWith("input");
+sealed class SearchBox : Component
+{
+    readonly TextFieldState text = new();
+    public override bool CapturesText => true;           // typing "q" here doesn't trigger global "q"
+    public override bool HandleKey(ConsoleKeyInfo key) => text.HandleKey(key);
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.TextField().State(text).Focused(ctx.Focused).Block(Widget.Block().Title(" Search ")).Draw(buf, area);
+}
 
-// In render:
-if (router.IsFocused("list")) { /* highlight */ }
+sealed class FilesScreen : Screen
+{
+    readonly SearchBox search;
+    readonly Component list;
+
+    public FilesScreen()
+    {
+        search = AddChild(new SearchBox());
+        list = AddChild(Component.From((buf, area, ctx) => { /* draw */ }, key => false));
+        Focus.Add(list).Add(search);                       // Tab cycles; the first one starts focused
+        Keys.Add("ctrl+r", "Reload", Reload);
+    }
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    {
+        var rows = Layout.Split(area, Direction.Vertical, Constraint.Length(3), Constraint.Fill());
+        search.Render(buf, rows[0], ctx.For(search));
+        list.Render(buf, rows[1], ctx.For(list));
+    }
+
+    void Reload() { }
+}
 ```
+
+- **Lifecycle:** `OnMount` runs when a component joins a mounted screen (parents before children);
+  `OnUnmount` when it leaves (children first, after `Lifetime` is cancelled). `OnActivated`/`OnDeactivated`
+  run when its screen becomes or stops being the top one. `Load(loadable, fetch)` ties a load to `Lifetime`,
+  so popping a screen cancels its loads and ignores their results.
+- **Keys** go to the `App.OnKey` hook; then, if an overlay is open, only to it (Esc closes it); otherwise
+  along the focus chain from the innermost focused component outwards (`HandleKey`, then `Keys`), then
+  `App.Keys`; finally an unhandled Esc pops the screen. An unhandled Tab cycles the innermost focus scope.
+- **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and
+  the screen titles. Turn it off with `WithChrome(statusBar: false)`.
+- **Overlays:** `app.Overlays.ConfirmAsync(message)`, `ShowMessageAsync(title, text)`, `ShowHelp()`, or
+  `Show(new CommandLineOverlay(registry))` and your own `Overlay` subclasses.
+
+Test a screen with `ComponentHarness`, which runs the app one step at a time on a test terminal:
+
+```csharp
+using var harness = new ComponentHarness(new ServicesScreen(fakeApi), width: 80, height: 24);
+harness.Press("j j enter");                       // KeyBinding names
+Assert.IsType<DetailScreen>(harness.App.Screens.Top);
+harness.Type("hello");
+Assert.Contains(harness.Lines, l => l.Contains("hello"));
+```
+
+Each call handles the keys, posted work and `await` continuations until nothing is in flight, then draws
+a frame.
 
 ### `Layout`
 
@@ -129,7 +214,7 @@ var layout = Layout.Vertical(screen)
     .Spacing(1)                             // Optional: empty cells between regions
     .Build();                               // Optional: the indexer builds on first use
 
-buf.DrawText(layout["header"].X, layout["header"].Y, "Title");
+buf.SetString(layout["header"].X, layout["header"].Y, "Title", Style.Default.Bold());
 Widget.List().Items(items).Draw(buf, layout["content"]);
 
 var columns = Layout.Split(area, Direction.Horizontal, Constraint.Percentage(30), Constraint.Fill());
@@ -224,7 +309,7 @@ var keys = new KeyMap()
 
 app.OnKey(keys.Handle);                                    // first match wins
 Widget.StatusBar().Left(keys.Hints(40)).Draw(buf, status); // "r Refresh  j Down  ctrl+s Save  q Quit"
-Widget.Modal().Title(" Keys ").Lines([.. keys.HelpLines()]).Draw(buf);
+_ = app.Overlays.ShowMessageAsync("Keys", string.Join("\n", keys.HelpLines()));
 ```
 
 A binding is `(ctrl|alt|shift "+")* name`, where `name` is a printable character or one of `enter esc
@@ -240,9 +325,6 @@ Your canvas. Draw to it, the terminal handles the rest.
 buf.SetString(x, y, "Hello", new Style(Color.Green).Bold());
 buf.SetLine(x, y, new Line([new Span("Status: ", Style.Default), new Span("OK", new Style(Color.Green))]), maxWidth: 20);
 buf.SetStyle(rect, new Style(Bg: Color.Blue));   // restyle an area, keep its text
-buf.DrawBox(rect, ConsoleColor.Cyan);
-buf.DrawBoxWithTitle(rect, "Title", ConsoleColor.Cyan);
-buf.DrawProgressBar(rect, 0.75f);
 buf.FillRect(rect, Cell.Empty with { Bg = Color.Blue });
 ```
 
@@ -284,7 +366,7 @@ terminal.Invalidate(); // Force full redraw next frame
 
 MiniTui runs on the terminal's alternate screen, so your shell's screen and scrollback are left
 untouched. The terminal is restored on normal exit, Ctrl+C, unhandled exceptions, and
-SIGTERM/SIGHUP. Ctrl+C is delivered as a key and quits `App.Run`/`RunWhile`. An app started from
+SIGTERM/SIGHUP. Ctrl+C is delivered as a key and quits `App.Run`. An app started from
 inside another app shares its terminal, and the outer app redraws itself when the inner one exits,
 so no `Invalidate()` is needed.
 
@@ -344,16 +426,20 @@ var visible = area.Intersect(screen);
 foreach (var row in area.Rows()) { /* one Rect per row */ }
 ```
 
-### `Input` & `InputHelpers`
+### Replaced APIs
 
-`Input.Poll()` and the 0.7 helpers still work. The value-type states (`ListState`, `TextInputState`,
-`CommandInputState`, `TabsState`) and their `InputHelpers.Handle*` functions are obsolete: use the state
-classes above, which `HandleTextInput` and `HandleCommandInput` now delegate to.
+These 0.7 APIs still work in 0.9 but are obsolete, and are removed in 1.0:
 
-```csharp
-var key = Input.Poll();          // Non-blocking; inside RunWhile, the key the app is delivering
-if (Input.IsQuit(key)) break;    // Check for q/Esc/Ctrl+C
-```
+| Obsolete | Use instead |
+|---|---|
+| `RunWhile`, `Input.Poll`, `Input.Read`, `WithFrameDelay` | `Run`/`RunAsync` with `OnKey`, a `KeyMap` or screens; `WithTickRate` |
+| `Input.IsKey`, `IsChar`, `IsQuit`, `InputHelpers.IsListNavigationKey` | `KeyMap`, `KeyBinding` |
+| `InputRouter`, `UseRouter`, `FocusManager` | screens, components and `FocusScope` |
+| `Widget.Modal`, `Widget.Confirm`, `ConfirmState`, `HandleConfirmInput`, `InputRouter.WithModal`, `IsModalDismissKey` | `app.Overlays.ShowMessageAsync`, `ConfirmAsync`, custom `Overlay`s |
+| `ListState`, `TextInputState`, `CommandInputState`, `TabsState` and `InputHelpers.Handle*` | `SelectionState`, `TextFieldState`, `CommandLineState`, `TabBarState` |
+| `Widgets.*` (static), `Widget.CommandInput`, `Widget.Tabs` | the `Widget.*` builders, `Widget.CommandLine`, `Widget.TabBar` |
+| `Buffer.DrawText`, `DrawTextCentered`, `DrawBox`, `DrawBoxWithTitle`, `DrawProgressBar` | `SetString`, `Widget.Paragraph`, `Widget.Block`, `Widget.Gauge` |
+| `Layout.Add(name, int)`, `AddFill` | `Add(name, Constraint.Length(n))`, `Constraint.Fill()` |
 
 ### `ParsedCommand`
 
@@ -377,19 +463,6 @@ var status = TimedMessage.Show("Saved!", seconds: 3);
 Widget.StatusBar()
     .Message(status, "Default status text")
     .Draw(buf, area);
-```
-
-### `Widgets`
-
-Stateless widget-drawing functions from 0.7. Each one draws through the matching builder, so it is
-themed and width-aware. `TextInput`, `CommandInput` and `Tabs` are obsolete.
-
-```csharp
-Widgets.Button(buf, rect, "Click Me", focused: true);
-Widgets.Checkbox(buf, x, y, "Enable", isChecked: true);
-Widgets.List(buf, rect, items, selectedIndex, scrollOffset, focused: true);
-Widgets.StatusBar(buf, area, "Left text", "Right text");
-Widgets.Modal(buf, "Title", lines);
 ```
 
 ## Extending
@@ -428,10 +501,10 @@ public static class BufferExtensions
 ## Box Styles
 
 ```csharp
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Single);   // ┌─┐
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Double);   // ╔═╗
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Rounded);  // ╭─╮
-buf.DrawBox(rect, ConsoleColor.White, BoxStyle.Heavy);    // ┏━┓
+Widget.Block().BorderType(BoxStyle.Single).Draw(buf, rect);   // ┌─┐
+Widget.Block().BorderType(BoxStyle.Double).Draw(buf, rect);   // ╔═╗
+Widget.Block().BorderType(BoxStyle.Rounded).Draw(buf, rect);  // ╭─╮
+Widget.Block().BorderType(BoxStyle.Heavy).Draw(buf, rect);    // ┏━┓
 ```
 
 ## Project Structure
@@ -446,14 +519,14 @@ MiniTui/
 │   │   ├── Text/           # Span, Line, Text, sanitizing, Unicode width
 │   │   ├── Layout/         # Layout builder, constraints and solver
 │   │   ├── Terminal/       # Terminal, backends, ANSI encoder, session, input sources
+│   │   ├── Components/     # Component, FocusScope, screens, overlays, dialogs, key routing, ComponentHarness
 │   │   ├── Input/          # KeyMap, KeyBinding and the widget state classes
 │   │   ├── Widgets/        # Theme and one file per widget builder
-│   │   ├── Input.cs        # Input, InputHelpers, InputRouter, commands, 0.7 state types
-│   │   └── Widgets.cs      # Widget factory and the static Widgets functions
+│   │   ├── Input.cs        # Commands, plus the obsolete Input, InputHelpers, InputRouter and 0.7 states
+│   │   └── Widgets.cs      # Widget factory and the obsolete static Widgets functions
 │   └── MiniTui.Example/
-│       ├── Program.cs      # Demo menu and the 0.7 demos
-│       ├── ServicesDemo.cs # Async table against a fake HTTP API
-│       └── WidgetsDemo.cs  # Every widget, theme toggle, Unicode panel
+│       ├── Program.cs      # Creates the app and pushes the menu screen
+│       └── Screens/        # One screen per demo, plus shared controls
 ├── tests/
 │   └── MiniTui.Tests/      # xUnit tests
 ├── tools/

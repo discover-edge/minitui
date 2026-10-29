@@ -39,6 +39,9 @@ public partial class App
     // The fastest tick rate a widget asked for while drawing the current frame (toasts, spinners)
     private TimeSpan? _frameTickRequest;
     private bool _modalWasActive;
+    private RunScope? _run;
+    private Theme? _activeTheme;
+    private bool _basicGlyphs;
 
     /// <summary>The app whose loop is running on the current thread.</summary>
     internal static App? Current => t_current;
@@ -56,8 +59,31 @@ public partial class App
 
     private void RunCore(Func<bool>? condition, CancellationToken cancellationToken)
     {
-        if (_onRender is null)
-            throw new InvalidOperationException("Render callback is required. Call Render() before Run().");
+        StartRun(condition, cancellationToken);
+        try
+        {
+            using (EnterUi())
+            {
+                Setup();
+                while (Step(wait: true)) { }
+            }
+        }
+        finally
+        {
+            EndRun();
+        }
+
+        _failure?.Throw();
+    }
+
+    /// <summary>
+    /// Enter the terminal and start input, ticks and console capture. Runs no user code. Pair with <see cref="EndRun"/>;
+    /// user code runs inside <see cref="EnterUi"/>.
+    /// </summary>
+    internal void StartRun(Func<bool>? condition, CancellationToken cancellationToken)
+    {
+        if (_onRender is null && Screens.Count == 0 && _onSetup is null)
+            throw new InvalidOperationException("Render callback is required. Call Render() or push a screen before Run().");
         if (_running) throw new InvalidOperationException("The app is already running.");
 
         if (_stopping.IsCancellationRequested) _stopping = new CancellationTokenSource();
@@ -67,129 +93,205 @@ public partial class App
         _running = true;
 
         var input = _input ?? InputPump.Console;
-        var readsConsole = ReferenceEquals(input, InputPump.Console);
-        var previousApp = t_current;
-        var previousContext = SynchronizationContext.Current;
-        ConsoleCapture? capture = null;
-        Terminal? terminal = null;
+        var run = new RunScope(condition, input, ReferenceEquals(input, InputPump.Console), t_current);
+        _run = run;
         try
         {
             var backend = _backend ?? Terminal.CreateDefaultBackend(_colorMode);
-            terminal = new Terminal(backend);
-            _terminal = terminal;
-            if (_captureConsole) capture = ConsoleCapture.Start(Log);
-            using var theme = Theme.Use(_theme ?? DefaultTheme(backend));
-            using var glyphs = Glyphs.Use(Glyphs.DetectBasic(backend));
+            run.Terminal = new Terminal(backend);
+            _terminal = run.Terminal;
+            _activeTheme = _theme ?? DefaultTheme(backend);
+            _basicGlyphs = Glyphs.DetectBasic(backend);
+            if (_captureConsole) run.Capture = ConsoleCapture.Start(Log);
+            if (run.ReadsConsole) Interlocked.Increment(ref s_consoleApps);
 
-            t_current = this;
-            if (readsConsole) Interlocked.Increment(ref s_consoleApps);
-            SynchronizationContext.SetSynchronizationContext(new MiniTuiSynchronizationContext(this));
-
-            using var subscription = InputPump.Subscribe(input, keys => _queue.Writer.TryWrite(new KeyBatch(keys)));
+            run.Subscription = InputPump.Subscribe(input, keys => _queue.Writer.TryWrite(new KeyBatch(keys)));
             _activeInput = input;
 
             // An app started from inside another one on the same input gets the keys the outer one hasn't handled yet
-            var outer = previousApp is { _running: true } app && ReferenceEquals(app._activeInput, input) ? app : null;
+            var outer = run.PreviousApp is { _running: true } app && ReferenceEquals(app._activeInput, input) ? app : null;
             if (outer?.RemoveQueuedKeys() is { Count: > 0 } inherited) _pendingKeys = [.. inherited];
             StartTicker();
-            using var cancellation = cancellationToken.Register(Quit);
+            run.Cancellation = cancellationToken.Register(Quit);
             TerminalSession.Resized += OnResizeSignal;
-            try
-            {
-                Loop(terminal, condition);
-            }
-            finally
-            {
-                TerminalSession.Resized -= OnResizeSignal;
-            }
+            run.ResizeHooked = true;
         }
-        finally
+        catch
         {
-            _running = false;
-            StopTicker();
-            CancelStopping();
-            SynchronizationContext.SetSynchronizationContext(previousContext);
-            if (ReferenceEquals(t_current, this))
-            {
-                t_current = previousApp;
-                if (readsConsole) Interlocked.Decrement(ref s_consoleApps);
-            }
-
-            // Restore the writers before leaving the terminal, and replay stderr after, so it lands on the real screen
-            capture?.Restore();
-            terminal?.Dispose();
-            _terminal = null;
-            capture?.ReplayErrors();
-
-            // Keys this app didn't get to go back to the outer app, ahead of anything it received since
-            if (previousApp is { _running: true } outerApp && ReferenceEquals(outerApp._activeInput, input))
-                outerApp.ReturnKeys(RemoveQueuedKeys());
-            _activeInput = null;
-            DiscardQueue();
+            EndRun();
+            throw;
         }
-
-        _failure?.Throw();
     }
 
-    private void Loop(Terminal terminal, Func<bool>? condition)
+    /// <summary>Run <c>OnSetup</c>. Call inside <see cref="EnterUi"/>.</summary>
+    internal void Setup()
     {
         Guard(() => _onSetup?.Invoke(this));
+        if (_onRender is null && Screens.Count == 0 && _failure is null)
+            throw new InvalidOperationException("Render callback is required. Call Render() or push a screen before Run().");
+    }
 
-        var firstFrame = true;
-        while (_running)
+    /// <summary>
+    /// Make the calling thread the UI thread until disposed: <see cref="Current"/>, the theme, glyphs and the
+    /// synchronization context. Restores the previous values, so it nests.
+    /// </summary>
+    internal UiBinding EnterUi() => new(this);
+
+    /// <summary>
+    /// One loop iteration: optionally wait for work, handle resizes and up to 256 queued items, then update and
+    /// draw if anything happened. Call inside <see cref="EnterUi"/>.
+    /// </summary>
+    /// <returns>True while the app is still running.</returns>
+    internal bool Step(bool wait)
+    {
+        if (!_running || _run is not { Terminal: { } terminal } run) return false;
+        if (!run.FirstFrame && wait) WaitForWork();
+        var dirty = run.FirstFrame;
+
+        // 1. Resize
+        if (terminal.CheckResize())
         {
-            if (!firstFrame) WaitForWork();
-            var dirty = firstFrame;
+            dirty = true;
+            var resize = new ResizeEvent(terminal.Width, terminal.Height);
+            Guard(() => _onEvent?.Invoke(resize));
+        }
 
-            // 1. Resize
-            if (terminal.CheckResize())
+        // 2. Drain the queue in FIFO order
+        var condition = run.Condition;
+        var sawKey = false;
+        for (var budget = MaxItemsPerIteration; budget > 0 && _running && TryTake(out var item); budget--)
+        {
+            switch (item)
             {
-                dirty = true;
-                var resize = new ResizeEvent(terminal.Width, terminal.Height);
-                Guard(() => _onEvent?.Invoke(resize));
+                case ConsoleKeyInfo key:
+                    sawKey = dirty = true;
+                    Guard(() => HandleKey(key, condition));
+                    break;
+                case Action action:
+                    dirty = true;
+                    Guard(action);
+                    break;
+                case TickEvent tick:
+                    Interlocked.Exchange(ref _tickPending, 0);
+                    dirty = true;
+                    Guard(() => _onEvent?.Invoke(tick));
+                    break;
+                case RedrawRequest:
+                    dirty = true;
+                    break;
             }
+        }
 
-            // 2. Drain the queue in FIFO order
-            var sawKey = false;
-            for (var budget = MaxItemsPerIteration; budget > 0 && _running && TryTake(out var item); budget--)
-            {
-                switch (item)
-                {
-                    case ConsoleKeyInfo key:
-                        sawKey = dirty = true;
-                        Guard(() => HandleKey(key, condition));
-                        break;
-                    case Action action:
-                        dirty = true;
-                        Guard(action);
-                        break;
-                    case TickEvent tick:
-                        Interlocked.Exchange(ref _tickPending, 0);
-                        dirty = true;
-                        Guard(() => _onEvent?.Invoke(tick));
-                        break;
-                    case RedrawRequest:
-                        dirty = true;
-                        break;
-                }
-            }
+        // RunWhile's condition runs once per key (in HandleKey), or once per wake-up without one
+        if (condition is not null && !sawKey && _running)
+            Guard(() => { if (!condition()) Quit(); });
+        if (!_running) return false;
 
-            // RunWhile's condition runs once per key (in HandleKey), or once per wake-up without one
-            if (condition is not null && !sawKey && _running)
-                Guard(() => { if (!condition()) Quit(); });
-            if (!_running) break;
+        // 3–5. Modal state, update, render
+        Guard(RefreshRouter);
+        Guard(() => _onUpdate?.Invoke());
+        if (!_running) return false;
+        if (dirty)
+        {
+            _frameTickRequest = null;
+            Guard(() => terminal.Draw(buf => RenderFrame(buf, new Rect(0, 0, buf.Width, buf.Height))));
+            UpdateTicker();
+        }
+        run.FirstFrame = false;
+        return _running;
+    }
 
-            // 3–5. Modal state, update, render
-            Guard(RefreshRouter);
-            Guard(() => _onUpdate?.Invoke());
-            if (!_running) break;
-            if (dirty)
-            {
-                _frameTickRequest = null;
-                Guard(() => terminal.Draw(buf => _onRender!(buf, new Rect(0, 0, buf.Width, buf.Height))));
-                UpdateTicker();
-            }
-            firstFrame = false;
+    /// <summary>Leave the terminal and stop input, ticks and capture. Idempotent.</summary>
+    internal void EndRun()
+    {
+        if (_run is not { } run) return;
+        _run = null;
+        _running = false;
+        StopTicker();
+        CancelStopping();
+        if (run.ResizeHooked) TerminalSession.Resized -= OnResizeSignal;
+        run.Cancellation.Dispose();
+        run.Subscription?.Dispose();
+        if (run.ReadsConsole && run.Subscription is not null) Interlocked.Decrement(ref s_consoleApps);
+
+        // Restore the writers before leaving the terminal, and replay stderr after, so it lands on the real screen
+        run.Capture?.Restore();
+        run.Terminal?.Dispose();
+        _terminal = null;
+        run.Capture?.ReplayErrors();
+
+        // Keys this app didn't get to go back to the outer app, ahead of anything it received since
+        if (run.PreviousApp is { _running: true } outerApp && ReferenceEquals(outerApp._activeInput, run.Input))
+            outerApp.ReturnKeys(RemoveQueuedKeys());
+        _activeInput = null;
+        DiscardQueue();
+    }
+
+    /// <summary>True while a run is started and hasn't stopped.</summary>
+    internal bool IsRunning => _running;
+
+    /// <summary>Take the exception a run stopped with, if any.</summary>
+    internal ExceptionDispatchInfo? TakeFailure()
+    {
+        var failure = _failure;
+        _failure = null;
+        return failure;
+    }
+
+    /// <summary>True when keys or other items are waiting to be handled.</summary>
+    internal bool HasQueuedWork => _pendingKeys is not null || _queue.Reader.TryPeek(out _);
+
+    /// <summary>Queue keys as if the input source had read them.</summary>
+    internal void InjectKeys(ConsoleKeyInfo[] keys) => _queue.Writer.TryWrite(new KeyBatch(keys));
+
+    /// <summary>Wait up to <paramref name="timeout"/> for something to be queued.</summary>
+    internal void WaitForQueue(TimeSpan timeout)
+    {
+        if (HasQueuedWork) return;
+        _pendingWait ??= _queue.Reader.WaitToReadAsync().AsTask();
+        if (_pendingWait.Wait(timeout)) _pendingWait = null;
+    }
+
+    /// <summary>What a run started and must undo.</summary>
+    private sealed class RunScope(Func<bool>? condition, IInputSource input, bool readsConsole, App? previousApp)
+    {
+        public Func<bool>? Condition { get; } = condition;
+        public IInputSource Input { get; } = input;
+        public bool ReadsConsole { get; } = readsConsole;
+        public App? PreviousApp { get; } = previousApp;
+        public Terminal? Terminal { get; set; }
+        public ConsoleCapture? Capture { get; set; }
+        public IDisposable? Subscription { get; set; }
+        public CancellationTokenRegistration Cancellation { get; set; }
+        public bool ResizeHooked { get; set; }
+        public bool FirstFrame { get; set; } = true;
+    }
+
+    /// <summary>The thread-local state of the UI thread, restored on dispose.</summary>
+    internal readonly struct UiBinding : IDisposable
+    {
+        private readonly App? _previousApp;
+        private readonly SynchronizationContext? _previousContext;
+        private readonly Theme.Scope _theme;
+        private readonly Glyphs.Scope _glyphs;
+
+        public UiBinding(App app)
+        {
+            app._uiThreadId = Environment.CurrentManagedThreadId;
+            _previousApp = t_current;
+            _previousContext = SynchronizationContext.Current;
+            t_current = app;
+            _theme = Theme.Use(app._activeTheme ?? app._theme ?? Theme.Default);
+            _glyphs = Glyphs.Use(app._basicGlyphs);
+            SynchronizationContext.SetSynchronizationContext(new MiniTuiSynchronizationContext(app));
+        }
+
+        public void Dispose()
+        {
+            SynchronizationContext.SetSynchronizationContext(_previousContext);
+            _glyphs.Dispose();
+            _theme.Dispose();
+            t_current = _previousApp;
         }
     }
 
@@ -227,7 +329,54 @@ public partial class App
             }
         }
 
+        if (!handled) handled = KeyRouter.Route(this, key);
         if (!handled) _router?.Handle(key);
+    }
+
+    /// <summary>
+    /// Draw a frame: the <see cref="Render"/> callback, or the top screen and the chrome (§9.3); then overlays,
+    /// bottom to top, and toasts.
+    /// </summary>
+    private void RenderFrame(Buffer buf, Rect area)
+    {
+        var body = area;
+        if (_onRender is not null)
+        {
+            _onRender(buf, area);
+        }
+        else
+        {
+            var chrome = _chromeStatusBar && area.Height >= 2;
+            if (chrome) body = area with { Height = area.Height - 1 };
+            if (Screens.Top is { } top) top.Render(buf, body, new RenderContext(this, top, focused: !Overlays.Any));
+            if (chrome) DrawStatusBar(buf, new Rect(area.X, area.Bottom - 1, area.Width, 1));
+        }
+
+        var theme = Theme.Current;
+        foreach (var overlay in Overlays.All)
+        {
+            var rect = overlay.Placement(body);
+            WidgetText.Clear(buf, rect);
+            var inner = Widget.Block()
+                .Title(overlay.Title is { } title ? new Line(title) : null)
+                .BorderStyle(theme.ModalBorder)
+                .TitleStyle(theme.ModalTitle)
+                .Padding(new Margin(1, 0))
+                .Draw(buf, rect);
+            overlay.Render(buf, inner, new RenderContext(this, overlay, focused: ReferenceEquals(overlay, Overlays.Top)));
+        }
+
+        Widget.Toasts().Queue(Toasts).Draw(buf, area);
+    }
+
+    // Hints on the left; the breadcrumb (screen titles, truncated from the left) on the right
+    private void DrawStatusBar(Buffer buf, Rect row)
+    {
+        var crumb = _chromeBreadcrumb ? string.Join(" › ", Screens.All.Select(s => s.Title)) : "";
+        crumb = WidgetText.TruncateStart(crumb, row.Width / 2);
+        var crumbWidth = UnicodeWidth.Of(crumb);
+        var hints = KeyRouter.Hints(this, row.Width - 2 - crumbWidth - (crumbWidth > 0 ? 1 : 0));
+        Widget.StatusBar().Left(hints).Right(crumb).Draw(buf, row);
     }
 
     private void RefreshRouter()

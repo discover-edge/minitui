@@ -5,6 +5,7 @@ namespace MiniTui;
 /// they just draw to a buffer based on parameters you provide.
 /// </summary>
 /// <remarks>Each function draws through the matching <see cref="Widget"/> builder.</remarks>
+[Obsolete("Use the Widget.* builders instead. Widgets becomes internal in 1.0.")]
 public static class Widgets
 {
     /// <summary>
@@ -204,8 +205,10 @@ public static class Widget
     [Obsolete("Use Widget.CommandLine() instead.")]
     public static CommandInputBuilder CommandInput() => new();
     /// <summary>Create a new modal widget builder.</summary>
+    [Obsolete("Use App.Overlays.ShowMessageAsync or a custom Overlay instead.")]
     public static ModalBuilder Modal() => new();
     /// <summary>Create a new confirmation dialog builder.</summary>
+    [Obsolete("Use App.Overlays.ConfirmAsync instead.")]
     public static ConfirmBuilder Confirm() => new();
     /// <summary>Create a new tabs widget builder.</summary>
     [Obsolete("Use Widget.TabBar() instead.")]
