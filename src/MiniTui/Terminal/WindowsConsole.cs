@@ -12,6 +12,7 @@ internal static partial class WindowsConsole
     private const int StdOutputHandle = -11;
     private const uint EnableVirtualTerminalProcessing = 0x0004;
     private const uint DisableNewlineAutoReturn = 0x0008;
+    private const uint EnableWrapAtEolOutput = 0x0002;
 
     /// <summary>
     /// OR in ENABLE_VIRTUAL_TERMINAL_PROCESSING and DISABLE_NEWLINE_AUTO_RETURN on the output handle.
@@ -23,6 +24,18 @@ internal static partial class WindowsConsole
         var handle = GetStdHandle(StdOutputHandle);
         if (handle == 0 || handle == -1 || !GetConsoleMode(handle, out originalMode)) return false;
         return SetConsoleMode(handle, originalMode | EnableVirtualTerminalProcessing | DisableNewlineAutoReturn);
+    }
+
+    /// <summary>
+    /// Clear ENABLE_WRAP_AT_EOL_OUTPUT on the output handle, so writing the bottom-right cell doesn't scroll.
+    /// </summary>
+    /// <returns>False if the handle isn't a console.</returns>
+    public static bool TryDisableWrapAtEol(out uint originalMode)
+    {
+        originalMode = 0;
+        var handle = GetStdHandle(StdOutputHandle);
+        if (handle == 0 || handle == -1 || !GetConsoleMode(handle, out originalMode)) return false;
+        return SetConsoleMode(handle, originalMode & ~EnableWrapAtEolOutput);
     }
 
     /// <summary>Set the output handle's console mode. Failures are ignored.</summary>

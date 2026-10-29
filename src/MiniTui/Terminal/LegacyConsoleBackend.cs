@@ -10,6 +10,7 @@ public sealed class LegacyConsoleBackend : ITerminalBackend, IConsoleDevice
     private readonly Lock _lock = new();
     private bool _entered;
     private bool _savedTreatControlCAsInput;
+    private uint? _savedOutputMode;
     private bool _cursorVisible = true;
     private (int X, int Y)? _lastCursor;
     private int _height = 24;
@@ -44,6 +45,11 @@ public sealed class LegacyConsoleBackend : ITerminalBackend, IConsoleDevice
 
             _savedTreatControlCAsInput = Console.TreatControlCAsInput;
             Console.TreatControlCAsInput = true;
+
+            // Writing the bottom-right cell with wrap on scrolls the screen up a line
+            if (OperatingSystem.IsWindows() && WindowsConsole.TryDisableWrapAtEol(out var mode))
+                _savedOutputMode = mode;
+
             SetCursorVisible(false);
             _lastCursor = null;
             _entered = true;
@@ -61,6 +67,9 @@ public sealed class LegacyConsoleBackend : ITerminalBackend, IConsoleDevice
             Try(() => Console.SetCursorPosition(0, Math.Max(0, _height - 1)));
             Try(() => SetCursorVisible(true));
             Try(() => Console.TreatControlCAsInput = _savedTreatControlCAsInput);
+            if (_savedOutputMode is { } mode)
+                Try(() => RestoreOutputMode(mode));
+            _savedOutputMode = null;
         }
     }
 
@@ -119,6 +128,11 @@ public sealed class LegacyConsoleBackend : ITerminalBackend, IConsoleDevice
 
     /// <inheritdoc />
     public void Dispose() => Leave();
+
+    private static void RestoreOutputMode(uint mode)
+    {
+        if (OperatingSystem.IsWindows()) WindowsConsole.SetOutputMode(mode);
+    }
 
     private void SetCursorVisible(bool visible)
     {
