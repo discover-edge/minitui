@@ -1,3 +1,6 @@
+// Widgets still use the 0.7 Cell(char, ConsoleColor, ConsoleColor) API; they move to Style in Phase 5.
+#pragma warning disable CS0618
+
 namespace MiniTui;
 
 /// <summary>
@@ -24,7 +27,7 @@ public static class Widgets
         buf.FillRect(area, new Cell(' ', fg, bg));
 
         // Center the label
-        var x = area.X + (area.Width - label.Length) / 2;
+        var x = area.X + (area.Width - UnicodeWidth.Of(label)) / 2;
         var y = area.Y + area.Height / 2;
         buf.DrawText(x, y, label, fg, bg);
 
@@ -120,16 +123,11 @@ public static class Widgets
             var fg = isSelected ? ConsoleColor.Black : ConsoleColor.Gray;
             var bg = isSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
 
-            var text = items[itemIndex];
-            if (text.Length > inner.Width)
-                text = text[..(inner.Width - 1)] + "…";
+            var text = UnicodeWidth.Truncate(items[itemIndex], inner.Width);
 
             // Fill entire line with background
-            for (var x = 0; x < inner.Width; x++)
-            {
-                var c = x < text.Length ? text[x] : ' ';
-                buf.Set(inner.X + x, inner.Y + i, new Cell(c, fg, bg));
-            }
+            buf.FillRect(new Rect(inner.X, inner.Y + i, inner.Width, 1), new Cell(' ', fg, bg));
+            buf.DrawText(inner.X, inner.Y + i, text, fg, bg);
         }
 
         // Fill empty lines
@@ -168,9 +166,7 @@ public static class Widgets
         for (var col = 0; col < headers.Length; col++)
         {
             var x = area.X + col * colWidth;
-            var header = headers[col].Length > colWidth - 1 
-                ? headers[col][..(colWidth - 2)] + "…" 
-                : headers[col];
+            var header = UnicodeWidth.Truncate(headers[col], colWidth - 1);
             buf.DrawText(x, area.Y, header, ConsoleColor.Yellow);
         }
 
@@ -193,9 +189,7 @@ public static class Widgets
             for (var col = 0; col < Math.Min(headers.Length, rows[row].Length); col++)
             {
                 var x = area.X + col * colWidth;
-                var cell = rows[row][col];
-                if (cell.Length > colWidth - 1)
-                    cell = cell[..(colWidth - 2)] + "…";
+                var cell = UnicodeWidth.Truncate(rows[row][col], colWidth - 1);
                 buf.DrawText(x, y, cell, fg, bg);
             }
         }
@@ -216,7 +210,7 @@ public static class Widgets
 
         if (right != null)
         {
-            var x = area.Right - right.Length - 1;
+            var x = area.Right - UnicodeWidth.Of(right) - 1;
             buf.DrawText(x, y, right, ConsoleColor.White, ConsoleColor.DarkGray);
         }
     }
@@ -237,8 +231,8 @@ public static class Widgets
         buf.DrawText(area.X, area.Y, prompt, promptFg, bg);
 
         // Calculate available width for text
-        var textX = area.X + prompt.Length;
-        var textWidth = area.Width - prompt.Length;
+        var textX = area.X + UnicodeWidth.Of(prompt);
+        var textWidth = area.Width - UnicodeWidth.Of(prompt);
 
         // Draw value (scrolled if needed)
         var displayValue = value;
@@ -271,8 +265,9 @@ public static class Widgets
     public static void Modal(Buffer buf, string title, IReadOnlyList<string> lines, string? footer = "Press Escape to close")
     {
         // Calculate modal size
-        var contentWidth = lines.Count > 0 ? lines.Max(l => l.Length) : 0;
-        var width = Math.Max(title.Length + 4, Math.Max(contentWidth + 4, (footer?.Length ?? 0) + 4));
+        var contentWidth = lines.Count > 0 ? lines.Max(l => UnicodeWidth.Of(l)) : 0;
+        var footerWidth = footer != null ? UnicodeWidth.Of(footer) : 0;
+        var width = Math.Max(UnicodeWidth.Of(title) + 4, Math.Max(contentWidth + 4, footerWidth + 4));
         width = Math.Min(width, buf.Width - 4); // Leave margin
         var height = lines.Count + 4; // +2 for border, +1 for title line, +1 for footer
         height = Math.Min(height, buf.Height - 2);
@@ -293,9 +288,7 @@ public static class Widgets
         var visibleLines = Math.Min(lines.Count, inner.Height - 1); // -1 for footer
         for (var i = 0; i < visibleLines; i++)
         {
-            var line = lines[i];
-            if (line.Length > inner.Width)
-                line = line[..(inner.Width - 1)] + "…";
+            var line = UnicodeWidth.Truncate(lines[i], inner.Width);
             buf.DrawText(inner.X, inner.Y + i, line, ConsoleColor.Gray, ConsoleColor.Black);
         }
 
@@ -303,7 +296,7 @@ public static class Widgets
         if (footer != null)
         {
             var footerY = area.Bottom - 1;
-            var footerX = area.X + (area.Width - footer.Length) / 2;
+            var footerX = area.X + (area.Width - footerWidth) / 2;
             buf.DrawText(footerX, footerY, footer, ConsoleColor.DarkGray, ConsoleColor.Black);
         }
     }
@@ -315,7 +308,7 @@ public static class Widgets
     {
         // Calculate dialog size
         var buttonLine = $"  [{yesText}]    [{noText}]  ";
-        var width = Math.Max(message.Length + 4, buttonLine.Length + 2);
+        var width = Math.Max(UnicodeWidth.Of(message) + 4, UnicodeWidth.Of(buttonLine) + 2);
         width = Math.Min(width, buf.Width - 4);
         var height = 5; // border + message + blank + buttons + border
 
@@ -331,7 +324,7 @@ public static class Widgets
         buf.DrawBox(area, ConsoleColor.DarkGray, BoxStyle.Single);
 
         // Draw message centered
-        var msgX = area.X + (area.Width - message.Length) / 2;
+        var msgX = area.X + (area.Width - UnicodeWidth.Of(message)) / 2;
         buf.DrawText(msgX, area.Y + 1, message, ConsoleColor.White, ConsoleColor.Black);
 
         // Draw buttons
@@ -342,12 +335,12 @@ public static class Widgets
         var noFg = !yesSelected ? ConsoleColor.Black : ConsoleColor.Gray;
         var noBg = !yesSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
 
-        var buttonsWidth = yesBtn.Length + 4 + noBtn.Length;
+        var buttonsWidth = UnicodeWidth.Of(yesBtn) + 4 + UnicodeWidth.Of(noBtn);
         var btnX = area.X + (area.Width - buttonsWidth) / 2;
         var btnY = area.Y + 3;
 
         buf.DrawText(btnX, btnY, yesBtn, yesFg, yesBg);
-        buf.DrawText(btnX + yesBtn.Length + 4, btnY, noBtn, noFg, noBg);
+        buf.DrawText(btnX + UnicodeWidth.Of(yesBtn) + 4, btnY, noBtn, noFg, noBg);
     }
 
     /// <summary>
@@ -366,7 +359,7 @@ public static class Widgets
             var bg = isSelected ? (focused ? ConsoleColor.Cyan : ConsoleColor.DarkGray) : ConsoleColor.Black;
 
             buf.DrawText(x, y, label, fg, bg);
-            x += label.Length + 1;
+            x += UnicodeWidth.Of(label) + 1;
         }
 
         // Separator line below tabs

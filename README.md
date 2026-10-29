@@ -122,12 +122,39 @@ Widget.Modal()
 Your canvas. Draw to it, the terminal handles the rest.
 
 ```csharp
-buf.DrawText(x, y, "Hello", ConsoleColor.Green);
+buf.SetString(x, y, "Hello", new Style(Color.Green).Bold());
+buf.SetLine(x, y, new Line([new Span("Status: ", Style.Default), new Span("OK", new Style(Color.Green))]), maxWidth: 20);
+buf.SetStyle(rect, new Style(Bg: Color.Blue));   // restyle an area, keep its text
 buf.DrawBox(rect, ConsoleColor.Cyan);
 buf.DrawBoxWithTitle(rect, "Title", ConsoleColor.Cyan);
 buf.DrawProgressBar(rect, 0.75f);
-buf.FillRect(rect, new Cell(' ', ConsoleColor.Blue, ConsoleColor.Black));
+buf.FillRect(rect, Cell.Empty with { Bg = Color.Blue });
 ```
+
+Drawing never throws, whatever the coordinates: out-of-bounds writes are ignored. Text is measured
+by display width, so CJK and emoji take two columns and are never split. Control characters in drawn
+text (including ESC) are replaced with `�`, so data from an API can't inject terminal escape sequences.
+
+### `Color`, `Style` and text
+
+`Color` is the terminal default (`Color.Reset`), one of the 16 named colors (same names as
+`ConsoleColor`, which converts implicitly), a 256-color index or RGB:
+
+```csharp
+Color.Cyan; Color.Indexed(208); Color.Rgb(255, 128, 0); Color.FromHex("#FF8000");
+```
+
+A `Style` is a patch: a null foreground or background keeps whatever is already in the cell, so text
+drawn over a highlighted row keeps the highlight.
+
+```csharp
+var style = new Style(Fg: Color.Yellow).Bold().Underlined();
+var merged = baseStyle.Patch(style);
+```
+
+`Span` (styled text), `Line` (spans) and `Text` (lines) build styled content. Strings convert
+implicitly. `UnicodeWidth.Of(text)` and `UnicodeWidth.Truncate(text, maxWidth)` measure and cut text
+by display width.
 
 ### `Terminal`
 
@@ -146,7 +173,10 @@ Geometry helpers with layout utilities.
 ```csharp
 var (top, bottom) = area.SplitHorizontal(10);
 var (left, right) = area.SplitVertical(area.Width / 2);
-var inner = area.Shrink(2); // 2-cell margin on all sides
+var inner = area.Shrink(2); // 2-cell margin on all sides; never negative
+var content = area.Inner(new Margin(Left: 1, Top: 2, Right: 1, Bottom: 0));
+var visible = area.Intersect(screen);
+foreach (var row in area.Rows()) { /* one Rect per row */ }
 ```
 
 ### `Input` & `InputHelpers`
@@ -215,9 +245,9 @@ Widgets are just functions:
 ```csharp
 public static void Spinner(Buffer buf, int x, int y)
 {
-    var frames = new[] { '|', '/', '-', '\\' };
+    var frames = new[] { "|", "/", "-", "\\" };
     var frame = (int)(DateTime.Now.Ticks / 1000000) % frames.Length;
-    buf.Set(x, y, new Cell(frames[frame], ConsoleColor.Cyan, ConsoleColor.Black));
+    buf.SetString(x, y, frames[frame], new Style(Color.Cyan));
 }
 ```
 
@@ -228,13 +258,13 @@ Extend `Buffer`:
 ```csharp
 public static class BufferExtensions
 {
-    public static void DrawCircle(this Buffer buf, int cx, int cy, int r, ConsoleColor fg)
+    public static void DrawCircle(this Buffer buf, int cx, int cy, int r, Color fg)
     {
         for (var angle = 0.0; angle < Math.PI * 2; angle += 0.1)
         {
             var x = (int)(cx + r * 2 * Math.Cos(angle)); // *2 for aspect ratio
             var y = (int)(cy + r * Math.Sin(angle));
-            buf.Set(x, y, new Cell('*', fg, ConsoleColor.Black));
+            buf.SetString(x, y, "*", new Style(fg));
         }
     }
 }
@@ -257,8 +287,10 @@ MiniTui/
 │   ├── MiniTui.sln
 │   ├── MiniTui/
 │   │   ├── App.cs          # Fluent app builder
-│   │   ├── Buffer.cs       # Cell, Buffer, BoxStyle
-│   │   ├── Geometry.cs     # Vec2, Rect, Layout
+│   │   ├── Core/           # Color, Style, Cell, Buffer, Rect/Vec2/Margin
+│   │   ├── Text/           # Span, Line, Text, sanitizing, Unicode width
+│   │   ├── Layout/         # Layout builder
+│   │   ├── Terminal/       # Color capability detection
 │   │   ├── Input.cs        # Input, InputHelpers, InputRouter, state types
 │   │   ├── Terminal.cs     # Terminal rendering
 │   │   └── Widgets.cs      # Widget drawing functions and builders
@@ -266,6 +298,8 @@ MiniTui/
 │       └── Program.cs      # Demo application
 ├── tests/
 │   └── MiniTui.Tests/      # xUnit tests
+├── tools/
+│   └── GenWidthTable.cs    # Generates the Unicode width table
 └── README.md
 ```
 
@@ -274,6 +308,13 @@ MiniTui/
 ```bash
 dotnet build src/MiniTui.sln -warnaserror
 dotnet test src/MiniTui.sln
+```
+
+The Unicode width table (`src/MiniTui/Text/UnicodeWidthTable.g.cs`) is generated from the Unicode
+Character Database. To regenerate it, run from the repository root:
+
+```bash
+dotnet run tools/GenWidthTable.cs
 ```
 
 ## License
