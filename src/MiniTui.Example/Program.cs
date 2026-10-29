@@ -284,13 +284,13 @@ void RunDashboard()
         .Render((buf, screen) =>
         {
             var layout = Layout.Vertical(screen.Shrink(1))
-                .Add("stats", 8)
-                .AddFill("panels")
+                .Add("stats", Constraint.Length(8))
+                .Add("panels", Constraint.Fill())
                 .Build();
 
             var panelsLayout = Layout.Horizontal(layout["panels"])
-                .AddFill("logs")
-                .AddFill("activity")
+                .Add("logs", Constraint.Fill())
+                .Add("activity", Constraint.Fill())
                 .Build();
 
             // Stats boxes
@@ -433,8 +433,8 @@ void RunCommandDemo()
         .Render((buf, screen) =>
         {
             var layout = Layout.Vertical(screen)
-                .AddFill("list")
-                .Add("bottom", 3)
+                .Add("list", Constraint.Fill())
+                .Add("bottom", Constraint.Length(3))
                 .Build();
 
             Widget.List()
