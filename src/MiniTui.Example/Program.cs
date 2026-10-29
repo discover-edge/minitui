@@ -1,3 +1,6 @@
+// The 0.7 demos still use the obsolete state types; Phase 6 rewrites the Example as screens (§10.2).
+#pragma warning disable CS0618
+
 using MiniTui;
 
 // === Demo Application ===
@@ -12,6 +15,8 @@ var demos = new (string Name, Action Run)[]
     ("Dashboard", RunDashboard),
     ("Command Registry", RunCommandDemo),
     ("Tabs Demo", RunTabsDemo),
+    ("Services (async)", ServicesDemo.Run),
+    ("Widgets", WidgetsDemo.Run),
 };
 
 var demoNames = demos.Select(d => d.Name).ToList();

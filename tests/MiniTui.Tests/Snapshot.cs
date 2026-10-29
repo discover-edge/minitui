@@ -12,6 +12,13 @@ internal static class Snapshot
         Assert.Equal(string.Join("\n", expectedLines), string.Join("\n", buffer.ToLines()));
     }
 
+    /// <summary>Like <see cref="AssertLines"/>, ignoring trailing spaces on each row.</summary>
+    public static void AssertTrimmed(Buffer buffer, string expected)
+    {
+        var expectedLines = expected.ReplaceLineEndings("\n").Split('\n').Select(l => l.TrimEnd());
+        Assert.Equal(string.Join("\n", expectedLines), string.Join("\n", buffer.ToLines().Select(l => l.TrimEnd())));
+    }
+
     /// <summary>Check one cell's colors and modifiers.</summary>
     public static void AssertStyle(Buffer buffer, int x, int y, Color fg, Color bg, Modifiers modifiers = Modifiers.None)
     {

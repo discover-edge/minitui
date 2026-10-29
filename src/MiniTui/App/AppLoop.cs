@@ -33,6 +33,11 @@ public partial class App
 
     private int _tickPending;
     private long _lastTick;
+    private ITimer? _ticker;
+    private TimeSpan? _tickerPeriod;
+
+    // The fastest tick rate a widget asked for while drawing the current frame (toasts, spinners)
+    private TimeSpan? _frameTickRequest;
     private bool _modalWasActive;
 
     /// <summary>The app whose loop is running on the current thread.</summary>
@@ -69,9 +74,12 @@ public partial class App
         Terminal? terminal = null;
         try
         {
-            terminal = new Terminal(_backend ?? Terminal.CreateDefaultBackend(_colorMode));
+            var backend = _backend ?? Terminal.CreateDefaultBackend(_colorMode);
+            terminal = new Terminal(backend);
             _terminal = terminal;
             if (_captureConsole) capture = ConsoleCapture.Start(Log);
+            using var theme = Theme.Use(_theme ?? DefaultTheme(backend));
+            using var glyphs = Glyphs.Use(Glyphs.DetectBasic(backend));
 
             t_current = this;
             if (readsConsole) Interlocked.Increment(ref s_consoleApps);
@@ -83,7 +91,7 @@ public partial class App
             // An app started from inside another one on the same input gets the keys the outer one hasn't handled yet
             var outer = previousApp is { _running: true } app && ReferenceEquals(app._activeInput, input) ? app : null;
             if (outer?.RemoveQueuedKeys() is { Count: > 0 } inherited) _pendingKeys = [.. inherited];
-            using var ticker = StartTicker();
+            StartTicker();
             using var cancellation = cancellationToken.Register(Quit);
             TerminalSession.Resized += OnResizeSignal;
             try
@@ -98,6 +106,7 @@ public partial class App
         finally
         {
             _running = false;
+            StopTicker();
             CancelStopping();
             SynchronizationContext.SetSynchronizationContext(previousContext);
             if (ReferenceEquals(t_current, this))
@@ -174,7 +183,12 @@ public partial class App
             Guard(RefreshRouter);
             Guard(() => _onUpdate?.Invoke());
             if (!_running) break;
-            if (dirty) Guard(() => terminal.Draw(buf => _onRender!(buf, new Rect(0, 0, buf.Width, buf.Height))));
+            if (dirty)
+            {
+                _frameTickRequest = null;
+                Guard(() => terminal.Draw(buf => _onRender!(buf, new Rect(0, 0, buf.Width, buf.Height))));
+                UpdateTicker();
+            }
             firstFrame = false;
         }
     }
@@ -291,12 +305,57 @@ public partial class App
         _offeredKey = null;
     }
 
-    private ITimer? StartTicker()
+    /// <summary>
+    /// Called by widgets while drawing (toasts, spinners) to get ticks at least this often until a frame
+    /// is drawn without them. Only has an effect on the UI thread.
+    /// </summary>
+    internal void RequestTicks(TimeSpan rate)
     {
-        if (_tickRate is not { } rate) return null;
+        if (!IsUiThread) return;
+        if (_frameTickRequest is not { } current || rate < current) _frameTickRequest = rate;
+    }
+
+    private static Theme DefaultTheme(ITerminalBackend backend)
+    {
+        var mode = backend switch
+        {
+            AnsiBackend ansi => ansi.ColorMode,
+            LegacyConsoleBackend legacy => legacy.ColorMode,
+            _ => (ColorMode?)null,
+        };
+        return mode == ColorMode.None ? Theme.Monochrome : Theme.Default;
+    }
+
+    private void StartTicker()
+    {
         _lastTick = _time.GetTimestamp();
         Interlocked.Exchange(ref _tickPending, 0);
-        return _time.CreateTimer(_ => OnTimer(), null, rate, rate);
+        _frameTickRequest = null;
+        UpdateTicker();
+    }
+
+    // The tick period is the configured rate, or faster while a widget asks for it
+    private void UpdateTicker()
+    {
+        var period = _tickRate;
+        if (_frameTickRequest is { } requested && (period is not { } p || requested < p)) period = requested;
+        if (period == _tickerPeriod && (_ticker is not null || period is null)) return;
+
+        _tickerPeriod = period;
+        if (period is not { } value)
+        {
+            StopTicker();
+            return;
+        }
+        if (_ticker is null) _ticker = _time.CreateTimer(_ => OnTimer(), null, value, value);
+        else _ticker.Change(value, value);
+    }
+
+    private void StopTicker()
+    {
+        _ticker?.Dispose();
+        _ticker = null;
+        _tickerPeriod = null;
     }
 
     private void OnTimer()

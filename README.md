@@ -15,7 +15,11 @@ A minimal, immediate-mode TUI (Text User Interface) framework for C#. No depende
 dotnet run --project src/MiniTui.Example
 ```
 
-This launches a demo app showcasing counters, lists, forms, progress bars, and a dashboard.
+This launches a demo app showcasing counters, lists, forms, progress bars, and a dashboard, plus:
+
+- **Services**: an async table of 500 services from a fake HTTP API (slow, and failing 20% of the time), with
+  refresh, cancellation, error toasts and a `?` key-help modal.
+- **Widgets**: every widget on one screen, a theme toggle (`t`) and a Unicode sample panel.
 
 ## Usage Pattern
 
@@ -145,31 +149,88 @@ SpaceBetween)`. `.Margin(new Margin(1))` insets the area first.
 
 ### `Widget`
 
-Factory for fluent widget builders.
+Factory for fluent widget builders. Every widget draws with `Theme.Current`, measures text by display
+width (truncating with `…`), and never throws, whatever the area.
 
 ```csharp
-Widget.List()
-    .Items(items)
-    .State(listState)
-    .Focused(router.IsFocused("list"))
-    .Title("My List")
-    .Draw(buf, area);
-
-Widget.CommandInput()
-    .State(commandState)
+Widget.Table()
+    .Block(Widget.Block().Title(" Services "))
+    .Header("Name", "Status", "Version")
+    .Columns(Constraint.Fill(), Constraint.Length(10), Constraint.Length(12))  // §7 constraints
+    .Rows(services, s => new Row(s.Name, new Line(s.Status, Theme.Current.Success), s.Version))
+    .State(selection)                       // SelectionState: scrolled to keep the selection visible
     .Focused()
-    .Draw(buf, inputArea);
-
-Widget.StatusBar()
-    .Left("Status message")
-    .Right("12:34:56")
-    .Draw(buf, footerArea);
-
-Widget.Modal()
-    .Title("Help")
-    .Lines(helpLines)
-    .Draw(buf);
+    .Draw(buf, area);
 ```
+
+| Builder | What it draws |
+|---|---|
+| `Block()` | Borders (`Borders.All`, `Top`, …), `BorderType(BoxStyle)`, `Title`/`TitleBottom`, `Padding`, `Focused`. `Draw` returns the inner rect. |
+| `Paragraph()` | `Text` with `Wrap(WrapMode.None/Word/Char)`, `Alignment`, `Scroll(n)` or `State(ScrollState)`. `Paragraph.MeasureLines` measures without drawing. |
+| `List()` | `Items(list)` or `Items(list, format)` (only visible rows are formatted), `State(SelectionState)`, `HighlightSymbol("> ")`, `Title`. |
+| `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows`, `State` (▲/▼ on `SortColumn`), `HighlightSymbol`. 100,000 rows cost the same per frame as 100. |
+| `Scrollbar()` | `Vertical`/`Horizontal`, `ContentLength`, `Position`, `ViewportLength`. Hidden when the content fits. |
+| `Gauge()` | `Ratio(0..1)` with eighth-cell precision and a percentage (or custom) `Label`. |
+| `Sparkline()` | `Data(values)` as `▁▂▃▄▅▆▇█`, newest at the right; optional `Max`. |
+| `Spinner()` | `Frames(SpinnerFrames.Braille/Line/Dots)` and a `Label`. Animates from the app's clock. |
+| `Toasts()` | `Queue(toastQueue)`: up to 3 pop-ups in the top-right corner that expire on their own. |
+| `StatusBar()` | `Left` and `Right` text; the right side wins when both don't fit. |
+| `TextField()`, `CommandLine()` | Single-line input from `TextFieldState` / `CommandLineState`, scrolled by display width, with the terminal cursor shown. |
+| `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
+| `Button()`, `Checkbox()` | Themed controls. |
+| `Modal()`, `Confirm()` | Centered dialogs; modal text wraps and scrolls with `State(ScrollState)`. |
+
+In conhost (the classic Windows console), whose fonts lack eighth blocks, braille and rounded corners,
+widgets switch to half and full blocks, the line spinner and single borders. Windows Terminal is unaffected.
+
+Spinners and visible toasts make the app tick (every 100 ms and 250 ms) even with `WithTickRate(null)`,
+and only while they're drawn. `toasts.Push(text, ToastLevel.Error)` is thread-safe; each toast shows
+for 4 seconds (or the `duration` you pass) from when it first appears.
+
+### `Theme`
+
+The styles widgets draw with. `Theme.Default` leaves backgrounds to the terminal except for bars,
+buttons and selections, so light terminal themes work. `Theme.Monochrome` uses only bold, underline
+and reverse; the app picks it automatically when the terminal has no colors (`NO_COLOR`).
+
+```csharp
+app.WithTheme(Theme.Default with { Selection = new Style(Color.Black, Color.Yellow) });
+```
+
+`Theme.Current` is the running app's theme on its UI thread. `WithTheme` can be called while running.
+Builders take `.Style(...)` (and `HighlightStyle`, `BorderStyle`, …) overrides, patched over the theme.
+
+### State classes and `KeyMap`
+
+Widget state is a mutable class that handles its own keys; widgets write render-time facts (viewport
+size, scroll offset) back into it while drawing.
+
+| State | Keys | Used by |
+|---|---|---|
+| `SelectionState` | ↑ ↓ j k PgUp PgDn Home End, plus `Next`/`Previous`/`PageDown`/`First`/`Last` | List, Table |
+| `ScrollState` | ↑ ↓ j k PgUp PgDn Home End | Paragraph, Modal |
+| `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end) | TextField |
+| `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
+| `TabBarState` | ← → h l | TabBar |
+
+`KeyMap` binds keys to actions and produces hints and help text from the same list:
+
+```csharp
+var keys = new KeyMap()
+    .Add("r", "Refresh", Refresh)
+    .Add("j,down", "Down", () => selection.Next(count), group: "Navigation")
+    .Add("ctrl+s", "Save", Save)
+    .Add("q,esc", "Quit", app.Quit);
+
+app.OnKey(keys.Handle);                                    // first match wins
+Widget.StatusBar().Left(keys.Hints(40)).Draw(buf, status); // "r Refresh  j Down  ctrl+s Save  q Quit"
+Widget.Modal().Title(" Keys ").Lines([.. keys.HelpLines()]).Draw(buf);
+```
+
+A binding is `(ctrl|alt|shift "+")* name`, where `name` is a printable character or one of `enter esc
+tab backspace delete insert up down left right home end pgup pgdn space f1`–`f12`. A character binding
+matches what was typed, so `"R"` and `"shift+r"` both mean Shift+R. `KeyBinding.Parse` throws
+`FormatException` for anything else.
 
 ### `Buffer`
 
@@ -285,22 +346,13 @@ foreach (var row in area.Rows()) { /* one Rect per row */ }
 
 ### `Input` & `InputHelpers`
 
-Input handling and state management.
+`Input.Poll()` and the 0.7 helpers still work. The value-type states (`ListState`, `TextInputState`,
+`CommandInputState`, `TabsState`) and their `InputHelpers.Handle*` functions are obsolete: use the state
+classes above, which `HandleTextInput` and `HandleCommandInput` now delegate to.
 
 ```csharp
 var key = Input.Poll();          // Non-blocking; inside RunWhile, the key the app is delivering
 if (Input.IsQuit(key)) break;    // Check for q/Esc/Ctrl+C
-
-// State types
-var textState = TextInputState.Empty;
-var listState = ListState.Empty;
-var cmdState = CommandInputState.Empty;
-
-// Input helpers
-textState = InputHelpers.HandleTextInput(key, textState);
-listState = InputHelpers.HandleListNavigation(key, listState, itemCount, visibleHeight);
-var result = InputHelpers.HandleCommandInput(key, cmdState);
-if (result.Command is { } cmd) ProcessCommand(cmd);
 ```
 
 ### `ParsedCommand`
@@ -329,11 +381,11 @@ Widget.StatusBar()
 
 ### `Widgets`
 
-Stateless widget-drawing functions (alternative to fluent builders).
+Stateless widget-drawing functions from 0.7. Each one draws through the matching builder, so it is
+themed and width-aware. `TextInput`, `CommandInput` and `Tabs` are obsolete.
 
 ```csharp
 Widgets.Button(buf, rect, "Click Me", focused: true);
-Widgets.TextInput(buf, rect, value, focused: true, cursorPos: 5);
 Widgets.Checkbox(buf, x, y, "Enable", isChecked: true);
 Widgets.List(buf, rect, items, selectedIndex, scrollOffset, focused: true);
 Widgets.StatusBar(buf, area, "Left text", "Right text");
@@ -344,14 +396,13 @@ Widgets.Modal(buf, "Title", lines);
 
 ### Add a new widget
 
-Widgets are just functions:
+Widgets are just functions. Take styles from `Theme.Current` so yours follow the app's theme:
 
 ```csharp
-public static void Spinner(Buffer buf, int x, int y)
+public static void Badge(Buffer buf, int x, int y, string text, bool ok)
 {
-    var frames = new[] { "|", "/", "-", "\\" };
-    var frame = (int)(DateTime.Now.Ticks / 1000000) % frames.Length;
-    buf.SetString(x, y, frames[frame], new Style(Color.Cyan));
+    var style = ok ? Theme.Current.Success : Theme.Current.Error;
+    buf.SetString(x, y, $"[{text}]", style.Bold());
 }
 ```
 
@@ -393,12 +444,16 @@ MiniTui/
 │   │   ├── App/            # App builder and loop, Loadable, LogBuffer, events
 │   │   ├── Core/           # Color, Style, Cell, Buffer, Rect/Vec2/Margin
 │   │   ├── Text/           # Span, Line, Text, sanitizing, Unicode width
-│   │   ├── Layout/         # Layout builder
+│   │   ├── Layout/         # Layout builder, constraints and solver
 │   │   ├── Terminal/       # Terminal, backends, ANSI encoder, session, input sources
-│   │   ├── Input.cs        # Input, InputHelpers, InputRouter, state types
-│   │   └── Widgets.cs      # Widget drawing functions and builders
+│   │   ├── Input/          # KeyMap, KeyBinding and the widget state classes
+│   │   ├── Widgets/        # Theme and one file per widget builder
+│   │   ├── Input.cs        # Input, InputHelpers, InputRouter, commands, 0.7 state types
+│   │   └── Widgets.cs      # Widget factory and the static Widgets functions
 │   └── MiniTui.Example/
-│       └── Program.cs      # Demo application
+│       ├── Program.cs      # Demo menu and the 0.7 demos
+│       ├── ServicesDemo.cs # Async table against a fake HTTP API
+│       └── WidgetsDemo.cs  # Every widget, theme toggle, Unicode panel
 ├── tests/
 │   └── MiniTui.Tests/      # xUnit tests
 ├── tools/
