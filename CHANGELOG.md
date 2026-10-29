@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `Constraint` (`Length`, `Percentage`, `Ratio`, `Min`, `Max`, `Fill(weight)`), `Flex` and `Direction` for layouts.
+- `Layout.Add(name, Constraint)`, `Spacing`, `Margin`, `Flex` and `Layout.Split(area, direction, constraints)`.
 - Event loop (§6): keys, ticks, resizes, posted actions and redraw requests go through one queue, handled on the thread that called `Run()`. Keys are read on a background thread.
 - `App.OnKey`, `OnEvent` (`KeyEvent`, `ResizeEvent`, `TickEvent`), `OnError` (`ErrorAction.Continue`/`Quit`/`Rethrow`) and `OnSetup(Action<App>)`.
 - `App.Post`, `RequestRedraw` and `Quit` are thread-safe. `App.RunTask` starts async work whose continuations resume on the UI thread (a `SynchronizationContext` is installed while running); its exceptions go to `OnError`.
@@ -35,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Rect.IsEmpty`, `Intersect`, `Clamp`, `Inner(Margin)`, `Rows()` and `Columns()`, and the `Margin` type.
 
 ### Changed
+- `Layout` uses a deterministic constraint algorithm (§7.2). The indexer builds the layout if needed, and an unknown region name throws `KeyNotFoundException` naming it. Adding two regions with the same name throws `ArgumentException`.
 - Version 0.8.0.
 - The app draws a frame only when something happened (input, tick, posted action, resize, redraw request) instead of every 16 ms.
 - In `RunWhile`, the condition is called once per key, with `Input.Poll()` returning that key, and once per wake-up without one. While an app reads the console, `Input.Poll()` elsewhere returns null instead of stealing its keys.
@@ -52,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Layout` moved to `Layout/Layout.cs`, `Buffer`/`Geometry` to `Core/` (no API change).
 
 ### Deprecated
+- `Layout.Add(name, int)` and `Layout.AddFill(name)`. Use `Add(name, Constraint.Length(n))` and `Add(name, Constraint.Fill())`.
 - `App.WithFrameDelay`. Use `WithTickRate`.
 - `Cell(char, ConsoleColor, ConsoleColor)`, `Cell.Char` and `Cell.From(char)`. Use `new Cell(string, Color, Color, Modifiers)`, `Cell.Symbol` and `Cell.Empty with { Symbol = ... }`.
 
@@ -64,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A frame is one write instead of thousands of console calls (D5).
 - The terminal is restored on SIGTERM, SIGHUP, SIGQUIT, process exit and unhandled exceptions.
 - Nested apps share the terminal session: the inner app doesn't clear the screen, and the outer app redraws fully when it exits, without `app.Invalidate()` (D17).
+- `Layout` never gives a region a negative size when fixed sizes exceed the space (they shrink proportionally), and the integer-division remainder is distributed instead of dropped: three fills in 10 rows are 4/3/3 (D7).
 - All pending keys are handled before the next frame (up to 256 per frame), so pasted text and key repeat are no longer throttled to one key per frame (D3).
 - `RunWhile` no longer drops keys: a key is either taken by the condition through `Input.Poll()` or passed to the router, never lost (D4).
 - `InputRouter` recomputes the modal stack every loop iteration (`Refresh`), so a modal opened from code is active at the next render without a key press (D12).

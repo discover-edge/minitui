@@ -114,18 +114,34 @@ if (router.IsFocused("list")) { /* highlight */ }
 
 ### `Layout`
 
-Fluent builder for creating named layout regions.
+Fluent builder for creating named layout regions. Sizes are computed with exact integer
+arithmetic: regions never overlap, never leave the area, and rounding never drops a cell.
 
 ```csharp
 var layout = Layout.Vertical(screen)
-    .Add("header", 3)      // Fixed 3 rows
-    .AddFill("content")    // Fill remaining space
-    .Add("footer", 1)      // Fixed 1 row
-    .Build();
+    .Add("header", Constraint.Length(3))    // Exactly 3 rows (shrunk only if fixed sizes don't fit)
+    .Add("content", Constraint.Fill())      // Fill remaining space
+    .Add("footer", Constraint.Length(1))
+    .Spacing(1)                             // Optional: empty cells between regions
+    .Build();                               // Optional: the indexer builds on first use
 
 buf.DrawText(layout["header"].X, layout["header"].Y, "Title");
 Widget.List().Items(items).Draw(buf, layout["content"]);
+
+var columns = Layout.Split(area, Direction.Horizontal, Constraint.Percentage(30), Constraint.Fill());
 ```
+
+| Constraint | Size |
+|---|---|
+| `Length(n)` | n cells |
+| `Percentage(p)`, `Ratio(a, b)` | that share of the space, rounded down |
+| `Min(n)` | at least n, then grows like `Fill(1)` |
+| `Max(n)` | grows like `Fill(1)`, up to n |
+| `Fill(weight)` | shares the leftover in proportion to `weight` |
+
+When the fixed sizes don't fit, `Length`, `Percentage` and `Ratio` shrink proportionally first,
+then `Min`. Space that nothing can grow into is placed by `.Flex(Flex.Start | End | Center |
+SpaceBetween)`. `.Margin(new Margin(1))` insets the area first.
 
 ### `Widget`
 
