@@ -22,4 +22,16 @@ public class ReadmeSnippetTests
 
         Assert.Equal(2, count);
     }
+
+    [Fact]
+    public void KeyMapHints()
+    {
+        var keys = new KeyMap()
+            .Add("r", "Refresh", () => { })
+            .Add("j,down", "Down", () => { }, group: "Navigation")
+            .Add("ctrl+s", "Save", () => { })
+            .Add("q,esc", "Quit", () => { });
+
+        Assert.Equal("r Refresh  j Down  ctrl+s Save  q Quit", keys.Hints(40));
+    }
 }

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `Theme` (`Default`, `Monochrome`, `Current`) and `App.WithTheme`. Every widget draws with the theme; backgrounds are left to the terminal except for bars, buttons and selections. Apps use `Monochrome` automatically when the terminal has no colors (`NO_COLOR`).
+- Widget builders: `Widget.Block` (`Borders`), `Paragraph` (`WrapMode`, `Paragraph.MeasureLines`), `Table` (`Row`, column constraints, sort markers, only visible rows formatted), `Scrollbar`, `Gauge`, `Sparkline`, `Spinner` (`SpinnerFrames`), `Toasts` (`ToastQueue`, `ToastLevel`), `TextField`, `CommandLine`, `TabBar`, `Button` and `Checkbox`.
+- `List` builder: `Items(list, format)` (only visible items are formatted), `State(SelectionState)`, `HighlightSymbol`, `Block`, `Style` and `HighlightStyle`.
+- State classes that handle their own keys: `SelectionState`, `ScrollState`, `TextFieldState`, `CommandLineState` and `TabBarState`.
+- Text editing (§8.4): any non-control character including surrogate pairs, cursor movement and deletion by grapheme cluster, Ctrl+←/→ by word, Ctrl+Backspace/Ctrl+W, Ctrl+U and Ctrl+K, and horizontal scrolling by display width. The text field shows the terminal cursor.
+- `KeyMap` (`Add`, `Handle`, `Hints`, `HelpLines`) and `KeyBinding` (`Parse`, `Matches`).
+- Spinners and visible toasts make the app tick while they're drawn, even with `WithTickRate(null)`.
+- Example: **Services** (the §3.1 async program against a fake HTTP API) and **Widgets** (every widget, theme toggle, Unicode panel) demos.
 - `Constraint` (`Length`, `Percentage`, `Ratio`, `Min`, `Max`, `Fill(weight)`), `Flex` and `Direction` for layouts.
 - `Layout.Add(name, Constraint)`, `Spacing`, `Margin`, `Flex` and `Layout.Split(area, direction, constraints)`.
 - Event loop (§6): keys, ticks, resizes, posted actions and redraw requests go through one queue, handled on the thread that called `Run()`. Keys are read on a background thread.
@@ -37,6 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Rect.IsEmpty`, `Intersect`, `Clamp`, `Inner(Margin)`, `Rows()` and `Columns()`, and the `Margin` type.
 
 ### Changed
+- The static `Widgets` functions and `Buffer.DrawBox`, `DrawBoxWithTitle` and `DrawProgressBar` draw through the new builders, so they're themed, width-aware and never throw on small or off-screen areas (D6). Titles and cells that don't fit end in `…`.
+- An unfocused list shows its selection with the `SelectionUnfocused` style instead of hiding it (D11).
+- `Widgets.Table` sizes columns with the layout solver (one column of spacing) and scrolls to keep the selected row visible (D15).
+- `InputHelpers.HandleTextInput` and `IsTextEditKey` accept non-ASCII characters (D8).
+- `InputHelpers.HandleCommandInput` no longer changes the history list it was given, and `CommandInputState.WithHistory` copies the list (D13).
+- `StatusBar` draws on the area's row when the area is one row high, and truncates the left text when both sides don't fit.
+- `Modal` wraps its text, scrolls it with `State(ScrollState)`, and leaves a 2-cell margin around it.
 - `Layout` uses a deterministic constraint algorithm (§7.2). The indexer builds the layout if needed, and an unknown region name throws `KeyNotFoundException` naming it. Adding two regions with the same name throws `ArgumentException`.
 - Version 0.8.0.
 - The app draws a frame only when something happened (input, tick, posted action, resize, redraw request) instead of every 16 ms.
@@ -55,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Layout` moved to `Layout/Layout.cs`, `Buffer`/`Geometry` to `Core/` (no API change).
 
 ### Deprecated
+- `ListState`, `TextInputState`, `CommandInputState`, `CommandInputResult`, `TabsState` and `InputHelpers.HandleListNavigation`, `HandleTextInput`, `IsTextEditKey`, `HandleCommandInput`, `HandleTabsNavigation`. Use `SelectionState`, `TextFieldState`, `CommandLineState` and `TabBarState`.
+- `Widgets.TextInput`, `Widgets.CommandInput`, `Widgets.Tabs`, `Widget.CommandInput()`, `Widget.Tabs()`, `CommandInputBuilder`, `TabsBuilder` and `ListBuilder.State(ListState)`. Use `Widget.TextField()`, `Widget.CommandLine()`, `Widget.TabBar()` and `State(SelectionState)`.
 - `Layout.Add(name, int)` and `Layout.AddFill(name)`. Use `Add(name, Constraint.Length(n))` and `Add(name, Constraint.Fill())`.
 - `App.WithFrameDelay`. Use `WithTickRate`.
 - `Cell(char, ConsoleColor, ConsoleColor)`, `Cell.Char` and `Cell.From(char)`. Use `new Cell(string, Color, Color, Modifiers)`, `Cell.Symbol` and `Cell.Empty with { Symbol = ... }`.

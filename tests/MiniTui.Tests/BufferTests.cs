@@ -316,8 +316,9 @@ public class BufferTests
 
         buf.DrawBoxWithTitle(buf.Area, "日本語");
 
+        // Truncated with an ellipsis since Phase 5 (rule W2)
         AssertLines(buf, """
-            ┌─日本─┐
+            ┌─日…──┐
             │      │
             └──────┘
             """);

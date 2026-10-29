@@ -1,12 +1,10 @@
-// Widgets still use the 0.7 Cell(char, ConsoleColor, ConsoleColor) API; they move to Style in Phase 5.
-#pragma warning disable CS0618
-
 namespace MiniTui;
 
 /// <summary>
-/// Collection of widget-drawing functions. These are stateless - 
+/// Collection of widget-drawing functions. These are stateless -
 /// they just draw to a buffer based on parameters you provide.
 /// </summary>
+/// <remarks>Each function draws through the matching <see cref="Widget"/> builder.</remarks>
 public static class Widgets
 {
     /// <summary>
@@ -14,62 +12,19 @@ public static class Widgets
     /// </summary>
     public static Rect Button(Buffer buf, Rect area, string label, bool focused = false, bool pressed = false)
     {
-        var fg = focused ? ConsoleColor.Black : ConsoleColor.White;
-        var bg = focused ? ConsoleColor.Cyan : ConsoleColor.DarkGray;
-
-        if (pressed)
-        {
-            fg = ConsoleColor.Black;
-            bg = ConsoleColor.White;
-        }
-
-        // Fill background
-        buf.FillRect(area, new Cell(' ', fg, bg));
-
-        // Center the label
-        var x = area.X + (area.Width - UnicodeWidth.Of(label)) / 2;
-        var y = area.Y + area.Height / 2;
-        buf.DrawText(x, y, label, fg, bg);
-
+        new ButtonBuilder().Label(label).Focused(focused).Pressed(pressed).Draw(buf, area);
         return area;
     }
 
     /// <summary>
     /// Draw a text input field.
     /// </summary>
+    [Obsolete("Use Widget.TextField() with a TextFieldState instead.")]
     public static void TextInput(Buffer buf, Rect area, string value, bool focused = false, int cursorPos = -1)
     {
-        var fg = focused ? ConsoleColor.White : ConsoleColor.Gray;
-        var borderFg = focused ? ConsoleColor.Cyan : ConsoleColor.DarkGray;
-
-        buf.DrawBox(area, borderFg);
-        
-        var inner = area.Shrink(1, 0);
-        inner = new Rect(inner.X, area.Y + 1, inner.Width, 1);
-
-        // Draw value (scrolled if needed)
-        var displayWidth = inner.Width;
-        var displayValue = value;
-        var offset = 0;
-
-        if (value.Length > displayWidth)
-        {
-            offset = Math.Max(0, (cursorPos >= 0 ? cursorPos : value.Length) - displayWidth + 1);
-            displayValue = value.Substring(offset, Math.Min(displayWidth, value.Length - offset));
-        }
-
-        buf.DrawText(inner.X, inner.Y, displayValue.PadRight(displayWidth), fg);
-
-        // Draw cursor
-        if (focused && cursorPos >= 0)
-        {
-            var cursorX = inner.X + cursorPos - offset;
-            if (cursorX >= inner.X && cursorX < inner.Right)
-            {
-                var c = cursorPos < value.Length ? value[cursorPos] : ' ';
-                buf.Set(cursorX, inner.Y, new Cell(c, ConsoleColor.Black, ConsoleColor.White));
-            }
-        }
+        var state = new TextFieldState(value ?? "");
+        if (cursorPos >= 0) state.Cursor = cursorPos;
+        new TextFieldBuilder().State(state).Focused(focused && cursorPos >= 0).Block(new BlockBuilder().Focused(focused)).Draw(buf, area);
     }
 
     /// <summary>
@@ -77,15 +32,8 @@ public static class Widgets
     /// </summary>
     public static void Checkbox(Buffer buf, int x, int y, string label, bool isChecked, bool focused = false)
     {
-        var checkChar = isChecked ? '✓' : ' ';
-        var bracketFg = focused ? ConsoleColor.Cyan : ConsoleColor.Gray;
-        var checkFg = isChecked ? ConsoleColor.Green : ConsoleColor.Gray;
-        var labelFg = focused ? ConsoleColor.White : ConsoleColor.Gray;
-
-        buf.Set(x, y, new Cell('[', bracketFg, ConsoleColor.Black));
-        buf.Set(x + 1, y, new Cell(checkChar, checkFg, ConsoleColor.Black));
-        buf.Set(x + 2, y, new Cell(']', bracketFg, ConsoleColor.Black));
-        buf.DrawText(x + 4, y, label, labelFg);
+        ArgumentNullException.ThrowIfNull(buf);
+        new CheckboxBuilder().Label(label).Checked(isChecked).Focused(focused).Draw(buf, new Rect(x, y, buf.Width - x, 1));
     }
 
     /// <summary>
@@ -93,106 +41,29 @@ public static class Widgets
     /// </summary>
     public static void List(Buffer buf, Rect area, IReadOnlyList<string> items, int selectedIndex, int scrollOffset = 0, bool focused = false, string? title = null, bool showScrollInfo = true)
     {
-        var borderFg = focused ? ConsoleColor.Cyan : ConsoleColor.DarkGray;
-        var titleFg = focused ? ConsoleColor.Yellow : ConsoleColor.Cyan;
-
-        var inner = area.Shrink(1);
-        var visibleCount = Math.Min(items.Count - scrollOffset, inner.Height);
-
-        // Build title with scroll info if needed
-        var displayTitle = title;
-        if (title != null && showScrollInfo && items.Count > 0)
-        {
-            var first = scrollOffset + 1;
-            var last = scrollOffset + visibleCount;
-            displayTitle = items.Count > inner.Height
-                ? $"{title} [{first}-{last} of {items.Count}]"
-                : $"{title} [{items.Count}]";
-        }
-
-        if (displayTitle != null)
-            buf.DrawBoxWithTitle(area, displayTitle, borderFg, titleFg);
-        else
-            buf.DrawBox(area, borderFg);
-
-        for (var i = 0; i < visibleCount; i++)
-        {
-            var itemIndex = scrollOffset + i;
-            var isSelected = focused && itemIndex == selectedIndex;
-
-            var fg = isSelected ? ConsoleColor.Black : ConsoleColor.Gray;
-            var bg = isSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
-
-            var text = UnicodeWidth.Truncate(items[itemIndex], inner.Width);
-
-            // Fill entire line with background
-            buf.FillRect(new Rect(inner.X, inner.Y + i, inner.Width, 1), new Cell(' ', fg, bg));
-            buf.DrawText(inner.X, inner.Y + i, text, fg, bg);
-        }
-
-        // Fill empty lines
-        for (var i = visibleCount; i < inner.Height; i++)
-        {
-            for (var x = 0; x < inner.Width; x++)
-                buf.Set(inner.X + x, inner.Y + i, new Cell(' ', ConsoleColor.Gray, ConsoleColor.Black));
-        }
-
-        // Draw scrollbar if needed
-        if (items.Count > inner.Height)
-        {
-            var scrollbarHeight = Math.Max(1, inner.Height * inner.Height / items.Count);
-            var scrollbarPos = items.Count > inner.Height
-                ? scrollOffset * (inner.Height - scrollbarHeight) / (items.Count - inner.Height)
-                : 0;
-
-            for (var y = 0; y < inner.Height; y++)
-            {
-                var c = (y >= scrollbarPos && y < scrollbarPos + scrollbarHeight) ? '█' : '░';
-                buf.Set(area.Right - 1, inner.Y + y, new Cell(c, ConsoleColor.DarkGray, ConsoleColor.Black));
-            }
-        }
+        var list = new ListBuilder().Items(items).Focused(focused).ShowScrollInfo(showScrollInfo).ScrollOffset(scrollOffset);
+        if (selectedIndex >= 0) list.Selected(selectedIndex);
+        if (title is not null) list.Title(title);
+        list.Draw(buf, area);
     }
 
     /// <summary>
-    /// Draw a simple table.
+    /// Draw a simple table: equal-width columns, a header with a line under it, and the selected row
+    /// scrolled into view. Use <see cref="Widget.Table"/> for column widths and styled cells.
     /// </summary>
     public static void Table(Buffer buf, Rect area, string[] headers, string[][] rows, int selectedRow = -1)
     {
+        ArgumentNullException.ThrowIfNull(headers);
+        ArgumentNullException.ThrowIfNull(rows);
         if (headers.Length == 0) return;
 
-        var colWidth = area.Width / headers.Length;
-        
-        // Draw headers
-        for (var col = 0; col < headers.Length; col++)
-        {
-            var x = area.X + col * colWidth;
-            var header = UnicodeWidth.Truncate(headers[col], colWidth - 1);
-            buf.DrawText(x, area.Y, header, ConsoleColor.Yellow);
-        }
-
-        // Draw separator
-        buf.DrawHLine(area.X, area.Y + 1, area.Width, '─', ConsoleColor.DarkGray);
-
-        // Draw rows
-        var maxRows = Math.Min(rows.Length, area.Height - 2);
-        for (var row = 0; row < maxRows; row++)
-        {
-            var y = area.Y + 2 + row;
-            var isSelected = row == selectedRow;
-            var fg = isSelected ? ConsoleColor.Black : ConsoleColor.Gray;
-            var bg = isSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
-
-            // Fill row background if selected
-            if (isSelected)
-                buf.FillRect(new Rect(area.X, y, area.Width, 1), new Cell(' ', fg, bg));
-
-            for (var col = 0; col < Math.Min(headers.Length, rows[row].Length); col++)
-            {
-                var x = area.X + col * colWidth;
-                var cell = UnicodeWidth.Truncate(rows[row][col], colWidth - 1);
-                buf.DrawText(x, y, cell, fg, bg);
-            }
-        }
+        var table = new TableBuilder()
+            .Header([.. headers.Select(h => new Line(h))])
+            .Rows(rows, r => new Row([.. r.Select(c => new Line(c))]))
+            .HeaderSeparator()
+            .Focused();
+        if (selectedRow >= 0) table.State(new SelectionState { Selected = selectedRow });
+        table.Draw(buf, area);
     }
 
     /// <summary>
@@ -200,213 +71,50 @@ public static class Widgets
     /// </summary>
     public static void StatusBar(Buffer buf, Rect area, string left, string? right = null)
     {
-        var y = area.Bottom - 1;
-
-        // Fill background
-        for (var x = area.X; x < area.Right; x++)
-            buf.Set(x, y, new Cell(' ', ConsoleColor.Black, ConsoleColor.DarkGray));
-
-        buf.DrawText(area.X + 1, y, left, ConsoleColor.White, ConsoleColor.DarkGray);
-
-        if (right != null)
-        {
-            var x = area.Right - UnicodeWidth.Of(right) - 1;
-            buf.DrawText(x, y, right, ConsoleColor.White, ConsoleColor.DarkGray);
-        }
+        var bar = new StatusBarBuilder().Left(left ?? "");
+        if (right is not null) bar.Right(right);
+        bar.Draw(buf, area);
     }
 
     /// <summary>
     /// Draw a command input field with prompt.
     /// </summary>
+    [Obsolete("Use Widget.CommandLine() with a CommandLineState instead.")]
     public static void CommandInput(Buffer buf, Rect area, string value, string prompt = "> ", bool focused = true, int cursorPos = -1)
     {
-        var fg = focused ? ConsoleColor.White : ConsoleColor.Gray;
-        var promptFg = ConsoleColor.Cyan;
-        var bg = ConsoleColor.Black;
-
-        // Fill background
-        buf.FillRect(area, new Cell(' ', fg, bg));
-
-        // Draw prompt
-        buf.DrawText(area.X, area.Y, prompt, promptFg, bg);
-
-        // Calculate available width for text
-        var textX = area.X + UnicodeWidth.Of(prompt);
-        var textWidth = area.Width - UnicodeWidth.Of(prompt);
-
-        // Draw value (scrolled if needed)
-        var displayValue = value;
-        var offset = 0;
-
-        if (value.Length > textWidth)
-        {
-            offset = Math.Max(0, (cursorPos >= 0 ? cursorPos : value.Length) - textWidth + 1);
-            displayValue = value.Substring(offset, Math.Min(textWidth, value.Length - offset));
-        }
-
-        buf.DrawText(textX, area.Y, displayValue, fg, bg);
-
-        // Draw cursor
-        if (focused)
-        {
-            var actualCursorPos = cursorPos >= 0 ? cursorPos : value.Length;
-            var cursorX = textX + actualCursorPos - offset;
-            if (cursorX >= textX && cursorX < area.Right)
-            {
-                var c = actualCursorPos < value.Length ? value[actualCursorPos] : ' ';
-                buf.Set(cursorX, area.Y, new Cell(c, ConsoleColor.Black, ConsoleColor.White));
-            }
-        }
+        var state = new CommandLineState { Text = value ?? "" };
+        if (cursorPos >= 0) state.Cursor = cursorPos;
+        new CommandLineBuilder().State(state).Prompt(prompt).Focused(focused).Draw(buf, area);
     }
 
     /// <summary>
     /// Draw a modal dialog centered on screen. Draws on top of existing content.
     /// </summary>
-    public static void Modal(Buffer buf, string title, IReadOnlyList<string> lines, string? footer = "Press Escape to close")
-    {
-        // Calculate modal size
-        var contentWidth = lines.Count > 0 ? lines.Max(l => UnicodeWidth.Of(l)) : 0;
-        var footerWidth = footer != null ? UnicodeWidth.Of(footer) : 0;
-        var width = Math.Max(UnicodeWidth.Of(title) + 4, Math.Max(contentWidth + 4, footerWidth + 4));
-        width = Math.Min(width, buf.Width - 4); // Leave margin
-        var height = lines.Count + 4; // +2 for border, +1 for title line, +1 for footer
-        height = Math.Min(height, buf.Height - 2);
-
-        // Center on screen
-        var x = (buf.Width - width) / 2;
-        var y = (buf.Height - height) / 2;
-        var area = new Rect(x, y, width, height);
-
-        // Fill background
-        buf.FillRect(area, new Cell(' ', ConsoleColor.Gray, ConsoleColor.Black));
-
-        // Draw border with title
-        buf.DrawBoxWithTitle(area, title, ConsoleColor.DarkGray, ConsoleColor.Cyan, BoxStyle.Single);
-
-        // Draw content
-        var inner = area.Shrink(1);
-        var visibleLines = Math.Min(lines.Count, inner.Height - 1); // -1 for footer
-        for (var i = 0; i < visibleLines; i++)
-        {
-            var line = UnicodeWidth.Truncate(lines[i], inner.Width);
-            buf.DrawText(inner.X, inner.Y + i, line, ConsoleColor.Gray, ConsoleColor.Black);
-        }
-
-        // Draw footer
-        if (footer != null)
-        {
-            var footerY = area.Bottom - 1;
-            var footerX = area.X + (area.Width - footerWidth) / 2;
-            buf.DrawText(footerX, footerY, footer, ConsoleColor.DarkGray, ConsoleColor.Black);
-        }
-    }
+    public static void Modal(Buffer buf, string title, IReadOnlyList<string> lines, string? footer = "Press Escape to close") =>
+        new ModalBuilder().Title(title).Lines(lines).Footer(footer).Draw(buf);
 
     /// <summary>
     /// Draw a confirmation dialog centered on the screen.
     /// </summary>
-    public static void Confirm(Buffer buf, string message, string yesText = "Yes", string noText = "No", bool yesSelected = true)
-    {
-        // Calculate dialog size
-        var buttonLine = $"  [{yesText}]    [{noText}]  ";
-        var width = Math.Max(UnicodeWidth.Of(message) + 4, UnicodeWidth.Of(buttonLine) + 2);
-        width = Math.Min(width, buf.Width - 4);
-        var height = 5; // border + message + blank + buttons + border
-
-        // Center on screen
-        var x = (buf.Width - width) / 2;
-        var y = (buf.Height - height) / 2;
-        var area = new Rect(x, y, width, height);
-
-        // Fill background
-        buf.FillRect(area, new Cell(' ', ConsoleColor.Gray, ConsoleColor.Black));
-
-        // Draw border
-        buf.DrawBox(area, ConsoleColor.DarkGray, BoxStyle.Single);
-
-        // Draw message centered
-        var msgX = area.X + (area.Width - UnicodeWidth.Of(message)) / 2;
-        buf.DrawText(msgX, area.Y + 1, message, ConsoleColor.White, ConsoleColor.Black);
-
-        // Draw buttons
-        var yesBtn = yesSelected ? $"[{yesText}]" : $" {yesText} ";
-        var noBtn = !yesSelected ? $"[{noText}]" : $" {noText} ";
-        var yesFg = yesSelected ? ConsoleColor.Black : ConsoleColor.Gray;
-        var yesBg = yesSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
-        var noFg = !yesSelected ? ConsoleColor.Black : ConsoleColor.Gray;
-        var noBg = !yesSelected ? ConsoleColor.Cyan : ConsoleColor.Black;
-
-        var buttonsWidth = UnicodeWidth.Of(yesBtn) + 4 + UnicodeWidth.Of(noBtn);
-        var btnX = area.X + (area.Width - buttonsWidth) / 2;
-        var btnY = area.Y + 3;
-
-        buf.DrawText(btnX, btnY, yesBtn, yesFg, yesBg);
-        buf.DrawText(btnX + UnicodeWidth.Of(yesBtn) + 4, btnY, noBtn, noFg, noBg);
-    }
+    public static void Confirm(Buffer buf, string message, string yesText = "Yes", string noText = "No", bool yesSelected = true) =>
+        new ConfirmBuilder().Message(message).YesText(yesText).NoText(noText).Selected(yesSelected).Draw(buf);
 
     /// <summary>
     /// Draw a tab bar. Returns the height consumed (typically 2 - tabs + separator).
     /// </summary>
+    [Obsolete("Use Widget.TabBar() with a TabBarState instead.")]
     public static int Tabs(Buffer buf, Rect area, IReadOnlyList<string> labels, int selectedIndex, bool focused = false)
     {
-        var x = area.X;
-        var y = area.Y;
-
-        for (var i = 0; i < labels.Count; i++)
-        {
-            var label = $"[ {labels[i]} ]";
-            var isSelected = i == selectedIndex;
-            var fg = isSelected ? ConsoleColor.Black : ConsoleColor.Gray;
-            var bg = isSelected ? (focused ? ConsoleColor.Cyan : ConsoleColor.DarkGray) : ConsoleColor.Black;
-
-            buf.DrawText(x, y, label, fg, bg);
-            x += UnicodeWidth.Of(label) + 1;
-        }
-
-        // Separator line below tabs
-        if (area.Height > 1)
-            buf.DrawHLine(area.X, y + 1, area.Width, '─', ConsoleColor.DarkGray);
-
-        return 2; // Height consumed (tabs row + separator)
-    }
-}
-
-/// <summary>
-/// Fluent builder for List widget.
-/// </summary>
-public class ListBuilder
-{
-    private IReadOnlyList<string> _items = [];
-    private int _selectedIndex;
-    private int _scrollOffset;
-    private bool _focused;
-    private string? _title;
-    private bool _showScrollInfo = true;
-
-    /// <summary>Set the list items to display.</summary>
-    public ListBuilder Items(IReadOnlyList<string> items) { _items = items; return this; }
-    /// <summary>Set state from a ListState.</summary>
-    public ListBuilder State(ListState state) { _selectedIndex = state.SelectedIndex; _scrollOffset = state.ScrollOffset; return this; }
-    /// <summary>Set the selected item index.</summary>
-    public ListBuilder Selected(int index) { _selectedIndex = index; return this; }
-    /// <summary>Set the scroll offset.</summary>
-    public ListBuilder ScrollOffset(int offset) { _scrollOffset = offset; return this; }
-    /// <summary>Set whether the list is focused.</summary>
-    public ListBuilder Focused(bool focused = true) { _focused = focused; return this; }
-    /// <summary>Set the list title.</summary>
-    public ListBuilder Title(string title) { _title = title; return this; }
-    /// <summary>Show or hide scroll position info in title (default: true).</summary>
-    public ListBuilder ShowScrollInfo(bool show = true) { _showScrollInfo = show; return this; }
-
-    /// <summary>Draw the list to the buffer.</summary>
-    public void Draw(Buffer buf, Rect area)
-    {
-        Widgets.List(buf, area, _items, _selectedIndex, _scrollOffset, _focused, _title, _showScrollInfo);
+        ArgumentNullException.ThrowIfNull(labels);
+        new TabBarBuilder().Tabs([.. labels]).State(new TabBarState(labels.Count) { Selected = selectedIndex }).Focused(focused).Draw(buf, area);
+        return 2;
     }
 }
 
 /// <summary>
 /// Fluent builder for CommandInput widget.
 /// </summary>
+[Obsolete("Use Widget.CommandLine() with a CommandLineState instead.")]
 public class CommandInputBuilder
 {
     private string _value = "";
@@ -433,83 +141,9 @@ public class CommandInputBuilder
 }
 
 /// <summary>
-/// Fluent builder for StatusBar widget.
-/// </summary>
-public class StatusBarBuilder
-{
-    private string _left = "";
-    private string? _right;
-
-    /// <summary>Set the left-aligned text.</summary>
-    public StatusBarBuilder Left(string text) { _left = text; return this; }
-    /// <summary>Set the right-aligned text.</summary>
-    public StatusBarBuilder Right(string text) { _right = text; return this; }
-    /// <summary>Set left text from a timed message with fallback.</summary>
-    public StatusBarBuilder Message(TimedMessage message, string defaultText) { _left = message.GetOrDefault(defaultText); return this; }
-
-    /// <summary>Draw the status bar to the buffer.</summary>
-    public void Draw(Buffer buf, Rect area)
-    {
-        Widgets.StatusBar(buf, area, _left, _right);
-    }
-}
-
-/// <summary>
-/// Fluent builder for Modal widget.
-/// </summary>
-public class ModalBuilder
-{
-    private string _title = "";
-    private IReadOnlyList<string> _lines = [];
-    private string? _footer = "Press Escape to close";
-
-    /// <summary>Set the modal title.</summary>
-    public ModalBuilder Title(string title) { _title = title; return this; }
-    /// <summary>Set the modal content lines.</summary>
-    public ModalBuilder Lines(IReadOnlyList<string> lines) { _lines = lines; return this; }
-    /// <summary>Set the modal content lines.</summary>
-    public ModalBuilder Lines(params string[] lines) { _lines = lines; return this; }
-    /// <summary>Set the modal footer text (null to hide).</summary>
-    public ModalBuilder Footer(string? footer) { _footer = footer; return this; }
-
-    /// <summary>Draw the modal centered on the buffer.</summary>
-    public void Draw(Buffer buf)
-    {
-        Widgets.Modal(buf, _title, _lines, _footer);
-    }
-}
-
-/// <summary>
-/// Fluent builder for Confirm dialog widget.
-/// </summary>
-public class ConfirmBuilder
-{
-    private string _message = "Are you sure?";
-    private string _yesText = "Yes";
-    private string _noText = "No";
-    private bool _yesSelected = true;
-
-    /// <summary>Set the confirmation message.</summary>
-    public ConfirmBuilder Message(string message) { _message = message; return this; }
-    /// <summary>Set the Yes button text.</summary>
-    public ConfirmBuilder YesText(string text) { _yesText = text; return this; }
-    /// <summary>Set the No button text.</summary>
-    public ConfirmBuilder NoText(string text) { _noText = text; return this; }
-    /// <summary>Set which button is selected.</summary>
-    public ConfirmBuilder Selected(bool yesSelected) { _yesSelected = yesSelected; return this; }
-    /// <summary>Set state from a ConfirmState.</summary>
-    public ConfirmBuilder State(ConfirmState state) { _yesSelected = state.YesSelected; return this; }
-
-    /// <summary>Draw the confirmation dialog centered on the buffer.</summary>
-    public void Draw(Buffer buf)
-    {
-        Widgets.Confirm(buf, _message, _yesText, _noText, _yesSelected);
-    }
-}
-
-/// <summary>
 /// Fluent builder for Tabs widget.
 /// </summary>
+[Obsolete("Use Widget.TabBar() with a TabBarState instead.")]
 public class TabsBuilder
 {
     private readonly List<string> _labels = [];
@@ -536,16 +170,44 @@ public class TabsBuilder
 /// </summary>
 public static class Widget
 {
+    /// <summary>A border with titles and padding.</summary>
+    public static BlockBuilder Block() => new();
+    /// <summary>Wrapped, aligned, scrollable text.</summary>
+    public static ParagraphBuilder Paragraph() => new();
     /// <summary>Create a new list widget builder.</summary>
     public static ListBuilder List() => new();
-    /// <summary>Create a new command input widget builder.</summary>
-    public static CommandInputBuilder CommandInput() => new();
+    /// <summary>A table with constraint-sized columns.</summary>
+    public static TableBuilder Table() => new();
+    /// <summary>A scrollbar.</summary>
+    public static ScrollbarBuilder Scrollbar() => new();
+    /// <summary>A progress bar.</summary>
+    public static GaugeBuilder Gauge() => new();
+    /// <summary>A bar chart of recent values.</summary>
+    public static SparklineBuilder Sparkline() => new();
+    /// <summary>An activity indicator.</summary>
+    public static SpinnerBuilder Spinner() => new();
+    /// <summary>Pop-up messages from a <see cref="ToastQueue"/>.</summary>
+    public static ToastsBuilder Toasts() => new();
     /// <summary>Create a new status bar widget builder.</summary>
     public static StatusBarBuilder StatusBar() => new();
+    /// <summary>A single-line text input.</summary>
+    public static TextFieldBuilder TextField() => new();
+    /// <summary>A command input with a prompt and history.</summary>
+    public static CommandLineBuilder CommandLine() => new();
+    /// <summary>A row of tabs.</summary>
+    public static TabBarBuilder TabBar() => new();
+    /// <summary>A button.</summary>
+    public static ButtonBuilder Button() => new();
+    /// <summary>A checkbox.</summary>
+    public static CheckboxBuilder Checkbox() => new();
+    /// <summary>Create a new command input widget builder.</summary>
+    [Obsolete("Use Widget.CommandLine() instead.")]
+    public static CommandInputBuilder CommandInput() => new();
     /// <summary>Create a new modal widget builder.</summary>
     public static ModalBuilder Modal() => new();
     /// <summary>Create a new confirmation dialog builder.</summary>
     public static ConfirmBuilder Confirm() => new();
     /// <summary>Create a new tabs widget builder.</summary>
+    [Obsolete("Use Widget.TabBar() instead.")]
     public static TabsBuilder Tabs() => new();
 }

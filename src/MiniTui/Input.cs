@@ -61,6 +61,7 @@ public static class Input
 /// <summary>
 /// State for a text input field.
 /// </summary>
+[Obsolete("Use TextFieldState instead.")]
 public record struct TextInputState(string Value, int CursorPos)
 {
     /// <summary>Empty state with no text and cursor at position 0.</summary>
@@ -70,6 +71,7 @@ public record struct TextInputState(string Value, int CursorPos)
 /// <summary>
 /// State for a list/selection.
 /// </summary>
+[Obsolete("Use SelectionState instead.")]
 public record struct ListState(int SelectedIndex, int ScrollOffset)
 {
     /// <summary>Empty state with selection and scroll at 0.</summary>
@@ -129,21 +131,26 @@ public record ParsedCommand(string Name, string[] Args, string Raw)
 /// <summary>
 /// State for a command input with history.
 /// </summary>
+[Obsolete("Use CommandLineState instead.")]
 public record struct CommandInputState(string Value, int CursorPos, List<string> History, int HistoryIndex)
 {
     /// <summary>Empty state with no text, cursor at 0, empty history.</summary>
     public static CommandInputState Empty => new("", 0, [], 0);
 
     /// <summary>
-    /// Create a new state with the given history.
+    /// Create a new state with a copy of the given history.
     /// </summary>
-    public static CommandInputState WithHistory(List<string> history) =>
-        new("", 0, history, history.Count);
+    public static CommandInputState WithHistory(List<string> history)
+    {
+        ArgumentNullException.ThrowIfNull(history);
+        return new("", 0, [.. history], history.Count);
+    }
 }
 
 /// <summary>
 /// Result of handling command input - either just state update, or state + submitted command.
 /// </summary>
+[Obsolete("Use CommandLineState.HandleKey(key, out submitted) instead.")]
 public record struct CommandInputResult(CommandInputState State, ParsedCommand? Command);
 
 /// <summary>
@@ -200,6 +207,7 @@ public record struct ConfirmState(bool IsActive, bool YesSelected, Action<bool>?
 /// <summary>
 /// State for a tabs widget.
 /// </summary>
+[Obsolete("Use TabBarState instead.")]
 public record struct TabsState(int SelectedIndex, int TabCount)
 {
     /// <summary>Create initial state with given tab count, first tab selected.</summary>
@@ -214,51 +222,19 @@ public static class InputHelpers
     /// <summary>
     /// Handle text input keys. Returns new state after processing the key.
     /// </summary>
+    /// <remarks>Edits like <see cref="TextFieldState.HandleKey"/>, except that characters outside the BMP can't be typed.</remarks>
+    [Obsolete("Use TextFieldState.HandleKey instead.")]
     public static TextInputState HandleTextInput(ConsoleKeyInfo key, TextInputState state)
     {
-        var (value, cursor) = state;
-
-        switch (key.Key)
-        {
-            case ConsoleKey.Backspace:
-                if (cursor > 0)
-                    return new(value.Remove(cursor - 1, 1), cursor - 1);
-                break;
-
-            case ConsoleKey.Delete:
-                if (cursor < value.Length)
-                    return new(value.Remove(cursor, 1), cursor);
-                break;
-
-            case ConsoleKey.LeftArrow:
-                if (cursor > 0)
-                    return state with { CursorPos = cursor - 1 };
-                break;
-
-            case ConsoleKey.RightArrow:
-                if (cursor < value.Length)
-                    return state with { CursorPos = cursor + 1 };
-                break;
-
-            case ConsoleKey.Home:
-                return state with { CursorPos = 0 };
-
-            case ConsoleKey.End:
-                return state with { CursorPos = value.Length };
-
-            default:
-                // Printable character
-                if (key.KeyChar >= 32 && key.KeyChar < 127)
-                    return new(value.Insert(cursor, key.KeyChar.ToString()), cursor + 1);
-                break;
-        }
-
-        return state;
+        var field = new TextFieldState(state.Value ?? "") { Cursor = state.CursorPos };
+        field.HandleKey(key);
+        return new(field.Text, field.Cursor);
     }
 
     /// <summary>
     /// Handle list navigation keys. Returns new state after processing the key.
     /// </summary>
+    [Obsolete("Use SelectionState.HandleKey instead.")]
     public static ListState HandleListNavigation(ConsoleKeyInfo key, ListState state, int itemCount, int visibleHeight)
     {
         if (itemCount == 0) return state;
@@ -315,11 +291,12 @@ public static class InputHelpers
     /// <summary>
     /// Check if the key is a text editing key (not navigation).
     /// </summary>
+    [Obsolete("Use the return value of TextFieldState.HandleKey instead.")]
     public static bool IsTextEditKey(ConsoleKeyInfo key)
     {
         return key.Key == ConsoleKey.Backspace
             || key.Key == ConsoleKey.Delete
-            || (key.KeyChar >= 32 && key.KeyChar < 127);
+            || (key.KeyChar != '\0' && !char.IsControl(key.KeyChar) && !KeyInput.HasCommandModifier(key));
     }
 
     /// <summary>
@@ -380,6 +357,7 @@ public static class InputHelpers
     /// <summary>
     /// Handle tabs navigation keys. Returns new state after processing the key.
     /// </summary>
+    [Obsolete("Use TabBarState.HandleKey instead.")]
     public static TabsState HandleTabsNavigation(ConsoleKeyInfo key, TabsState state)
     {
         return key.Key switch
@@ -398,62 +376,21 @@ public static class InputHelpers
 
     /// <summary>
     /// Handle command input with history. Returns new state and optionally a parsed command on Enter.
+    /// The returned state has its own history list; the input state's list is never changed.
     /// </summary>
+    [Obsolete("Use CommandLineState.HandleKey(key, out submitted) instead.")]
     public static CommandInputResult HandleCommandInput(ConsoleKeyInfo key, CommandInputState state)
     {
-        var (value, cursor, history, historyIndex) = state;
+        var history = state.History ?? [];
+        var line = new CommandLineState(history) { MaxHistory = int.MaxValue };
+        line.Text = state.Value ?? "";
+        line.Cursor = state.CursorPos;
+        line.HistoryIndex = Math.Clamp(state.HistoryIndex, 0, history.Count);
 
-        // Enter submits the command
-        if (key.Key == ConsoleKey.Enter)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return new(state, null);
-
-            // Add to history
-            history.Add(value);
-            var newState = new CommandInputState("", 0, history, history.Count);
-            var command = ParsedCommand.Parse(value);
-
-            return new(newState, command);
-        }
-
-        // Escape clears input
-        if (key.Key == ConsoleKey.Escape)
-        {
-            return new(new CommandInputState("", 0, history, history.Count), null);
-        }
-
-        // Up arrow - previous history
-        if (key.Key == ConsoleKey.UpArrow)
-        {
-            if (history.Count > 0 && historyIndex > 0)
-            {
-                historyIndex--;
-                var historyValue = history[historyIndex];
-                return new(new CommandInputState(historyValue, historyValue.Length, history, historyIndex), null);
-            }
-            return new(state, null);
-        }
-
-        // Down arrow - next history
-        if (key.Key == ConsoleKey.DownArrow)
-        {
-            if (historyIndex < history.Count - 1)
-            {
-                historyIndex++;
-                var historyValue = history[historyIndex];
-                return new(new CommandInputState(historyValue, historyValue.Length, history, historyIndex), null);
-            }
-            else if (historyIndex == history.Count - 1)
-            {
-                return new(new CommandInputState("", 0, history, history.Count), null);
-            }
-            return new(state, null);
-        }
-
-        // Regular text input
-        var textState = HandleTextInput(key, new TextInputState(value, cursor));
-        return new(new CommandInputState(textState.Value, textState.CursorPos, history, historyIndex), null);
+        line.HandleKey(key, out var command);
+        var index = line.HistoryIndex;
+        var newHistory = line.History.Count != history.Count ? [.. line.History] : history;
+        return new(new CommandInputState(line.Text, line.Cursor, newHistory, index), command);
     }
 }
 

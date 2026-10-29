@@ -55,8 +55,9 @@ public class WidgetDefectTests
 
         Widgets.Table(buf, buf.Area, ["名前", "値"], [["日本語", "x"]]);
 
-        Assert.Equal("名前 値   ", buf.ToLines()[0]);
-        Assert.Equal("日…  x    ", buf.ToLines()[2]);
+        // Since Phase 5 the columns are Fill(1) with one column of spacing (5 + 1 + 4)
+        Assert.Equal("名前  値  ", buf.ToLines()[0]);
+        Assert.Equal("日本… x   ", buf.ToLines()[2]);
     }
 
     [Fact]

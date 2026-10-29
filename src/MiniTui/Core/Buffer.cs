@@ -200,71 +200,30 @@ public class Buffer
     /// <summary>
     /// Draw a box border using Unicode box-drawing characters.
     /// </summary>
-    public void DrawBox(Rect rect, ConsoleColor fg = ConsoleColor.Gray, BoxStyle style = BoxStyle.Single)
-    {
-        var chars = style switch
-        {
-            BoxStyle.Double => ('╔', '╗', '╚', '╝', '═', '║'),
-            BoxStyle.Rounded => ('╭', '╮', '╰', '╯', '─', '│'),
-            BoxStyle.Heavy => ('┏', '┓', '┗', '┛', '━', '┃'),
-            _ => ('┌', '┐', '└', '┘', '─', '│')
-        };
-
-        var (tl, tr, bl, br, h, v) = chars;
-        var s = new Style(fg);
-
-        // Corners
-        PatchChar(rect.X, rect.Y, tl, s);
-        PatchChar(rect.Right - 1, rect.Y, tr, s);
-        PatchChar(rect.X, rect.Bottom - 1, bl, s);
-        PatchChar(rect.Right - 1, rect.Bottom - 1, br, s);
-
-        // Horizontal lines
-        var (x1, x2) = Clip(rect.X + 1L, rect.Width - 2L, Width);
-        for (var x = x1; x < x2; x++)
-        {
-            PatchChar(x, rect.Y, h, s);
-            PatchChar(x, rect.Bottom - 1, h, s);
-        }
-
-        // Vertical lines
-        var (y1, y2) = Clip(rect.Y + 1L, rect.Height - 2L, Height);
-        for (var y = y1; y < y2; y++)
-        {
-            PatchChar(rect.X, y, v, s);
-            PatchChar(rect.Right - 1, y, v, s);
-        }
-    }
+    public void DrawBox(Rect rect, ConsoleColor fg = ConsoleColor.Gray, BoxStyle style = BoxStyle.Single) =>
+        new BlockBuilder().BorderType(style).BorderStyle(new Style(fg)).Draw(this, rect);
 
     /// <summary>
-    /// Draw a box with a title in the top border.
+    /// Draw a box with a title in the top border, starting two columns in.
     /// </summary>
     public void DrawBoxWithTitle(Rect rect, string title, ConsoleColor fg = ConsoleColor.Gray, ConsoleColor titleFg = ConsoleColor.White, BoxStyle style = BoxStyle.Single)
     {
         ArgumentNullException.ThrowIfNull(title);
-        DrawBox(rect, fg, style);
-
-        if (title.Length > 0 && rect.Width > 4)
-            SetString(rect.X + 2, rect.Y, title, new Style(titleFg), rect.Width - 4);
+        var block = new BlockBuilder().BorderType(style).BorderStyle(new Style(fg));
+        if (title.Length > 0) block.Title(title).TitleStyle(new Style(titleFg)).TitleInset(1);
+        block.Draw(this, rect);
     }
 
     /// <summary>
-    /// Draw a progress bar.
+    /// Draw a one-row progress bar.
     /// </summary>
-    public void DrawProgressBar(Rect rect, float progress, ConsoleColor fillFg = ConsoleColor.Green, ConsoleColor emptyFg = ConsoleColor.DarkGray)
-    {
-        progress = Math.Clamp(progress, 0f, 1f);
-        var fillWidth = (int)(rect.Width * progress);
-        var fill = new Style(fillFg);
-        var empty = new Style(emptyFg);
-
-        var (from, to) = Clip(rect.X, rect.Width, Width);
-        for (var x = from; x < to; x++)
-        {
-            var filled = x - (long)rect.X < fillWidth;
-            PatchChar(x, rect.Y, filled ? '█' : '░', filled ? fill : empty);
-        }
-    }
+    public void DrawProgressBar(Rect rect, float progress, ConsoleColor fillFg = ConsoleColor.Green, ConsoleColor emptyFg = ConsoleColor.DarkGray) =>
+        new GaugeBuilder()
+            .Ratio(float.IsNaN(progress) ? 0 : progress)
+            .Label("")
+            .FilledStyle(new Style(fillFg))
+            .EmptyStyle(new Style(emptyFg))
+            .Draw(this, rect with { Height = 1 });
 
     // ========== Invariant-preserving writes ==========
 

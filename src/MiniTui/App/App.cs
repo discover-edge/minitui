@@ -31,6 +31,7 @@ public partial class App
     private IInputSource? _input;
     private ColorMode? _colorMode;
     private bool _captureConsole = true;
+    private Theme? _theme;
     private CancellationTokenSource _stopping = new();
 
     private App() { }
@@ -171,6 +172,19 @@ public partial class App
     public App WithColorMode(ColorMode mode)
     {
         _colorMode = mode;
+        return this;
+    }
+
+    /// <summary>
+    /// The theme widgets draw with while the app runs (<see cref="Theme.Current"/>). Without one, the app uses
+    /// <see cref="Theme.Default"/>, or <see cref="Theme.Monochrome"/> when the terminal has no colors.
+    /// Can be called while running, from any thread; the next frame uses the new theme.
+    /// </summary>
+    public App WithTheme(Theme theme)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+        _theme = theme;
+        if (_running) InvokeOnUiThread(() => Theme.ReplaceCurrent(theme));
         return this;
     }
 
