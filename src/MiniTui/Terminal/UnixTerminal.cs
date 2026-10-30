@@ -1,0 +1,167 @@
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+
+namespace MiniTui;
+
+/// <summary>
+/// Raw terminal mode and non-blocking reads on Unix (1.x spec §2.5–2.6). The termios struct is handled as an
+/// opaque buffer, so nothing here depends on its layout or flag values, which differ between Linux and macOS.
+/// </summary>
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macos")]
+internal static unsafe partial class UnixTerminal
+{
+    // Larger than termios on Linux (60 bytes) and macOS (72 bytes)
+    private const int TermiosSize = 256;
+    private const int TcsaNow = 0;
+    private const short PollIn = 0x1;
+    private const int Eintr = 4;
+
+    private static readonly Lock Gate = new();
+    private static readonly byte[] Saved = new byte[TermiosSize];
+    private static readonly byte[] RawMode = new byte[TermiosSize];
+    private static int s_fd = -1;
+    private static bool s_exitHooked;
+
+    /// <summary>The platforms whose libc and termios this has been checked against.</summary>
+    public static bool IsSupported =>
+        (OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64 or Architecture.Arm)
+        || (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64);
+
+    /// <summary>True while a terminal is in raw mode.</summary>
+    public static bool IsRaw
+    {
+        get
+        {
+            lock (Gate) return s_fd >= 0;
+        }
+    }
+
+    /// <summary>Save the mode of <paramref name="fd"/> and switch it to raw mode (<c>cfmakeraw</c>).</summary>
+    /// <returns>False if <paramref name="fd"/> isn't a terminal or a call fails; the mode is then unchanged.</returns>
+    public static bool TryEnterRaw(int fd)
+    {
+        lock (Gate)
+        {
+            if (s_fd >= 0) return s_fd == fd;
+            try
+            {
+                if (isatty(fd) != 1) return false;
+                Array.Clear(Saved);
+                Array.Clear(RawMode);
+                fixed (byte* saved = Saved)
+                fixed (byte* raw = RawMode)
+                {
+                    if (tcgetattr(fd, saved) != 0) return false;
+                    Saved.CopyTo(RawMode, 0);
+                    cfmakeraw(raw);
+                    if (tcsetattr(fd, TcsaNow, raw) != 0) return false;
+
+                    // Keep what the terminal actually stored, so Reapply compares like with like
+                    Array.Clear(RawMode);
+                    if (tcgetattr(fd, raw) != 0) return false;
+                }
+                s_fd = fd;
+
+                // A backstop for sources used without a console session, which restores on exit itself
+                if (!s_exitHooked)
+                {
+                    AppDomain.CurrentDomain.ProcessExit += (_, _) => Restore();
+                    s_exitHooked = true;
+                }
+                return true;
+            }
+            catch (DllNotFoundException)
+            {
+                return false;
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <summary>Put back the mode saved by <see cref="TryEnterRaw"/>. Idempotent, and never throws.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
+        Justification = "Runs on exit and signal paths, which must not throw.")]
+    public static void Restore()
+    {
+        lock (Gate)
+        {
+            if (s_fd < 0) return;
+            try
+            {
+                fixed (byte* saved = Saved) tcsetattr(s_fd, TcsaNow, saved);
+            }
+            catch (Exception) { }
+            s_fd = -1;
+        }
+    }
+
+    /// <summary>
+    /// Switch back to raw mode if something else changed the terminal's mode. .NET's console code does that
+    /// after a child process exits and on SIGCONT.
+    /// </summary>
+    public static void Reapply()
+    {
+        lock (Gate)
+        {
+            if (s_fd < 0) return;
+            var current = stackalloc byte[TermiosSize];
+            new Span<byte>(current, TermiosSize).Clear();
+            if (tcgetattr(s_fd, current) != 0) return;
+            if (new ReadOnlySpan<byte>(current, TermiosSize).SequenceEqual(RawMode)) return;
+            fixed (byte* raw = RawMode) tcsetattr(s_fd, TcsaNow, raw);
+        }
+    }
+
+    /// <summary>Wait up to <paramref name="timeoutMs"/> for input on <paramref name="fd"/>.</summary>
+    /// <returns>True if input, end of input or an error is ready to read; false on a timeout or a signal.</returns>
+    public static bool Poll(int fd, int timeoutMs)
+    {
+        var request = new PollFd { Fd = fd, Events = PollIn };
+        return poll(&request, 1, timeoutMs) > 0 && request.Revents != 0;
+    }
+
+    /// <summary>Read what's available into <paramref name="buffer"/>. Only call after <see cref="Poll"/> returned true.</summary>
+    /// <returns>Bytes read; 0 at end of input; −1 on an error.</returns>
+    public static int Read(int fd, Span<byte> buffer)
+    {
+        fixed (byte* p = buffer)
+        {
+            while (true)
+            {
+                var n = read(fd, p, (nuint)buffer.Length);
+                if (n >= 0) return (int)n;
+                if (Marshal.GetLastPInvokeError() != Eintr) return -1;
+            }
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PollFd
+    {
+        public int Fd;
+        public short Events;
+        public short Revents;
+    }
+
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int isatty(int fd);
+
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int tcgetattr(int fd, byte* termios);
+
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int tcsetattr(int fd, int optionalActions, byte* termios);
+
+    [LibraryImport("libc")]
+    private static partial void cfmakeraw(byte* termios);
+
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int poll(PollFd* fds, nuint nfds, int timeout);
+
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial nint read(int fd, byte* buffer, nuint count);
+}

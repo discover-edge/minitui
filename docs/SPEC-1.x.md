@@ -155,7 +155,8 @@ contract the tests check.
 - `ESC [` and `ESC O` start a sequence (below). `ESC ESC` followed by a sequence is that sequence with Alt
   added (iTerm2 and some xterm settings send Alt+arrow this way).
 - **Escape timeout.** Bytes that could still be the start of a sequence are held. If no byte arrives for
-  `EscapeTimeout` (default 50 ms) after the last held byte, they resolve as typed: a lone ESC becomes `Escape`,
+  `EscapeTimeout` (default 50 ms) after the last held byte, they resolve as typed: a lone ESC becomes `Escape`
+  (`KeyChar` U+001B), ESC followed by any one byte becomes that byte with Alt, ESC ESC becomes two `Escape`s,
   `ESC [` becomes Alt+`[`, and an incomplete sequence becomes `Escape` followed by its bytes decoded as plain
   input. An incomplete UTF-8 sequence becomes U+FFFD.
 - Bytes are never resolved early just because a read ended. A sequence split across reads is reassembled.

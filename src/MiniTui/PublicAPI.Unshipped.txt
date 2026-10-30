@@ -1,1 +1,8 @@
 #nullable enable
+MiniTui.TerminalInputSource
+MiniTui.TerminalInputSource.Dispose() -> void
+MiniTui.TerminalInputSource.EscapeTimeout.get -> System.TimeSpan
+MiniTui.TerminalInputSource.TerminalInputSource() -> void
+MiniTui.TerminalInputSource.TerminalInputSource(System.TimeSpan escapeTimeout) -> void
+MiniTui.TerminalInputSource.TryRead(out System.ConsoleKeyInfo key) -> bool
+static MiniTui.TerminalInputSource.DefaultEscapeTimeout.get -> System.TimeSpan
