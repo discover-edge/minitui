@@ -14,7 +14,7 @@
 ## Post-1.0
 Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 
-- [x] Raw input parser on Unix (`TerminalInputSource`); Windows `ReadConsoleInput` comes with mouse support
+- [x] Raw input parser (`TerminalInputSource`): Unix raw mode in 1.1, Windows VT input in Phase 10a
 - [ ] Mouse support - clicking to focus, scrolling (SGR 1006)
 - [x] Bracketed paste (`?2004`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §3
 - [ ] Popup menu - context menus, dropdowns (PopupMenu/Select)

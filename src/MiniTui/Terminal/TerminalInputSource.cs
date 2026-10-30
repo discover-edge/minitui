@@ -3,11 +3,12 @@ using System.Diagnostics;
 namespace MiniTui;
 
 /// <summary>
-/// The default input source: on Linux and macOS it puts the terminal in raw mode and decodes its input bytes
-/// itself, so Esc, Alt, function keys and modifier combinations are reliable, and a key sequence split across
-/// reads is reassembled instead of producing a stray Esc. It also turns on bracketed paste, so a paste arrives as
-/// one <see cref="PasteEvent"/> instead of keys. On Windows, and wherever raw mode isn't available, it reads keys
-/// like <see cref="ConsoleInputSource"/>, and pasted text arrives as keys.
+/// The default input source: on Linux and macOS it puts the terminal in raw mode, and on Windows the console in VT
+/// input mode, and decodes the input bytes itself, so Esc, Alt, function keys and modifier combinations decode the
+/// same way everywhere, and a key sequence split across reads is reassembled instead of producing a stray Esc. It
+/// also turns on bracketed paste, so a paste arrives as one <see cref="PasteEvent"/> instead of keys. Conhost has
+/// no bracketed paste, so there Ctrl+V pastes the clipboard's text as a <see cref="PasteEvent"/>. Wherever raw or
+/// VT input isn't available, it reads keys like <see cref="ConsoleInputSource"/>, and pasted text arrives as keys.
 /// </summary>
 /// <remarks>
 /// In raw mode the terminal doesn't handle Ctrl+C, Ctrl+Z, Ctrl+\, Ctrl+S or Ctrl+Q itself: they reach the app as
@@ -24,6 +25,9 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private readonly int _outputFd;
     private readonly AnsiInputDecoder _decoder;
     private readonly ItemQueue _items = new();
+    private readonly IInputSink _sink;
+    private readonly WindowsInputTranslator _translator = new();
+    private readonly InputRecord[] _records = new InputRecord[256];
     private readonly ConsoleInputSource _fallback = new();
     private readonly byte[] _buffer = new byte[4096];
     private readonly long _started = Stopwatch.GetTimestamp();
@@ -51,6 +55,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         _outputFd = outputFd;
         EscapeTimeout = escapeTimeout;
         _decoder = new AnsiInputDecoder(escapeTimeout);
+        _sink = OperatingSystem.IsWindows() ? new ClipboardPasteSink(_items, WindowsConsoleInput.ReadClipboardText) : _items;
     }
 
     /// <summary>The default escape timeout, 50 ms.</summary>
@@ -90,7 +95,8 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             }
 
             if (!_closed && (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())) ReadAvailable();
-            _decoder.Expire(Now, _items);
+            else if (!_closed && OperatingSystem.IsWindows()) ReadAvailableWindows();
+            _decoder.Expire(Now, _sink);
             return _items.TryDequeue(out item);
         }
     }
@@ -100,11 +106,18 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
 
     void IInputLifecycle.Activate()
     {
-        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
         lock (_lock)
         {
-            if (_raw || !UnixTerminal.IsSupported) return;
-            _raw = UnixTerminal.TryEnterRaw(_fd, _outputFd);
+            if (_raw) return;
+            if (OperatingSystem.IsWindows())
+            {
+                // Only the real console: the internal constructor's fds are for Unix pty tests
+                if (_fd == 0) _raw = WindowsConsoleInput.TryEnterVtInput();
+            }
+            else if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) && UnixTerminal.IsSupported)
+            {
+                _raw = UnixTerminal.TryEnterRaw(_fd, _outputFd);
+            }
             _closed = false;
             _lastModeCheck = Now;
         }
@@ -112,18 +125,17 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
 
     void IInputLifecycle.Deactivate()
     {
-        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
         lock (_lock)
         {
             if (!_raw) return;
             _raw = false;
-            UnixTerminal.Restore();
+            RestoreTerminalMode();
         }
     }
 
     bool IWaitableInputSource.WaitForInput(TimeSpan timeout)
     {
-        if (!_raw || (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()))
+        if (!_raw)
         {
             // Console.KeyAvailable can't be waited on, so poll it as InputPump always did
             Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(5, timeout.TotalMilliseconds)));
@@ -146,7 +158,10 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         if (wait <= TimeSpan.Zero) return true;
 
         // Wake for input, or when held bytes are due to resolve
-        return UnixTerminal.Poll(_fd, (int)Math.Ceiling(wait.TotalMilliseconds)) || holding;
+        var ms = (int)Math.Ceiling(wait.TotalMilliseconds);
+        if (OperatingSystem.IsWindows()) return WindowsConsoleInput.Wait(ms) || holding;
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) return UnixTerminal.Poll(_fd, ms) || holding;
+        return true;
     }
 
     [System.Runtime.Versioning.SupportedOSPlatform("linux")]
@@ -156,7 +171,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         if (UnixTerminal.Poll(_fd, 0))
         {
             var n = UnixTerminal.Read(_fd, _buffer);
-            if (n > 0) _decoder.Feed(_buffer.AsSpan(0, n), Now, _items);
+            if (n > 0) _decoder.Feed(_buffer.AsSpan(0, n), Now, _sink);
             else _closed = true; // the terminal went away; SIGHUP handling restores it
         }
 
@@ -167,10 +182,27 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         }
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private void ReadAvailableWindows()
+    {
+        var n = WindowsConsoleInput.Read(_records);
+        if (n < 0)
+        {
+            _closed = true; // the console went away
+            return;
+        }
+        if (n == 0) return;
+
+        var bytes = _translator.Translate(_records.AsSpan(0, n), out var resized);
+        if (bytes.Length > 0) _decoder.Feed(bytes, Now, _sink);
+        if (resized) TerminalSession.RaiseResized();
+    }
+
     /// <summary>Restore the terminal mode on exit and signal paths, whichever source changed it.</summary>
     internal static void RestoreTerminalMode()
     {
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.Restore();
+        else if (OperatingSystem.IsWindows()) WindowsConsoleInput.Restore();
     }
 
     private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;

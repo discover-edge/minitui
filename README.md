@@ -376,10 +376,11 @@ Colors are downsampled to what the terminal supports (`NO_COLOR`, `COLORTERM`, `
 
 ### Keyboard input
 
-On Linux and macOS, MiniTui puts the terminal in raw mode and decodes its input itself
-(`TerminalInputSource`, the default). Esc, Alt combinations, function keys and arrows with
-Shift/Ctrl/Alt arrive reliably, and a fast burst of keys never produces a stray Esc. On Windows, keys
-are read through `Console.ReadKey`.
+MiniTui puts the terminal in raw mode (on Windows, the console in VT input mode) and decodes its input
+itself (`TerminalInputSource`, the default). Esc, Alt combinations, function keys and arrows with
+Shift/Ctrl/Alt arrive reliably and the same way on every platform, and a fast burst of keys never
+produces a stray Esc. Keys that terminals can't encode, such as Ctrl+Enter, Ctrl+Tab and Ctrl+digits,
+arrive without the Ctrl.
 
 - **Esc** is recognized 50 ms after it's pressed, because terminals send other keys as sequences that
   start with Esc. Change it with `app.WithInput(new TerminalInputSource(TimeSpan.FromMilliseconds(100)))`.
@@ -391,9 +392,9 @@ are read through `Console.ReadKey`.
   letters don't fire bindings. A component accepts pastes by overriding `HandlePaste`; for a text field,
   `public override bool HandlePaste(string text) => State.Paste(text);` inserts the paste as one line.
   A paste nothing handles is dropped. `App.OnPaste` sees pastes first, and `ComponentHarness.Paste` tests
-  them. On Windows (and with `MINITUI_INPUT=console`), pasted text still arrives as keys, as in 1.0: line
-  breaks are Enter, which a text field ignores. In conhost, Ctrl+V reaches the app as a key; paste with
-  right-click or the window menu instead. Windows paste events come with Phase 10.
+  them. Conhost (the classic Windows console) can't mark pastes, so there MiniTui pastes the clipboard
+  itself on Ctrl+V; right-click paste in conhost still arrives as keys. With `MINITUI_INPUT=console`,
+  pasted text arrives as keys, as in 1.0.
 - If a terminal's keys decode wrongly, set `MINITUI_INPUT=console` to use the `Console.ReadKey` path,
   and please report it: the Example's **Input** demo shows exactly how each key was decoded.
 
