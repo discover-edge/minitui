@@ -13,8 +13,14 @@ internal static class TerminalSession
     private static readonly Lock Gate = new();
     private static readonly Dictionary<object, Session> Sessions = [];
 
-    /// <summary>Raised on SIGWINCH (Unix) while a console session is active. Runs on a signal thread.</summary>
+    /// <summary>
+    /// Raised on SIGWINCH (Unix), or a window size event read by the input thread (Windows), while a console
+    /// session is active. Runs on a signal or input thread.
+    /// </summary>
     public static event Action? Resized;
+
+    /// <summary>Raise <see cref="Resized"/>; for input sources that see size changes.</summary>
+    internal static void RaiseResized() => Resized?.Invoke();
 
     /// <summary>
     /// Join the session for <paramref name="backend"/>'s device, entering the terminal if this is the first lease.

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Windows reads the console in VT input mode and decodes keys with MiniTui's own decoder, as Linux and macOS do since 1.1. Waiting for input on Windows no longer wakes every 5 ms, and a window resize is noticed at once.
+- Bracketed paste on Windows: in Windows Terminal a paste arrives as one `PasteEvent`. Conhost has no bracketed paste, so there Ctrl+V pastes the clipboard's text as a `PasteEvent`.
+- `docs/SPEC-1.x.md` §4: the mouse and Windows input spec.
+
+### Changed
+- On Windows, keys decode by the same rules as on Linux and macOS: Esc is recognized after up to 50 ms, and Ctrl+Enter, Ctrl+Tab and Ctrl+digits arrive without the Ctrl. `MINITUI_INPUT=console` restores the 1.0 input path on Windows too.
+- On Windows, pasted text no longer arrives as keys in Windows Terminal, and Ctrl+V in conhost pastes instead of being a key. A component that edits text needs `HandlePaste` to accept pastes, as on Linux and macOS since 1.1.
+
 ## [1.1.0] - 2026-10-30
 
 MiniTui 1.1: raw terminal input and bracketed paste on Linux and macOS. Windows input is unchanged.

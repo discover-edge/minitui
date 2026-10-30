@@ -121,7 +121,7 @@ internal sealed class AnsiInputDecoder
         return end + PasteEnd.Length - before;
     }
 
-    private static string NormalizeLineBreaks(string text) =>
+    internal static string NormalizeLineBreaks(string text) =>
         text.Contains('\r', StringComparison.Ordinal) ? text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n') : text;
 
     private void Hold(ReadOnlySpan<byte> tail)

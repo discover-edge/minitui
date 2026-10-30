@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) draft; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) approved; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -676,18 +676,22 @@ internal interface IMouseCapture
 [SupportedOSPlatform("windows")]
 internal static partial class WindowsConsoleInput
 {
-    public static bool TryEnterVtInput(bool mouse);  // false if stdin isn't a console or VT input is refused
+    public static bool TryEnterVtInput();            // false if stdin isn't a console or VT input is refused
     public static void Restore();                    // idempotent; never throws
     public static bool Wait(int milliseconds);       // WaitForSingleObject on the input handle
     public static int Read(Span<InputRecord> records); // only after GetNumberOfConsoleInputEvents > 0
     public static string? ReadClipboardText();      // CF_UNICODETEXT, or null
 }
 
-// Turns console input records into decoder bytes and mouse events. Pure, so it's tested on every platform.
-internal sealed class WindowsInputTranslator(IInputSink sink)
+// Turns console input records into decoder bytes (and, in 10b, mouse events). Pure, so it's tested on every
+// platform. The returned bytes are valid until the next call.
+internal sealed class WindowsInputTranslator
 {
-    public void Translate(ReadOnlySpan<InputRecord> records, Span<byte> utf8Out, out int bytesWritten);
+    public ReadOnlySpan<byte> Translate(ReadOnlySpan<InputRecord> records, out bool resized);
 }
+
+// On Windows, turns a Ctrl+V key into a paste of the clipboard's text (§4.5).
+internal sealed class ClipboardPasteSink(IInputSink inner, Func<string?> readClipboard) : IInputSink;
 ```
 
 ### 4.4 Windows input
@@ -705,7 +709,7 @@ internal sealed class WindowsInputTranslator(IInputSink sink)
     encoded every key as text or a sequence.
   - `MOUSE_EVENT`: translated to `MouseEvent` directly (§4.6), for consoles that report the mouse as records
     instead of sequences.
-  - `WINDOW_BUFFER_SIZE_EVENT`: wakes the loop to check the size (the 250 ms poll stays as a fallback).
+  - `WINDOW_BUFFER_SIZE_EVENT`: wakes the loop to check the size (the 100 ms poll stays as a fallback).
   - `FOCUS_EVENT` and `MENU_EVENT` are ignored.
 - **Output modes:** after entering, `CSI ?2004h` (and the mouse modes, §4.6) are written to stdout when stdout
   is a console with VT processing on. `AnsiBackend.Enter` turns VT processing on, and runs before input starts.
@@ -886,9 +890,9 @@ Two PRs, both shipping in 1.2.0:
 - Telling right-click paste from typing in conhost.
 - A public way for custom input sources to produce pastes or mouse events.
 
-### 4.15 Open questions (defaults apply if unanswered)
+### 4.15 Decisions taken
 
-| # | Question | Default |
+| # | Question | Decision |
 |---|---|---|
 | 1 | Mouse on by default (as Textual), or opt-in with `WithMouse` (as crossterm, Bubble Tea and Ratatui)? Capturing the mouse takes over the terminal's text selection. | **Opt-in** (§4.1). |
 | 2 | Windows keys through VT input mode (Unix decoding rules everywhere, bracketed paste and mouse in Windows Terminal), or through key records (keeps Ctrl+Enter and friends, but Windows Terminal pastes arrive as keys)? | **VT input** (§4.1), as Textual does. |
