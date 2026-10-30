@@ -20,6 +20,7 @@ MiniTui.App.Log.get -> MiniTui.LogBuffer!
 MiniTui.App.OnError(System.Func<System.Exception!, MiniTui.ErrorAction>! handler) -> MiniTui.App!
 MiniTui.App.OnEvent(System.Action<MiniTui.Event!>! handler) -> MiniTui.App!
 MiniTui.App.OnKey(System.Func<System.ConsoleKeyInfo, bool>! handler) -> MiniTui.App!
+MiniTui.App.OnMouse(System.Func<MiniTui.MouseEvent!, bool>! handler) -> MiniTui.App!
 MiniTui.App.OnPaste(System.Func<string!, bool>! handler) -> MiniTui.App!
 MiniTui.App.OnSetup(System.Action! setup) -> MiniTui.App!
 MiniTui.App.OnSetup(System.Action<MiniTui.App!>! setup) -> MiniTui.App!
@@ -36,11 +37,15 @@ MiniTui.App.RunTask(System.Func<System.Threading.CancellationToken, System.Threa
 MiniTui.App.Screens.get -> MiniTui.ScreenStack!
 MiniTui.App.Size.get -> (int Width, int Height)
 MiniTui.App.Stopping.get -> System.Threading.CancellationToken
+MiniTui.App.Suspend(System.Action! action) -> void
+MiniTui.App.SuspendProcess() -> bool
 MiniTui.App.Toasts.get -> MiniTui.ToastQueue!
 MiniTui.App.WithBackend(MiniTui.ITerminalBackend! backend) -> MiniTui.App!
 MiniTui.App.WithChrome(bool statusBar = true, bool breadcrumb = true) -> MiniTui.App!
 MiniTui.App.WithColorMode(MiniTui.ColorMode mode) -> MiniTui.App!
 MiniTui.App.WithInput(MiniTui.IInputSource! input) -> MiniTui.App!
+MiniTui.App.WithMouse(bool enabled = true) -> MiniTui.App!
+MiniTui.App.WithSuspendKey(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithTheme(MiniTui.Theme! theme) -> MiniTui.App!
 MiniTui.App.WithTickRate(System.TimeSpan? rate) -> MiniTui.App!
 MiniTui.App.WithTimeProvider(System.TimeProvider! provider) -> MiniTui.App!
@@ -188,6 +193,7 @@ MiniTui.CommandResult.Success.init -> void
 MiniTui.Component
 MiniTui.Component.AddChild<T>(T! child) -> T!
 MiniTui.Component.App.get -> MiniTui.App!
+MiniTui.Component.Area.get -> MiniTui.Rect
 MiniTui.Component.Component() -> void
 MiniTui.Component.Focus.get -> MiniTui.FocusScope!
 MiniTui.Component.Keys.get -> MiniTui.KeyMap!
@@ -197,12 +203,15 @@ MiniTui.Component.RemoveChild(MiniTui.Component! child) -> void
 MiniTui.ComponentHarness
 MiniTui.ComponentHarness.App.get -> MiniTui.App!
 MiniTui.ComponentHarness.CellAt(int x, int y) -> MiniTui.Cell
+MiniTui.ComponentHarness.Click(int x, int y, MiniTui.MouseButton button = MiniTui.MouseButton.Left) -> void
 MiniTui.ComponentHarness.ComponentHarness(MiniTui.Screen! root, int width = 80, int height = 24, System.TimeProvider? time = null) -> void
 MiniTui.ComponentHarness.Dispose() -> void
 MiniTui.ComponentHarness.Lines.get -> string![]!
+MiniTui.ComponentHarness.Mouse(MiniTui.MouseEvent! mouse) -> void
 MiniTui.ComponentHarness.Paste(string! text) -> void
 MiniTui.ComponentHarness.Press(string! keys) -> void
 MiniTui.ComponentHarness.RunUntilIdle() -> void
+MiniTui.ComponentHarness.Scroll(int x, int y, int rows) -> void
 MiniTui.ComponentHarness.Type(string! text) -> void
 MiniTui.ConfirmDialog
 MiniTui.ConfirmDialog.ConfirmDialog(string! message, string! yes = "Yes", string! no = "No") -> void
@@ -377,6 +386,34 @@ MiniTui.Modifiers.Italic = 4 -> MiniTui.Modifiers
 MiniTui.Modifiers.None = 0 -> MiniTui.Modifiers
 MiniTui.Modifiers.Reversed = 16 -> MiniTui.Modifiers
 MiniTui.Modifiers.Underlined = 8 -> MiniTui.Modifiers
+MiniTui.MouseAction
+MiniTui.MouseAction.Press = 0 -> MiniTui.MouseAction
+MiniTui.MouseAction.Release = 1 -> MiniTui.MouseAction
+MiniTui.MouseAction.ScrollDown = 3 -> MiniTui.MouseAction
+MiniTui.MouseAction.ScrollLeft = 4 -> MiniTui.MouseAction
+MiniTui.MouseAction.ScrollRight = 5 -> MiniTui.MouseAction
+MiniTui.MouseAction.ScrollUp = 2 -> MiniTui.MouseAction
+MiniTui.MouseButton
+MiniTui.MouseButton.Left = 1 -> MiniTui.MouseButton
+MiniTui.MouseButton.Middle = 2 -> MiniTui.MouseButton
+MiniTui.MouseButton.None = 0 -> MiniTui.MouseButton
+MiniTui.MouseButton.Right = 3 -> MiniTui.MouseButton
+MiniTui.MouseEvent
+MiniTui.MouseEvent.Action.get -> MiniTui.MouseAction
+MiniTui.MouseEvent.Action.init -> void
+MiniTui.MouseEvent.Button.get -> MiniTui.MouseButton
+MiniTui.MouseEvent.Button.init -> void
+MiniTui.MouseEvent.Deconstruct(out MiniTui.MouseAction Action, out MiniTui.MouseButton Button, out int X, out int Y, out System.ConsoleModifiers Modifiers) -> void
+MiniTui.MouseEvent.Equals(MiniTui.MouseEvent? other) -> bool
+MiniTui.MouseEvent.IsClick.get -> bool
+MiniTui.MouseEvent.Modifiers.get -> System.ConsoleModifiers
+MiniTui.MouseEvent.Modifiers.init -> void
+MiniTui.MouseEvent.MouseEvent(MiniTui.MouseAction Action, MiniTui.MouseButton Button, int X, int Y, System.ConsoleModifiers Modifiers = System.ConsoleModifiers.None) -> void
+MiniTui.MouseEvent.Position.get -> MiniTui.Vec2
+MiniTui.MouseEvent.X.get -> int
+MiniTui.MouseEvent.X.init -> void
+MiniTui.MouseEvent.Y.get -> int
+MiniTui.MouseEvent.Y.init -> void
 MiniTui.Overlay
 MiniTui.Overlay.Close() -> void
 MiniTui.Overlay.Overlay() -> void
@@ -454,6 +491,7 @@ MiniTui.RenderContext.App.get -> MiniTui.App!
 MiniTui.RenderContext.Focused.get -> bool
 MiniTui.RenderContext.For(MiniTui.Component! child) -> MiniTui.RenderContext!
 MiniTui.RenderContext.Hints(int maxWidth) -> string!
+MiniTui.RenderContext.Render(MiniTui.Component! child, MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.RenderContext.Theme.get -> MiniTui.Theme!
 MiniTui.ResizeEvent
 MiniTui.ResizeEvent.Deconstruct(out int Width, out int Height) -> void
@@ -463,6 +501,9 @@ MiniTui.ResizeEvent.Height.init -> void
 MiniTui.ResizeEvent.ResizeEvent(int Width, int Height) -> void
 MiniTui.ResizeEvent.Width.get -> int
 MiniTui.ResizeEvent.Width.init -> void
+MiniTui.ResumeEvent
+MiniTui.ResumeEvent.Equals(MiniTui.ResumeEvent? other) -> bool
+MiniTui.ResumeEvent.ResumeEvent() -> void
 MiniTui.Row
 MiniTui.Row.Cells.get -> System.Collections.Generic.IReadOnlyList<MiniTui.Line!>!
 MiniTui.Row.Row(params MiniTui.Line![]! cells) -> void
@@ -481,6 +522,7 @@ MiniTui.ScreenStack.Top.get -> MiniTui.Screen?
 MiniTui.ScriptedInputSource
 MiniTui.ScriptedInputSource.Dispose() -> void
 MiniTui.ScriptedInputSource.Enqueue(params System.ConsoleKeyInfo[]! keys) -> MiniTui.ScriptedInputSource!
+MiniTui.ScriptedInputSource.EnqueueMouse(MiniTui.MouseEvent! mouse) -> MiniTui.ScriptedInputSource!
 MiniTui.ScriptedInputSource.EnqueuePaste(string! text) -> MiniTui.ScriptedInputSource!
 MiniTui.ScriptedInputSource.EnqueueText(string! text) -> MiniTui.ScriptedInputSource!
 MiniTui.ScriptedInputSource.Pending.get -> int
@@ -489,6 +531,7 @@ MiniTui.ScriptedInputSource.TryRead(out System.ConsoleKeyInfo key) -> bool
 MiniTui.ScrollState
 MiniTui.ScrollState.ContentHeight.get -> int
 MiniTui.ScrollState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.ScrollState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 MiniTui.ScrollState.Offset.get -> int
 MiniTui.ScrollState.Offset.set -> void
 MiniTui.ScrollState.ScrollBy(int rows) -> void
@@ -505,6 +548,7 @@ MiniTui.ScrollbarBuilder.ViewportLength(int length) -> MiniTui.ScrollbarBuilder!
 MiniTui.SelectionState
 MiniTui.SelectionState.First() -> void
 MiniTui.SelectionState.HandleKey(System.ConsoleKeyInfo key, int count) -> bool
+MiniTui.SelectionState.HandleMouse(MiniTui.MouseEvent! mouse, int count) -> bool
 MiniTui.SelectionState.Last(int count) -> void
 MiniTui.SelectionState.Next(int count) -> void
 MiniTui.SelectionState.Offset.get -> int
@@ -587,6 +631,7 @@ MiniTui.TabBarBuilder.Tabs(params string![]! labels) -> MiniTui.TabBarBuilder!
 MiniTui.TabBarState
 MiniTui.TabBarState.Count.get -> int
 MiniTui.TabBarState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.TabBarState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 MiniTui.TabBarState.Next() -> void
 MiniTui.TabBarState.Previous() -> void
 MiniTui.TabBarState.Selected.get -> int
@@ -803,6 +848,7 @@ override MiniTui.CommandResult.Equals(object? obj) -> bool
 override MiniTui.CommandResult.GetHashCode() -> int
 override MiniTui.CommandResult.ToString() -> string!
 override MiniTui.ConfirmDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.ConfirmDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.ConfirmDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
 override MiniTui.ConfirmDialog.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.ConfirmDialog.Title.get -> string?
@@ -813,6 +859,7 @@ override MiniTui.Event.Equals(object? obj) -> bool
 override MiniTui.Event.GetHashCode() -> int
 override MiniTui.Event.ToString() -> string!
 override MiniTui.HelpOverlay.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.HelpOverlay.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.HelpOverlay.Placement(MiniTui.Rect screen) -> MiniTui.Rect
 override MiniTui.HelpOverlay.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.HelpOverlay.Title.get -> string?
@@ -830,9 +877,14 @@ override MiniTui.LogEntry.GetHashCode() -> int
 override MiniTui.LogEntry.ToString() -> string!
 override MiniTui.Margin.GetHashCode() -> int
 override MiniTui.MessageDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.MessageDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.MessageDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
 override MiniTui.MessageDialog.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.MessageDialog.Title.get -> string?
+override MiniTui.MouseEvent.<Clone>$() -> MiniTui.MouseEvent!
+override MiniTui.MouseEvent.Equals(object? obj) -> bool
+override MiniTui.MouseEvent.GetHashCode() -> int
+override MiniTui.MouseEvent.ToString() -> string!
 override MiniTui.Overlay.KeysGroup.get -> string!
 override MiniTui.ParsedCommand.Equals(object? obj) -> bool
 override MiniTui.ParsedCommand.GetHashCode() -> int
@@ -846,6 +898,10 @@ override MiniTui.ResizeEvent.<Clone>$() -> MiniTui.ResizeEvent!
 override MiniTui.ResizeEvent.Equals(object? obj) -> bool
 override MiniTui.ResizeEvent.GetHashCode() -> int
 override MiniTui.ResizeEvent.ToString() -> string!
+override MiniTui.ResumeEvent.<Clone>$() -> MiniTui.ResumeEvent!
+override MiniTui.ResumeEvent.Equals(object? obj) -> bool
+override MiniTui.ResumeEvent.GetHashCode() -> int
+override MiniTui.ResumeEvent.ToString() -> string!
 override MiniTui.Screen.KeysGroup.get -> string!
 override MiniTui.Span.GetHashCode() -> int
 override MiniTui.Style.GetHashCode() -> int
@@ -862,8 +918,10 @@ override MiniTui.TickEvent.ToString() -> string!
 override MiniTui.TimedMessage.GetHashCode() -> int
 override MiniTui.Vec2.GetHashCode() -> int
 override sealed MiniTui.KeyEvent.Equals(MiniTui.Event? other) -> bool
+override sealed MiniTui.MouseEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.PasteEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.ResizeEvent.Equals(MiniTui.Event? other) -> bool
+override sealed MiniTui.ResumeEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.TickEvent.Equals(MiniTui.Event? other) -> bool
 static MiniTui.App.Create() -> MiniTui.App!
 static MiniTui.Cell.Empty.get -> MiniTui.Cell
@@ -928,6 +986,8 @@ static MiniTui.LogEntry.operator !=(MiniTui.LogEntry? left, MiniTui.LogEntry? ri
 static MiniTui.LogEntry.operator ==(MiniTui.LogEntry? left, MiniTui.LogEntry? right) -> bool
 static MiniTui.Margin.operator !=(MiniTui.Margin left, MiniTui.Margin right) -> bool
 static MiniTui.Margin.operator ==(MiniTui.Margin left, MiniTui.Margin right) -> bool
+static MiniTui.MouseEvent.operator !=(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
+static MiniTui.MouseEvent.operator ==(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
 static MiniTui.Overlay.Centered(MiniTui.Rect screen, int width, int height) -> MiniTui.Rect
 static MiniTui.Paragraph.MeasureLines(MiniTui.Text! text, int width, MiniTui.WrapMode wrap) -> int
 static MiniTui.ParsedCommand.Parse(string! input) -> MiniTui.ParsedCommand?
@@ -939,6 +999,8 @@ static MiniTui.Rect.operator !=(MiniTui.Rect left, MiniTui.Rect right) -> bool
 static MiniTui.Rect.operator ==(MiniTui.Rect left, MiniTui.Rect right) -> bool
 static MiniTui.ResizeEvent.operator !=(MiniTui.ResizeEvent? left, MiniTui.ResizeEvent? right) -> bool
 static MiniTui.ResizeEvent.operator ==(MiniTui.ResizeEvent? left, MiniTui.ResizeEvent? right) -> bool
+static MiniTui.ResumeEvent.operator !=(MiniTui.ResumeEvent? left, MiniTui.ResumeEvent? right) -> bool
+static MiniTui.ResumeEvent.operator ==(MiniTui.ResumeEvent? left, MiniTui.ResumeEvent? right) -> bool
 static MiniTui.Span.implicit operator MiniTui.Span(string! content) -> MiniTui.Span
 static MiniTui.Span.operator !=(MiniTui.Span left, MiniTui.Span right) -> bool
 static MiniTui.Span.operator ==(MiniTui.Span left, MiniTui.Span right) -> bool
@@ -994,6 +1056,7 @@ virtual MiniTui.CommandResult.Equals(MiniTui.CommandResult? other) -> bool
 virtual MiniTui.CommandResult.PrintMembers(System.Text.StringBuilder! builder) -> bool
 virtual MiniTui.Component.CapturesText.get -> bool
 virtual MiniTui.Component.HandleKey(System.ConsoleKeyInfo key) -> bool
+virtual MiniTui.Component.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 virtual MiniTui.Component.HandlePaste(string! text) -> bool
 virtual MiniTui.Component.KeysGroup.get -> string!
 virtual MiniTui.Component.OnActivated() -> void
