@@ -15,10 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ScriptedInputSource.EnqueueMouse`, and `ComponentHarness.Click`, `Scroll` and `Mouse`, for tests.
 - Example: the mouse is on; clicks focus fields, toggle the checkbox, select rows and tabs and open menu items, and the Input demo shows mouse events.
 - `docs/SPEC-1.x.md` §4: the mouse and Windows input spec.
+- `App.Suspend(action)` gives the terminal back while `action` runs, for running `$EDITOR` or another program in it: input stops, mouse reporting and bracketed paste turn off, the terminal mode is restored and the alternate screen left, then all of it comes back and the app redraws. Ctrl+C during the action stops the child program, not the app. Works on every platform.
+- `App.SuspendProcess()` stops the process and returns to the shell with the terminal restored (Linux and macOS); `fg` resumes the app, which redraws. `App.WithSuspendKey()` makes an unhandled Ctrl+Z do that; it's off by default.
+- `ResumeEvent`, sent to `App.OnEvent` whenever the app takes the terminal back.
+- Example: Ctrl+Z suspends the demos, and Ctrl+E in the Input demo edits a file in `$VISUAL` or `$EDITOR`.
+- `docs/SPEC-1.x.md` §5: the suspend and resume spec.
 
 ### Changed
 - On Windows, keys decode by the same rules as on Linux and macOS: Esc is recognized after up to 50 ms, and Ctrl+Enter, Ctrl+Tab and Ctrl+digits arrive without the Ctrl. `MINITUI_INPUT=console` restores the 1.0 input path on Windows too.
 - On Windows, pasted text no longer arrives as keys in Windows Terminal, and Ctrl+V in conhost pastes instead of being a key. A component that edits text needs `HandlePaste` to accept pastes, as on Linux and macOS since 1.1.
+- On Linux and macOS, a `SIGTSTP` sent to a running app from outside (`kill -TSTP`) restores the terminal before the process stops, and the app redraws when it's continued. Before, the process stopped with the terminal still in raw mode on the alternate screen.
 
 ## [1.1.0] - 2026-10-30
 

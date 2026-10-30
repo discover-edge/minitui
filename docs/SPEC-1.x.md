@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) done; §5 (Phase 11) specced; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) done; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -966,12 +966,13 @@ internal sealed class InputPump
     public static IDisposable Pause(IInputSource source);   // nests; the last dispose resumes
 }
 
-// Leaves the whole console session, whatever its lease count (nested apps share it), and enters it again.
+// Leaves the whole session, whatever its lease count (nested apps share it), and enters it again.
 internal static class TerminalSession
 {
-    public static IDisposable Suspend(ITerminalBackend backend);  // Leave now; Enter and bump Version on dispose
-    public static event Action? Continued;                        // SIGCONT while the session is entered
-    public static event Action? StopRequested;                    // SIGTSTP from outside (§5.5)
+    static IDisposable Suspend(Session session);       // via Terminal.Suspend(); Enter and bump Version on dispose
+    static IDisposable ListenForJobControl(Action stop, Action continued);  // the most recent listener is called
+    static bool HandleStopSignal();                    // SIGTSTP from outside; true = cancel the default action
+    static void HandleContinueSignal(bool suspended);  // SIGCONT
 }
 
 internal sealed class ConsoleCapture
@@ -979,15 +980,15 @@ internal sealed class ConsoleCapture
     public IDisposable Pause();   // put the original writers back until disposed; lines already captured stay
 }
 
-// Stopping the process, swappable in tests so a test never stops the test runner.
-internal static class ProcessControl
+public partial class App
 {
-    public static bool CanStop { get; }       // Linux or macOS, and the app draws to the real console
-    public static Action Stop { get; set; }   // kill(getpid(), SIGTSTP); returns after SIGCONT
+    // Stopping the process, swappable in tests so a test never stops the test runner.
+    internal Action StopProcessAction { get; set; }     // UnixTerminal.StopProcess: kill(getpid(), SIGTSTP)
+    internal bool? CanStopProcessOverride { get; set; } // default: Linux or macOS, and drawing to the real console
 }
 ```
 
-`UnixTerminal` gains `kill` and `getpid` P/Invokes. `UnixTerminal` and `WindowsConsoleInput` keep the mode saved
+`UnixTerminal` gains a `kill` P/Invoke (SIGTSTP is 20 on Linux and 18 on macOS). `UnixTerminal` and `WindowsConsoleInput` keep the mode saved
 on first entry across a suspend: re-entering reapplies raw (or VT) mode without saving again, so a child that
 exits without restoring its own mode can't become the mode MiniTui restores at exit.
 
@@ -1025,20 +1026,24 @@ exits without restoring its own mode can't become the mode MiniTui restores at e
   swallow keys), the app calls `SuspendProcess`. In render-callback apps, the step comes after `OnKey`. A
   component or binding for `ctrl+z` (undo, for instance) still gets it first. Without `WithSuspendKey()`, an
   unhandled Ctrl+Z is dropped, as in 1.1; an app can also bind any key to `SuspendProcess` itself.
-- **Stopping** (`SuspendProcess`), when `ProcessControl.CanStop`: `Suspend(ProcessControl.Stop)`. `Stop` sends SIGTSTP to the
+- **Stopping** (`SuspendProcess`), where there's job control: `Suspend(StopProcessAction)`. `Stop` sends SIGTSTP to the
   process itself; the default action stops it and the shell reports it as stopped. On `fg`, SIGCONT continues
   it, `kill` returns, and `Suspend` re-enters and redraws.
-- MiniTui registers a SIGTSTP handler (see "SIGTSTP from outside", below). While a suspend is in progress, the handler doesn't cancel
-  the signal, so the default action stops the process. If the runtime turns out not to stop on an uncancelled
-  SIGTSTP, `Stop` sends SIGSTOP instead (the shell then says "Stopped (signal)"); implementation step 1 checks
-  this on Linux and macOS.
+- **The SIGTSTP handler** (for "SIGTSTP from outside", below) is registered only while the app is in the
+  terminal, and removed for the length of every `Suspend`. The Phase 11 spike found that once .NET has a SIGTSTP
+  handler, an uncancelled SIGTSTP doesn't stop the process; without one, the default action does. So `Stop`
+  runs with no handler and stops the process, and a Ctrl+Z inside a `Suspend` action stops MiniTui together
+  with the child.
+- **After SIGCONT,** .NET reapplies its own terminal mode, after MiniTui's handlers run (seen in the spike: ISIG
+  comes back on). So for 1 s after a resume, the input source checks the mode every 20 ms instead of every
+  250 ms.
 - **`bg` instead of `fg`:** the process continues in the background, and re-entering raw mode from a background
   process group raises SIGTTOU, which stops it again until `fg`. That's standard job-control behavior; MiniTui
   doesn't fight it.
 - **SIGTSTP from outside** (`kill -TSTP`, a debugger, an IDE's terminal): the handler cancels the default action
-  and raises `TerminalSession.StopRequested`; the running app posts `SuspendProcess` to its UI thread, whether or
-  not it called `WithSuspendKey`, since the stop was asked for either way. With no app running (a bare `Terminal`), the handler doesn't cancel and the process
-  stops as before.
+  and calls the most recent `ListenForJobControl` listener; that app posts `SuspendProcess` to its UI thread,
+  whether or not it called `WithSuspendKey`, since the stop was asked for either way. With no app running (a
+  bare `Terminal`), no handler is registered and the process stops as before.
 - **SIGCONT the app didn't cause** (resumed after `kill -STOP`): the shell may have drawn over the alternate
   screen, so the app sends `ResumeEvent` and redraws fully. The mode check restores raw mode.
 - **Windows,** `MINITUI_INPUT=console`, custom backends and sources: Ctrl+Z is an ordinary key even with
@@ -1064,14 +1069,15 @@ No environment variables.
 
 ### 5.8 Example
 
-- The Example's Input demo gets an `e` key that opens `$VISUAL`, `$EDITOR`, or `vi` (`notepad` on Windows) on a
-  temporary file through `app.Suspend`, then shows the saved text in a `MessageDialog`. The README shows the
-  same pattern:
+- The Example's Input demo gets Ctrl+E (it captures plain keys), which opens `$VISUAL`, `$EDITOR`, or `vi`
+  (`notepad` on Windows) on a temporary file through `app.Suspend`, then shows the saved text in a
+  `MessageDialog`. The editor runs through `sh -c` (`cmd /c` on Windows), as git does, since `$EDITOR` may hold
+  arguments. The demo passes Ctrl+Z on to the app, as it does Ctrl+C. The README shows the pattern:
 
 ```csharp
-app.Keys.Add("e", "Edit notes", () => app.Suspend(() =>
+app.Keys.Add("ctrl+e", "Edit notes", () => app.Suspend(() =>
 {
-    var editor = Environment.GetEnvironmentVariable("VISUAL") ?? Environment.GetEnvironmentVariable("EDITOR") ?? "vi";
+    var editor = Environment.GetEnvironmentVariable("EDITOR") ?? "vi";
     using var process = Process.Start(new ProcessStartInfo(editor) { ArgumentList = { path } })!;
     process.WaitForExit();
 }));
@@ -1090,16 +1096,19 @@ Automated (all platforms unless noted):
   app leaves and re-enters once and the outer app redraws fully; starting an app inside the action throws.
 - **Input pause:** while paused, the pump doesn't call `TryReadItem`; `Pause` waits for a read in progress;
   pauses nest.
-- **Ctrl+Z** (with `ProcessControl.Stop` replaced): without `WithSuspendKey`, Ctrl+Z never calls `Stop`; with it,
+- **Ctrl+Z** (with `StopProcessAction` replaced): without `WithSuspendKey`, Ctrl+Z never calls `Stop`; with it,
   an unhandled Ctrl+Z calls `Stop` inside a suspend, once; `SuspendProcess` returns false and does nothing when
-  `CanStop` is false; a
+  there's no job control; a
   component or app binding for `ctrl+z` gets it and `Stop` isn't called; with an overlay open, or
-  `CanStop` false, nothing happens; render-callback apps suspend after `OnKey`.
-- **Signals** (with the handlers' logic called directly): an outside SIGTSTP with an app running posts a stop
-  and cancels; with no app it doesn't cancel; SIGCONT posts a `ResumeEvent` and full redraw.
-- **Pseudo-terminal** (Linux and macOS CI): during the action the pty's termios is the saved (cooked) mode and
-  `?1006l ?1000l ?2004l` and `?1049l` were written; after it, raw mode is back with `?1049h ?2004h ?1000h ?1006h`;
-  the mode restored at exit is the original one even if the action changed the termios.
+  no job control, nothing happens; render-callback apps suspend after `OnKey`.
+- **Signals** (with the handlers' logic called directly): an outside SIGTSTP goes to the most recent listener
+  and is cancelled, and with no listener it isn't; SIGCONT goes to the listener unless the session is suspended;
+  the app's stop handler suspends the process even without `WithSuspendKey`, and its continue handler sends a
+  `ResumeEvent`.
+- **Pseudo-terminal** (Linux and macOS CI): while input is paused, the pty's termios is the saved (cooked) mode
+  and `?1006l ?1000l ?2004l` were written; after it, raw mode is back with `?2004h ?1000h ?1006h`; the mode
+  restored at exit is the original one even if the termios was changed during the pause. (The alternate screen
+  is the backend's, covered by the `TestBackend` tests.)
 - Existing tests pass unchanged.
 
 Manual QA (results in the PR):
@@ -1124,13 +1133,12 @@ Manual QA (results in the PR):
 ### 5.11 Implementation order
 
 One PR, shipping in 1.2.0:
-1. A spike on Linux and macOS: confirm an uncancelled SIGTSTP through `PosixSignalRegistration` stops the
-   process, and what .NET does to the termios on SIGCONT and after a child exits. Pick SIGTSTP or SIGSTOP for
-   `Stop` (§5.5).
+1. A spike on Linux: what an uncancelled SIGTSTP does with and without a `PosixSignalRegistration`, and what
+   .NET does to the termios on SIGCONT and after a child exits. Done; the results are in §5.5.
 2. `InputPump.Pause`, keeping the saved mode across re-entry in `UnixTerminal` and `WindowsConsoleInput`, with
    the pause and pty tests.
 3. `TerminalSession.Suspend`, `ConsoleCapture.Pause`, `App.Suspend`, `ResumeEvent`, with the suspend tests.
-4. `ProcessControl`, `SuspendProcess`, the Ctrl+Z step, `WithSuspendKey`, the SIGTSTP and SIGCONT handlers, with the Ctrl+Z and
+4. `StopProcessAction`, `SuspendProcess`, the Ctrl+Z step, `WithSuspendKey`, the SIGTSTP and SIGCONT handlers, with the Ctrl+Z and
    signal tests.
 5. The Example's editor demo, README, CHANGELOG, manual QA.
 

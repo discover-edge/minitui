@@ -6,7 +6,7 @@ namespace MiniTui.Example;
 
 /// <summary>
 /// Shows every key, paste and mouse event as MiniTui decoded it (1.x spec §2.8, §3.8, §4.10), for checking a terminal
-/// and for bug reports.
+/// and for bug reports. Ctrl+E opens a file in the user's editor through <see cref="App.Suspend"/> (§5.8).
 /// Esc is just another key here; q goes back.
 /// </summary>
 internal sealed class InputScreen : Screen
@@ -15,6 +15,8 @@ internal sealed class InputScreen : Screen
     private static readonly KeyBinding Back = KeyBinding.Parse("q");
     private static readonly KeyBinding Quit = KeyBinding.Parse("ctrl+c");
     private static readonly KeyBinding RunChild = KeyBinding.Parse("ctrl+r");
+    private static readonly KeyBinding Edit = KeyBinding.Parse("ctrl+e");
+    private static readonly KeyBinding Suspend = KeyBinding.Parse("ctrl+z");
 
     private readonly List<Line> _entries = [];
 
@@ -34,9 +36,10 @@ internal sealed class InputScreen : Screen
 
         Add(Describe(key));
         if (RunChild.Matches(key)) App.RunTask(RunChildProcessAsync);
+        if (Edit.Matches(key)) EditFile();
 
-        // Let Ctrl+C reach the global binding, so it still quits
-        return !Quit.Matches(key);
+        // Let Ctrl+C reach the global binding, so it still quits, and Ctrl+Z the app, so it suspends
+        return !Quit.Matches(key) && !Suspend.Matches(key);
     }
 
     public override bool HandlePaste(string text)
@@ -75,7 +78,8 @@ internal sealed class InputScreen : Screen
         Widget.Paragraph()
             .Text(new Text([
                 new Line("Press any key, paste or use the mouse to see how it was decoded. q goes back, Ctrl+C quits.", ctx.Theme.Text),
-                new Line("Ctrl+R runs a child process, then keys should still decode (QA check 6).", ctx.Theme.TextMuted),
+                new Line("Ctrl+R runs a child process, then keys should still decode (QA check 6). Ctrl+E edits a file in "
+                         + "$VISUAL or $EDITOR.", ctx.Theme.TextMuted),
             ]))
             .Wrap(WrapMode.Word)
             .Draw(buf, rows["help"]);
@@ -98,6 +102,43 @@ internal sealed class InputScreen : Screen
             new Span($" U+{(int)key.KeyChar:X4}{shown,-4}", Theme.Current.Text),
             new Span($"  {modifiers}", Theme.Current.Warning),
         ]);
+    }
+
+    // The editor gets the real terminal while it runs, then the app takes it back and redraws
+    private void EditFile()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "minitui-notes.txt");
+        if (!File.Exists(path)) File.WriteAllText(path, "Edit this file, save it and quit the editor.\n");
+
+        string? error = null;
+        App.Suspend(() =>
+        {
+            try
+            {
+                using var editor = Process.Start(EditorFor(path));
+                editor?.WaitForExit();
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                error = ex.Message;
+            }
+        });
+
+        var text = error is null ? File.ReadAllText(path).ReplaceLineEndings("\n").TrimEnd('\n') : $"The editor didn't start: {error}";
+        App.Overlays.Show(new MessageDialog("Edited file", new Text([.. text.Split('\n').Select(l => new Line(l))])));
+    }
+
+    // $VISUAL or $EDITOR may include arguments ("code --wait"), so a shell runs it, as git does
+    private static ProcessStartInfo EditorFor(string path)
+    {
+        var editor = Environment.GetEnvironmentVariable("VISUAL") is { Length: > 0 } visual ? visual
+            : Environment.GetEnvironmentVariable("EDITOR") is { Length: > 0 } set ? set
+            : OperatingSystem.IsWindows() ? "notepad" : "vi";
+        var start = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("cmd.exe", $"/c {editor} \"{path}\"")
+            : new ProcessStartInfo("/bin/sh") { ArgumentList = { "-c", editor + " \"$1\"", "sh", path } };
+        start.UseShellExecute = false;
+        return start;
     }
 
     private async Task RunChildProcessAsync(CancellationToken cancellationToken)

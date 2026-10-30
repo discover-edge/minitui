@@ -16,7 +16,7 @@ internal sealed class MenuScreen : Screen
         ("Tabs", "A tab bar and a list in one focus scope", () => new TabsScreen()),
         ("Services (async)", "Loading, refresh, detail screens and confirm dialogs over a fake HTTP API", () => new ServicesScreen()),
         ("Widgets", "Every widget, a theme toggle and a Unicode panel", () => new WidgetsScreen()),
-        ("Input", "Every key as MiniTui decodes it, for checking a terminal", () => new InputScreen()),
+        ("Input", "Every key as MiniTui decodes it, for checking a terminal; Ctrl+E edits a file in your editor", () => new InputScreen()),
         ("Throw an exception", "QA check: an unhandled exception restores the terminal and prints the stack trace", () => new CrashScreen()),
     ];
 
@@ -57,6 +57,10 @@ internal sealed class MenuScreen : Screen
             .Text(new Text([new Line(Demos[_selection.Selected].Description, ctx.Theme.TextMuted)]))
             .Wrap(WrapMode.Word)
             .Draw(buf, columns["about"] with { Y = columns["about"].Y + 1 });
+
+        // Job control is Unix only (1.x spec §5.5)
+        if (!OperatingSystem.IsWindows() && inner.Height > Demos.Length + 4)
+            buf.SetString(inner.X, inner.Bottom - 1, "Ctrl+Z suspends to the shell; fg brings the demos back.", ctx.Theme.TextMuted);
     }
 }
 

@@ -39,6 +39,25 @@ internal sealed class ConsoleCapture
         Console.SetError(_originalError);
     }
 
+    /// <summary>
+    /// Put the original writers back until the returned scope is disposed, for code that needs the real console
+    /// (1.x spec §5.4). Lines already captured stay in the log.
+    /// </summary>
+    public IDisposable Pause()
+    {
+        if (_restored) return DisposeAction.None;
+        _out.Complete();
+        _error.Complete();
+        Console.SetOut(_originalOut);
+        Console.SetError(_originalError);
+        return new DisposeAction(() =>
+        {
+            if (_restored) return;
+            Console.SetOut(_out);
+            Console.SetError(_error);
+        });
+    }
+
     /// <summary>Write the captured error lines to the original stderr. Call after the terminal is restored.</summary>
     public void ReplayErrors()
     {

@@ -49,3 +49,16 @@ override sealed MiniTui.MouseEvent.Equals(MiniTui.Event? other) -> bool
 static MiniTui.MouseEvent.operator !=(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
 static MiniTui.MouseEvent.operator ==(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
 virtual MiniTui.Component.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.App.Suspend(System.Action! action) -> void
+MiniTui.App.SuspendProcess() -> bool
+MiniTui.App.WithSuspendKey(bool enabled = true) -> MiniTui.App!
+MiniTui.ResumeEvent
+MiniTui.ResumeEvent.Equals(MiniTui.ResumeEvent? other) -> bool
+MiniTui.ResumeEvent.ResumeEvent() -> void
+override MiniTui.ResumeEvent.<Clone>$() -> MiniTui.ResumeEvent!
+override MiniTui.ResumeEvent.Equals(object? obj) -> bool
+override MiniTui.ResumeEvent.GetHashCode() -> int
+override MiniTui.ResumeEvent.ToString() -> string!
+override sealed MiniTui.ResumeEvent.Equals(MiniTui.Event? other) -> bool
+static MiniTui.ResumeEvent.operator !=(MiniTui.ResumeEvent? left, MiniTui.ResumeEvent? right) -> bool
+static MiniTui.ResumeEvent.operator ==(MiniTui.ResumeEvent? left, MiniTui.ResumeEvent? right) -> bool

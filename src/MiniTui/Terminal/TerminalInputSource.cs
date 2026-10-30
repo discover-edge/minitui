@@ -20,6 +20,10 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private static readonly TimeSpan MaxEscapeTimeout = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan ModeCheckInterval = TimeSpan.FromMilliseconds(250);
 
+    // After a resume, .NET reapplies its own terminal mode at some point (1.x spec §5.5), so check often for a while
+    private static readonly TimeSpan FastModeCheckInterval = TimeSpan.FromMilliseconds(20);
+    private static readonly TimeSpan FastModeCheckPeriod = TimeSpan.FromSeconds(1);
+
     private readonly Lock _lock = new();
     private readonly int _fd;
     private readonly int _outputFd;
@@ -34,6 +38,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private volatile bool _raw;
     private bool _closed;
     private TimeSpan _lastModeCheck;
+    private TimeSpan _fastModeCheckUntil;
     private int _mouseRefs;
 
     /// <summary>Create a source with the <see cref="DefaultEscapeTimeout"/>.</summary>
@@ -161,6 +166,32 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         }
     }
 
+    void IInputLifecycle.Suspend()
+    {
+        lock (_lock)
+        {
+            if (!_raw) return;
+
+            // A held Esc is the user's key, typed before the suspend
+            _decoder.Expire(TimeSpan.MaxValue, _sink);
+            _raw = false;
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.Suspend();
+            else if (OperatingSystem.IsWindows()) WindowsConsoleInput.Suspend();
+        }
+    }
+
+    void IInputLifecycle.Resume()
+    {
+        ((IInputLifecycle)this).Activate();
+        CheckModeSoon();
+    }
+
+    /// <summary>Check the terminal mode often for the next second, e.g. after SIGCONT, when .NET may reset it.</summary>
+    internal void CheckModeSoon()
+    {
+        lock (_lock) _fastModeCheckUntil = Now + FastModeCheckPeriod;
+    }
+
     bool IWaitableInputSource.WaitForInput(TimeSpan timeout)
     {
         if (!_raw)
@@ -182,6 +213,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             }
             holding = _decoder.Deadline is not null;
             wait = _decoder.Deadline is { } deadline ? Min(deadline - Now, timeout) : timeout;
+            if (Now < _fastModeCheckUntil) wait = Min(wait, FastModeCheckInterval);
         }
         if (wait <= TimeSpan.Zero) return true;
 
@@ -203,7 +235,8 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             else _closed = true; // the terminal went away; SIGHUP handling restores it
         }
 
-        if (Now - _lastModeCheck >= ModeCheckInterval)
+        var interval = Now < _fastModeCheckUntil ? FastModeCheckInterval : ModeCheckInterval;
+        if (Now - _lastModeCheck >= interval)
         {
             _lastModeCheck = Now;
             UnixTerminal.Reapply();

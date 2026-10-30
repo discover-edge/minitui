@@ -107,6 +107,8 @@ public partial class App
             run.Cancellation = cancellationToken.Register(Quit);
             TerminalSession.Resized += OnResizeSignal;
             run.ResizeHooked = true;
+            if (IsConsole(run.Terminal.Backend))
+                run.JobControl = TerminalSession.ListenForJobControl(OnStopSignal, OnContinueSignal);
         }
         catch
         {
@@ -204,6 +206,7 @@ public partial class App
         StopTicker();
         CancelStopping();
         if (run.ResizeHooked) TerminalSession.Resized -= OnResizeSignal;
+        run.JobControl?.Dispose();
         run.Cancellation.Dispose();
         run.MouseCapture?.SetMouseCapture(false);
         run.Subscription?.Dispose();
@@ -262,6 +265,7 @@ public partial class App
         public CancellationTokenRegistration Cancellation { get; set; }
         public bool ResizeHooked { get; set; }
         public IMouseCapture? MouseCapture { get; set; }
+        public IDisposable? JobControl { get; set; }
         public bool FirstFrame { get; set; } = true;
     }
 
@@ -329,7 +333,10 @@ public partial class App
             return;
         }
 
-        KeyRouter.Route(this, key);
+        if (KeyRouter.Route(this, key)) return;
+
+        // 1.x spec §5.5: Ctrl+Z suspends only if nothing else took it
+        if (_suspendKey && KeyInput.IsCtrlZ(key)) SuspendProcess();
     }
 
     /// <summary>

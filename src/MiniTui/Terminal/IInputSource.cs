@@ -54,6 +54,12 @@ internal interface IInputLifecycle
 
     /// <summary>The last app stopped reading: restore the terminal mode.</summary>
     void Deactivate();
+
+    /// <summary>An app is giving the terminal back for a while (1.x spec §5.4): restore the terminal mode.</summary>
+    void Suspend() => Deactivate();
+
+    /// <summary>The app is taking the terminal again after <see cref="Suspend"/>.</summary>
+    void Resume() => Activate();
 }
 
 /// <summary>A source that can have the terminal report the mouse (1.x spec §4.6).</summary>
