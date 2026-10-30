@@ -74,14 +74,20 @@ internal static class TerminalSession
         {
             // The handlers restore the terminal and let termination proceed
             foreach (var signal in new[] { PosixSignal.SIGTERM, PosixSignal.SIGHUP, PosixSignal.SIGQUIT })
-                TryRegister(signal, _ => Backend.Leave());
+                TryRegister(signal, _ => Restore());
             if (!OperatingSystem.IsWindows())
                 TryRegister(PosixSignal.SIGWINCH, _ => Resized?.Invoke());
 
-            _onProcessExit = (_, _) => Backend.Leave();
-            _onUnhandledException = (_, _) => Backend.Leave();
+            _onProcessExit = (_, _) => Restore();
+            _onUnhandledException = (_, _) => Restore();
             AppDomain.CurrentDomain.ProcessExit += _onProcessExit;
             AppDomain.CurrentDomain.UnhandledException += _onUnhandledException;
+        }
+
+        private void Restore()
+        {
+            TerminalInputSource.RestoreTerminalMode();
+            Backend.Leave();
         }
 
         public void UnregisterRestoreHandlers()

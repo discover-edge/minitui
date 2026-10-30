@@ -373,6 +373,22 @@ Colors are downsampled to what the terminal supports (`NO_COLOR`, `COLORTERM`, `
 `ColorCapability.Detect`). Stdin and stdout must be a terminal: if either is redirected,
 `TerminalNotSupportedException` is thrown.
 
+### Keyboard input
+
+On Linux and macOS, MiniTui puts the terminal in raw mode and decodes its input itself
+(`TerminalInputSource`, the default). Esc, Alt combinations, function keys and arrows with
+Shift/Ctrl/Alt arrive reliably, and a fast burst of keys never produces a stray Esc. On Windows, keys
+are read through `Console.ReadKey`.
+
+- **Esc** is recognized 50 ms after it's pressed, because terminals send other keys as sequences that
+  start with Esc. Change it with `app.WithInput(new TerminalInputSource(TimeSpan.FromMilliseconds(100)))`.
+- **Ctrl+C** quits. **Ctrl+Z**, Ctrl+\, Ctrl+S and Ctrl+Q reach the app as keys instead of suspending
+  the process or pausing output.
+- **macOS:** raw input is tested in CI on a pseudo-terminal, but not yet by hand in Terminal.app or
+  iTerm2. Terminal.app sends Alt (Option) combinations only with "Use Option as Meta key" turned on.
+- If a terminal's keys decode wrongly, set `MINITUI_INPUT=console` to use the `Console.ReadKey` path,
+  and please report it: the Example's **Input** demo shows exactly how each key was decoded.
+
 ### Backends
 
 `Terminal` draws through an `ITerminalBackend`:
@@ -583,7 +599,7 @@ MiniTui/
 │       └── Screens/        # One screen per demo, plus shared controls
 ├── tests/
 │   └── MiniTui.Tests/      # xUnit tests
-├── docs/                   # SPEC.md and the 0.7 → 1.0 migration guide
+├── docs/                   # SPEC.md (1.0), SPEC-1.x.md (post-1.0 roadmap) and the 0.7 → 1.0 migration guide
 ├── tools/
 │   └── GenWidthTable.cs    # Generates the Unicode width table
 └── README.md

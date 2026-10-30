@@ -16,6 +16,7 @@ internal sealed class MenuScreen : Screen
         ("Tabs", "A tab bar and a list in one focus scope", () => new TabsScreen()),
         ("Services (async)", "Loading, refresh, detail screens and confirm dialogs over a fake HTTP API", () => new ServicesScreen()),
         ("Widgets", "Every widget, a theme toggle and a Unicode panel", () => new WidgetsScreen()),
+        ("Input", "Every key as MiniTui decodes it, for checking a terminal", () => new InputScreen()),
         ("Throw an exception", "QA check: an unhandled exception restores the terminal and prints the stack trace", () => new CrashScreen()),
     ];
 

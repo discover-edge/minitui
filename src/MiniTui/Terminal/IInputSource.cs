@@ -11,8 +11,26 @@ public interface IInputSource : IDisposable
     bool TryRead(out ConsoleKeyInfo key);
 }
 
+/// <summary>Start and stop hooks <see cref="InputPump"/> calls on sources that change the terminal's mode.</summary>
+internal interface IInputLifecycle
+{
+    /// <summary>The first app started reading: enter raw mode.</summary>
+    void Activate();
+
+    /// <summary>The last app stopped reading: restore the terminal mode.</summary>
+    void Deactivate();
+}
+
+/// <summary>A source <see cref="InputPump"/> can wait on instead of polling.</summary>
+internal interface IWaitableInputSource
+{
+    /// <summary>Block until input may be available or <paramref name="timeout"/> passes.</summary>
+    /// <returns>True if <see cref="IInputSource.TryRead"/> may have a key.</returns>
+    bool WaitForInput(TimeSpan timeout);
+}
+
 /// <summary>
-/// Reads keys from <see cref="Console"/>.
+/// Reads keys from <see cref="Console"/>. This was the default before 1.1; <see cref="TerminalInputSource"/> is now.
 /// </summary>
 public sealed class ConsoleInputSource : IInputSource
 {

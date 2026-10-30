@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `TerminalInputSource`, the new default input source. On Linux and macOS it reads the terminal in raw mode and decodes keys with MiniTui's own decoder: Esc, Alt and Alt+Shift letters, Ctrl+letters, Shift/Ctrl/Alt arrows, Home/End/PgUp/PgDn/Insert/Delete, Shift+Tab and F1–F12 decode the same way in every terminal. On Windows it reads keys as before.
+- The `MINITUI_INPUT=console` environment variable selects the 1.0 input path (`ConsoleInputSource`) without recompiling.
+- Example: an **Input** demo that shows how each key was decoded.
+- `docs/SPEC-1.x.md`: the post-1.0 roadmap and the raw input spec.
+
+### Changed
+- On Linux and macOS, Esc is recognized after up to 50 ms (`TerminalInputSource.EscapeTimeout`), and Ctrl+Z, Ctrl+\, Ctrl+S, Ctrl+Q, Ctrl+V and Ctrl+O reach the app as keys instead of being handled by the terminal.
+- Waiting for input no longer wakes every 5 ms on Linux and macOS.
+
+### Fixed
+- A fast burst of keys (about 1,000 arrow keys at once) could decode as a stray Esc and leave the current screen. Key sequences split across reads are now reassembled.
+
 ## [1.0.0] - 2026-10-29
 
 MiniTui 1.0: an event loop with async support, constraint layout, a themed widget set, and screens and

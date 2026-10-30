@@ -12,7 +12,9 @@
 - [x] Better text wrapping - for modals with long content (`Widget.Paragraph`, `MessageDialog`)
 
 ## Post-1.0
-- [ ] Raw input parser (Unix stdin bytes; Windows `ReadConsoleInput`) for reliable Alt modifiers
+Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
+
+- [x] Raw input parser on Unix (`TerminalInputSource`); Windows `ReadConsoleInput` comes with mouse support
 - [ ] Mouse support - clicking to focus, scrolling (SGR 1006)
 - [ ] Bracketed paste (`?2004`)
 - [ ] Popup menu - context menus, dropdowns (PopupMenu/Select)

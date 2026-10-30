@@ -74,7 +74,7 @@ public partial class App
         _uiThreadId = Environment.CurrentManagedThreadId;
         _running = true;
 
-        var input = _input ?? InputPump.Console;
+        var input = _input ?? InputPump.DefaultFor(_backend);
         var run = new RunScope(input, t_current);
         _run = run;
         try
