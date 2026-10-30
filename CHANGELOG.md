@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-30
+
+MiniTui 1.1: raw terminal input and bracketed paste on Linux and macOS. Windows input is unchanged.
+
 ### Added
 - `TerminalInputSource`, the new default input source. On Linux and macOS it reads the terminal in raw mode and decodes keys with MiniTui's own decoder: Esc, Alt and Alt+Shift letters, Ctrl+letters, Shift/Ctrl/Alt arrows, Home/End/PgUp/PgDn/Insert/Delete, Shift+Tab and F1–F12 decode the same way in every terminal. On Windows it reads keys as before.
 - Bracketed paste on Linux and macOS: a paste arrives as one `PasteEvent` instead of a key per character. `Component.HandlePaste` and `App.OnPaste` receive it, `TextFieldState.Paste` inserts it as one line, and `CommandLineOverlay` handles it. `ScriptedInputSource.EnqueuePaste` and `ComponentHarness.Paste` script pastes in tests.
