@@ -99,6 +99,12 @@ public class Terminal : IDisposable
         (_current, _previous) = (_previous, _current);
     }
 
+    /// <summary>The backend that entered the terminal for this terminal's session.</summary>
+    internal ITerminalBackend Backend => _backend;
+
+    /// <summary>Give the terminal back until disposed; every terminal on the session redraws fully after (1.x spec §5.4).</summary>
+    internal IDisposable Suspend() => _lease.Suspend();
+
     /// <summary>
     /// Force a complete redraw next frame (useful after terminal resize).
     /// </summary>

@@ -67,6 +67,12 @@ public sealed record MouseEvent(MouseAction Action, MouseButton Button, int X, i
 /// <summary>The terminal was resized. The next frame is a full redraw.</summary>
 public sealed record ResizeEvent(int Width, int Height) : Event;
 
+/// <summary>
+/// The app took the terminal back (1.x spec §5): after <see cref="App.Suspend"/>, after the process was stopped and
+/// continued, and after a SIGCONT the app didn't cause. The next frame is a full redraw.
+/// </summary>
+public sealed record ResumeEvent : Event;
+
 /// <summary>A tick from <see cref="App.WithTickRate"/>. <paramref name="Elapsed"/> is the time since the previous tick.</summary>
 public sealed record TickEvent(TimeSpan Elapsed) : Event;
 

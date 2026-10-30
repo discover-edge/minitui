@@ -15,6 +15,10 @@ internal sealed class InputPump
     private readonly IInputSource _source;
     private readonly List<Subscription> _subscribers = [];
     private readonly List<InputItem> _orphans = [];
+
+    // Held by the reader around each read, so Pause can wait for one in progress
+    private readonly Lock _readGate = new();
+    private int _pauses;
     private Thread? _thread;
 
     private InputPump(IInputSource source) => _source = source;
@@ -66,6 +70,30 @@ internal sealed class InputPump
         }
     }
 
+    /// <summary>
+    /// Stop reading <paramref name="source"/> and give the terminal back (1.x spec §5.4) until the returned scope is
+    /// disposed. Returns once no read is in progress, so no byte meant for a child process is read. Pauses nest.
+    /// </summary>
+    public static IDisposable Pause(IInputSource source)
+    {
+        InputPump? pump;
+        lock (Gate) Pumps.TryGetValue(source, out pump);
+        if (pump is null) return DisposeAction.None;
+
+        lock (pump._readGate)
+        {
+            if (pump._pauses++ == 0) (source as IInputLifecycle)?.Suspend();
+        }
+        return new DisposeAction(pump.Unpause);
+    }
+
+    private void Unpause()
+    {
+        lock (_readGate)
+        {
+            if (--_pauses == 0) (_source as IInputLifecycle)?.Resume();
+        }
+    }
 
     private void ReadLoop()
     {
@@ -83,7 +111,17 @@ internal sealed class InputPump
             }
 
             burst.Clear();
-            while (TryRead(out var item)) burst.Add(item);
+            bool paused;
+            lock (_readGate)
+            {
+                paused = _pauses > 0;
+                while (!paused && TryRead(out var item)) burst.Add(item);
+            }
+            if (paused)
+            {
+                Thread.Sleep(IdleSleepMs);
+                continue;
+            }
             if (burst.Count == 0)
             {
                 Wait();

@@ -32,6 +32,7 @@ internal static unsafe partial class WindowsConsoleInput
     private static uint s_vtMode;
     private static bool s_mouse;
     private static bool s_active;
+    private static bool s_suspended;
     private static bool s_exitHooked;
 
     /// <summary>True while the console is in VT input mode.</summary>
@@ -48,6 +49,7 @@ internal static unsafe partial class WindowsConsoleInput
     /// events on. Then turn on bracketed paste, if stdout is a console with VT processing.
     /// </summary>
     /// <returns>False if stdin isn't a console or the console refuses VT input; the mode is then unchanged.</returns>
+    /// <remarks>After <see cref="Suspend"/>, the mode saved before it is kept (1.x spec §5.3).</remarks>
     public static bool TryEnterVtInput()
     {
         lock (Gate)
@@ -57,6 +59,7 @@ internal static unsafe partial class WindowsConsoleInput
             {
                 var input = GetStdHandle(StdInputHandle);
                 if (!IsHandle(input) || !GetConsoleMode(input, out var saved)) return false;
+                if (s_suspended) saved = s_savedMode;
                 var mode = (saved | EnableVirtualTerminalInput | EnableWindowInput)
                            & ~(EnableProcessedInput | EnableLineInput | EnableEchoInput);
                 if (!SetConsoleMode(input, mode)) return false;
@@ -65,6 +68,7 @@ internal static unsafe partial class WindowsConsoleInput
                 s_savedMode = saved;
                 s_vtMode = mode;
                 s_active = true;
+                s_suspended = false;
                 var output = GetStdHandle(StdOutputHandle);
                 s_output = IsHandle(output) && GetConsoleMode(output, out var outputMode)
                            && (outputMode & EnableVirtualTerminalProcessing) != 0 ? output : 0;
@@ -117,13 +121,22 @@ internal static unsafe partial class WindowsConsoleInput
     }
 
     /// <summary>Turn mouse reporting and bracketed paste off and put back the saved input mode. Idempotent, and never throws.</summary>
+    public static void Restore() => RestoreCore(keepSaved: false);
+
+    /// <summary>Like <see cref="Restore"/>, but the next <see cref="TryEnterVtInput"/> reuses the saved mode.</summary>
+    public static void Suspend() => RestoreCore(keepSaved: true);
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
         Justification = "Runs on exit and signal paths, which must not throw.")]
-    public static void Restore()
+    private static void RestoreCore(bool keepSaved)
     {
         lock (Gate)
         {
-            if (!s_active) return;
+            if (!s_active)
+            {
+                if (!keepSaved) s_suspended = false;
+                return;
+            }
             try
             {
                 if (s_mouse) Write("\e[?1006l\e[?1000l"u8);
@@ -138,6 +151,7 @@ internal static unsafe partial class WindowsConsoleInput
             catch (Exception) { }
             s_mouse = false;
             s_active = false;
+            s_suspended = keepSaved;
             s_output = 0;
         }
     }

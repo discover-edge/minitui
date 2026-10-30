@@ -25,6 +25,7 @@ public partial class App
     private Func<string, bool>? _onPaste;
     private Func<MouseEvent, bool>? _onMouse;
     private bool _mouse;
+    private bool _suspendKey;
     private Action<Event>? _onEvent;
     private Func<Exception, ErrorAction>? _onError;
     private TimeSpan? _tickRate = DefaultTickRate;
@@ -167,6 +168,17 @@ public partial class App
     }
 
     /// <summary>
+    /// Make an unhandled Ctrl+Z call <see cref="SuspendProcess"/>, so it returns to the shell as in most terminal
+    /// programs (1.x spec §5.5). Off by default. A component or key binding for <c>ctrl+z</c> still gets it first,
+    /// and an open overlay swallows it. Has no effect on Windows, which has no job control.
+    /// </summary>
+    public App WithSuspendKey(bool enabled = true)
+    {
+        _suspendKey = enabled;
+        return this;
+    }
+
+    /// <summary>
     /// Handle a mouse event before the components see it. Return true if it was handled, so routing stops. In
     /// an app with a <see cref="Render"/> callback, this is the only place mouse events go.
     /// </summary>
@@ -177,7 +189,7 @@ public partial class App
     }
 
     /// <summary>
-    /// Observe every event (keys, pastes, mouse events, resizes and ticks) before it's handled.
+    /// Observe every event (keys, pastes, mouse events, resizes, resumes and ticks) before it's handled.
     /// </summary>
     public App OnEvent(Action<Event> handler)
     {

@@ -16,6 +16,8 @@ internal static unsafe partial class UnixTerminal
     private const int TcsaNow = 0;
     private const short PollIn = 0x1;
     private const int Eintr = 4;
+    private const int SigTstpLinux = 20;
+    private const int SigTstpMacOS = 18;
 
     private static readonly Lock Gate = new();
     private static readonly byte[] Saved = new byte[TermiosSize];
@@ -24,6 +26,9 @@ internal static unsafe partial class UnixTerminal
     private static int s_outputFd = -1;
     private static bool s_exitHooked;
     private static bool s_mouse;
+
+    // The fd whose saved mode Suspend kept, so entering again doesn't save the mode a child left behind
+    private static int s_suspendedFd = -1;
 
     /// <summary>The platforms whose libc and termios this has been checked against.</summary>
     public static bool IsSupported =>
@@ -44,6 +49,7 @@ internal static unsafe partial class UnixTerminal
     /// paste by writing to <paramref name="outputFd"/>, if it's a terminal (−1 for none).
     /// </summary>
     /// <returns>False if <paramref name="fd"/> isn't a terminal or a call fails; the mode is then unchanged.</returns>
+    /// <remarks>After <see cref="Suspend"/> on the same fd, the mode saved before it is kept (1.x spec §5.3).</remarks>
     public static bool TryEnterRaw(int fd, int outputFd)
     {
         lock (Gate)
@@ -52,12 +58,13 @@ internal static unsafe partial class UnixTerminal
             try
             {
                 if (isatty(fd) != 1) return false;
-                Array.Clear(Saved);
+                var keepSaved = s_suspendedFd == fd;
+                if (!keepSaved) Array.Clear(Saved);
                 Array.Clear(RawMode);
                 fixed (byte* saved = Saved)
                 fixed (byte* raw = RawMode)
                 {
-                    if (tcgetattr(fd, saved) != 0) return false;
+                    if (!keepSaved && tcgetattr(fd, saved) != 0) return false;
                     Saved.CopyTo(RawMode, 0);
                     cfmakeraw(raw);
                     if (tcsetattr(fd, TcsaNow, raw) != 0) return false;
@@ -67,6 +74,7 @@ internal static unsafe partial class UnixTerminal
                     if (tcgetattr(fd, raw) != 0) return false;
                 }
                 s_fd = fd;
+                s_suspendedFd = -1;
                 s_outputFd = outputFd >= 0 && isatty(outputFd) == 1 ? outputFd : -1;
                 if (s_outputFd >= 0) Write(s_outputFd, "\e[?2004h"u8);
 
@@ -101,13 +109,28 @@ internal static unsafe partial class UnixTerminal
     }
 
     /// <summary>Turn mouse reporting and bracketed paste off and put back the mode saved by <see cref="TryEnterRaw"/>. Idempotent, and never throws.</summary>
+    public static void Restore() => RestoreCore(keepSaved: false);
+
+    /// <summary>Like <see cref="Restore"/>, but the next <see cref="TryEnterRaw"/> on this fd reuses the saved mode.</summary>
+    public static void Suspend() => RestoreCore(keepSaved: true);
+
+    /// <summary>
+    /// Stop the process with SIGTSTP, as Ctrl+Z does in a shell, and return once it's continued. The default action
+    /// only stops a .NET process that has no SIGTSTP handler registered (1.x spec §5.5).
+    /// </summary>
+    public static void StopProcess() => kill(Environment.ProcessId, OperatingSystem.IsMacOS() ? SigTstpMacOS : SigTstpLinux);
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
         Justification = "Runs on exit and signal paths, which must not throw.")]
-    public static void Restore()
+    private static void RestoreCore(bool keepSaved)
     {
         lock (Gate)
         {
-            if (s_fd < 0) return;
+            if (s_fd < 0)
+            {
+                if (!keepSaved) s_suspendedFd = -1;
+                return;
+            }
             try
             {
                 if (s_outputFd >= 0 && s_mouse) Write(s_outputFd, MouseOff);
@@ -120,6 +143,7 @@ internal static unsafe partial class UnixTerminal
                 fixed (byte* saved = Saved) tcsetattr(s_fd, TcsaNow, saved);
             }
             catch (Exception) { }
+            s_suspendedFd = keepSaved ? s_fd : -1;
             s_fd = -1;
             s_outputFd = -1;
         }
@@ -209,6 +233,9 @@ internal static unsafe partial class UnixTerminal
 
     [LibraryImport("libc", SetLastError = true)]
     private static partial nint write(int fd, byte* buffer, nuint count);
+
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int kill(int pid, int signal);
 
     [LibraryImport("libc", SetLastError = true)]
     private static partial nint read(int fd, byte* buffer, nuint count);

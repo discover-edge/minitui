@@ -245,6 +245,35 @@ public class TerminalInputSourceTests
     }
 
     [Fact]
+    public void Pause_GivesTheTerminalBack_AndResumeKeepsTheOriginalSavedMode()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        var original = pty.GetMode();
+        using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
+        var subscription = InputPump.Subscribe(source, _ => { });
+        ((IMouseCapture)source).SetMouseCapture(true);
+        Assert.Equal("\x1b[?2004h\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        var raw = pty.GetMode();
+        Assert.NotEqual(original, raw);
+
+        using (InputPump.Pause(source))
+        {
+            Assert.Equal(original, pty.GetMode());
+            Assert.Equal("\x1b[?1006l\x1b[?1000l\x1b[?2004l", pty.ReadEcho());
+
+            // A child that leaves the terminal in another mode mustn't become the mode restored at exit
+            pty.SetMode(raw);
+        }
+        Assert.Equal(raw, pty.GetMode());
+        Assert.Equal("\x1b[?2004h\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+
+        ((IMouseCapture)source).SetMouseCapture(false);
+        subscription.Dispose();
+        Assert.Equal(original, pty.GetMode());
+    }
+
+    [Fact]
     public void RawMode_WithoutATerminalOutput_DoesNotWriteBracketedPaste()
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;

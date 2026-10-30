@@ -386,7 +386,8 @@ arrive without the Ctrl.
 - **Esc** is recognized 50 ms after it's pressed, because terminals send other keys as sequences that
   start with Esc. Change it with `app.WithInput(new TerminalInputSource(TimeSpan.FromMilliseconds(100)))`.
 - **Ctrl+C** quits. **Ctrl+Z**, Ctrl+\, Ctrl+S and Ctrl+Q reach the app as keys instead of suspending
-  the process or pausing output.
+  the process or pausing output. To make an unhandled Ctrl+Z suspend to the shell, call
+  `app.WithSuspendKey()` (see [Running other programs](#running-other-programs)).
 - **macOS:** raw input is tested in CI on a pseudo-terminal, but not yet by hand in Terminal.app or
   iTerm2. Terminal.app sends Alt (Option) combinations only with "Use Option as Meta key" turned on.
 - **Paste** arrives as one call, not a key per character, so a pasted line break doesn't submit and pasted
@@ -431,6 +432,32 @@ public override bool HandleMouse(MouseEvent mouse)
 `ComponentHarness.Click(x, y)`, `Scroll(x, y, rows)` and `Mouse(event)` test it, and
 `ScriptedInputSource.EnqueueMouse` scripts it for whole apps. In conhost, mouse capture also turns off
 Quick Edit while the app runs.
+
+### Running other programs
+
+`app.Suspend(action)` gives the terminal back while `action` runs, so a program such as `$EDITOR` or
+`less` can use it: MiniTui stops reading input, turns mouse reporting and bracketed paste off, restores
+the terminal mode and leaves the alternate screen. When the action returns (or throws), the app takes the
+terminal again and redraws. Call it on the UI thread, for example from a key binding:
+
+```csharp
+app.Keys.Add("ctrl+e", "Edit notes", () => app.Suspend(() =>
+{
+    var editor = Environment.GetEnvironmentVariable("EDITOR") ?? "vi";
+    using var process = Process.Start(new ProcessStartInfo(editor) { ArgumentList = { path } })!;
+    process.WaitForExit();
+}));
+```
+
+While the action runs, `Console.Out` is the real console again, and Ctrl+C stops the child program, not
+the app.
+
+**Ctrl+Z** (Linux and macOS): `app.SuspendProcess()` stops the process and returns to the shell, with the
+terminal restored as `Suspend` does; `fg` resumes the app, which redraws. `app.WithSuspendKey()` makes an
+unhandled Ctrl+Z do that. It's off by default, as in most TUI libraries; a component or key binding for
+`ctrl+z` (undo, say) still gets it first. A `SIGTSTP` sent from outside (`kill -TSTP`) is handled the same
+way. After any resume, `OnEvent` gets a `ResumeEvent`. Windows has no job control, so there Ctrl+Z is
+always a key and `SuspendProcess` returns false.
 
 ### Backends
 
@@ -505,7 +532,8 @@ App.Create()
     .OnSetup(app => { })                       // Optional: run once before the first frame
     .OnKey(key => false)                       // Optional: see keys first; true = handled
     .WithMouse()                               // Optional: report the mouse (see Mouse)
-    .OnEvent(e => { })                         // Optional: KeyEvent, PasteEvent, MouseEvent, ResizeEvent, TickEvent
+    .WithSuspendKey()                          // Optional: Ctrl+Z suspends to the shell (Linux, macOS)
+    .OnEvent(e => { })                         // Optional: KeyEvent, PasteEvent, MouseEvent, ResizeEvent, ResumeEvent, TickEvent
     .OnUpdate(() => { })                       // Optional: run each loop iteration before render
     .OnError(ex => ErrorAction.Continue)       // Optional: default restores the terminal and rethrows
     .WithTickRate(TimeSpan.FromMilliseconds(100)) // Optional: default 250 ms; null = redraw only on events
@@ -519,6 +547,8 @@ Ctrl+C always quits (unless `OnKey` takes it). An app uses either a `Render` cal
 From any thread, `app.Post(action)` runs code on the UI thread, `app.RequestRedraw()` asks for a
 frame and `app.Quit()` stops the loop. `app.RunTask(ct => WorkAsync(ct))` starts async work whose
 `await`s resume on the UI thread; its exceptions go to `OnError`, and `ct` is `app.Stopping`.
+`app.Suspend(action)` runs a program in the real terminal (see
+[Running other programs](#running-other-programs)).
 
 While running, `Console.Out` and `Console.Error` are redirected into `app.Log` (a `LogBuffer` of
 the last 1,000 lines) so stray writes can't corrupt the screen. Error lines are written to stderr

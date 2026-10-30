@@ -26,5 +26,8 @@ internal static class KeyInput
     public static bool IsCtrlC(ConsoleKeyInfo key) =>
         key.KeyChar == '\x03' || (key.Key == ConsoleKey.C && (key.Modifiers & ConsoleModifiers.Control) != 0);
 
+    /// <summary>Ctrl+Z, which the terminal delivers as a key while an app is running (1.x spec §5.5).</summary>
+    public static bool IsCtrlZ(ConsoleKeyInfo key) => IsCtrl(key, 'z');
+
     public static bool HasControl(ConsoleKeyInfo key) => (key.Modifiers & ConsoleModifiers.Control) != 0;
 }
