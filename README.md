@@ -160,6 +160,7 @@ sealed class SearchBox : Component
     readonly TextFieldState text = new();
     public override bool CapturesText => true;           // typing "q" here doesn't trigger global "q"
     public override bool HandleKey(ConsoleKeyInfo key) => text.HandleKey(key);
+    public override bool HandlePaste(string pasted) => text.Paste(pasted);
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.TextField().State(text).Focused(ctx.Focused).Block(Widget.Block().Title(" Search ")).Draw(buf, area);
 }
@@ -386,6 +387,11 @@ are read through `Console.ReadKey`.
   the process or pausing output.
 - **macOS:** raw input is tested in CI on a pseudo-terminal, but not yet by hand in Terminal.app or
   iTerm2. Terminal.app sends Alt (Option) combinations only with "Use Option as Meta key" turned on.
+- **Paste** arrives as one call, not a key per character, so a pasted line break doesn't submit and pasted
+  letters don't fire bindings. A component accepts pastes by overriding `HandlePaste`; for a text field,
+  `public override bool HandlePaste(string text) => State.Paste(text);` inserts the paste as one line.
+  A paste nothing handles is dropped. `App.OnPaste` sees pastes first, and `ComponentHarness.Paste` tests
+  them. On Windows (and with `MINITUI_INPUT=console`), pasted text still arrives as keys.
 - If a terminal's keys decode wrongly, set `MINITUI_INPUT=console` to use the `Console.ReadKey` path,
   and please report it: the Example's **Input** demo shows exactly how each key was decoded.
 

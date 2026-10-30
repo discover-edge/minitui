@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 
 namespace MiniTui;
 
@@ -46,6 +47,27 @@ public class TextFieldState
         if (string.IsNullOrEmpty(text)) return;
         _text = _text.Insert(_cursor, text);
         _cursor = SnapToBoundary(_text, _cursor + text.Length);
+    }
+
+    /// <summary>
+    /// Insert pasted text at the cursor. Leading and trailing line breaks are dropped, each other line break and
+    /// each tab becomes a space, and other control characters are removed, so a multi-line paste becomes one line.
+    /// </summary>
+    /// <returns>Always true, so a component can write <c>HandlePaste(text) =&gt; State.Paste(text)</c>.</returns>
+    public bool Paste(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var trimmed = text.AsSpan().Trim("\r\n");
+        var line = new StringBuilder(trimmed.Length);
+        for (var i = 0; i < trimmed.Length; i++)
+        {
+            var c = trimmed[i];
+            if (c == '\r' && i + 1 < trimmed.Length && trimmed[i + 1] == '\n') continue;
+            if (c is '\r' or '\n' or '\t') line.Append(' ');
+            else if (!char.IsControl(c)) line.Append(c);
+        }
+        Insert(line.ToString());
+        return true;
     }
 
     /// <summary>

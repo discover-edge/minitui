@@ -167,6 +167,55 @@ public class TerminalInputSourceTests
         ((IInputLifecycle)source).Deactivate();
     }
 
+    [Fact]
+    public void RawMode_TurnsBracketedPasteOn_AndRestoreTurnsItOff()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
+
+        ((IInputLifecycle)source).Activate();
+        Assert.Equal("\x1b[?2004h", pty.ReadEcho());
+
+        pty.Write("a\x1b[200~line 1\rline 2\x1b[201~b");
+        var items = new List<string>();
+        var clock = Stopwatch.StartNew();
+        while (items.Count < 3 && clock.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            while (((IInputItemSource)source).TryReadItem(out var item))
+                items.Add(item.Paste is { } text ? $"paste {text}" : $"key {item.Key.KeyChar}");
+            ((IWaitableInputSource)source).WaitForInput(TimeSpan.FromMilliseconds(100));
+        }
+        Assert.Equal(["key a", "paste line 1\nline 2", "key b"], items);
+
+        ((IInputLifecycle)source).Deactivate();
+        Assert.Equal("\x1b[?2004l", pty.ReadEcho());
+    }
+
+    [Fact]
+    public void RawMode_WithoutATerminalOutput_DoesNotWriteBracketedPaste()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        var path = Path.GetTempFileName();
+        try
+        {
+            using (var file = File.OpenHandle(path, FileMode.Open, FileAccess.ReadWrite))
+            {
+                var fd = (int)file.DangerousGetHandle();
+                using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: fd);
+                ((IInputLifecycle)source).Activate();
+                Assert.True(source.IsRaw);
+                ((IInputLifecycle)source).Deactivate();
+            }
+            Assert.Equal(0, new FileInfo(path).Length);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static List<ConsoleKeyInfo> ReadKeys(TerminalInputSource source, int count)
     {
         var keys = new List<ConsoleKeyInfo>();

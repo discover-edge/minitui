@@ -6,3 +6,22 @@ MiniTui.TerminalInputSource.TerminalInputSource() -> void
 MiniTui.TerminalInputSource.TerminalInputSource(System.TimeSpan escapeTimeout) -> void
 MiniTui.TerminalInputSource.TryRead(out System.ConsoleKeyInfo key) -> bool
 static MiniTui.TerminalInputSource.DefaultEscapeTimeout.get -> System.TimeSpan
+MiniTui.App.OnPaste(System.Func<string!, bool>! handler) -> MiniTui.App!
+virtual MiniTui.Component.HandlePaste(string! text) -> bool
+MiniTui.TextFieldState.Paste(string! text) -> bool
+MiniTui.ScriptedInputSource.EnqueuePaste(string! text) -> MiniTui.ScriptedInputSource!
+MiniTui.ComponentHarness.Paste(string! text) -> void
+override MiniTui.CommandLineOverlay.HandlePaste(string! text) -> bool
+MiniTui.PasteEvent
+MiniTui.PasteEvent.Deconstruct(out string! Text) -> void
+MiniTui.PasteEvent.Equals(MiniTui.PasteEvent? other) -> bool
+MiniTui.PasteEvent.Text.get -> string!
+MiniTui.PasteEvent.Text.init -> void
+MiniTui.PasteEvent.PasteEvent(string! Text) -> void
+override MiniTui.PasteEvent.<Clone>$() -> MiniTui.PasteEvent!
+override MiniTui.PasteEvent.Equals(object? obj) -> bool
+override MiniTui.PasteEvent.GetHashCode() -> int
+override MiniTui.PasteEvent.ToString() -> string!
+override sealed MiniTui.PasteEvent.Equals(MiniTui.Event? other) -> bool
+static MiniTui.PasteEvent.operator !=(MiniTui.PasteEvent? left, MiniTui.PasteEvent? right) -> bool
+static MiniTui.PasteEvent.operator ==(MiniTui.PasteEvent? left, MiniTui.PasteEvent? right) -> bool

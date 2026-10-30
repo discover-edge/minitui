@@ -11,6 +11,32 @@ public interface IInputSource : IDisposable
     bool TryRead(out ConsoleKeyInfo key);
 }
 
+/// <summary>What <see cref="InputPump"/> carries: a key or a paste, in arrival order (1.x spec §3.3).</summary>
+internal readonly struct InputItem
+{
+    private InputItem(ConsoleKeyInfo key, string? paste)
+    {
+        Key = key;
+        Paste = paste;
+    }
+
+    public ConsoleKeyInfo Key { get; }
+
+    /// <summary>The pasted text, or null for a key.</summary>
+    public string? Paste { get; }
+
+    public static InputItem FromKey(ConsoleKeyInfo key) => new(key, null);
+
+    public static InputItem FromPaste(string text) => new(default, text);
+}
+
+/// <summary>A source that produces pastes as well as keys.</summary>
+internal interface IInputItemSource
+{
+    /// <summary>Read a key or paste if one is available. Never blocks.</summary>
+    bool TryReadItem(out InputItem item);
+}
+
 /// <summary>Start and stop hooks <see cref="InputPump"/> calls on sources that change the terminal's mode.</summary>
 internal interface IInputLifecycle
 {
@@ -53,18 +79,26 @@ public sealed class ConsoleInputSource : IInputSource
 /// <summary>
 /// An input source fed by code, for tests. Thread-safe.
 /// </summary>
-public sealed class ScriptedInputSource : IInputSource
+public sealed class ScriptedInputSource : IInputSource, IInputItemSource
 {
-    private readonly ConcurrentQueue<ConsoleKeyInfo> _keys = new();
+    private readonly ConcurrentQueue<InputItem> _items = new();
 
-    /// <summary>The number of keys not yet read.</summary>
-    public int Pending => _keys.Count;
+    /// <summary>The number of keys and pastes not yet read.</summary>
+    public int Pending => _items.Count;
 
     /// <summary>Queue keys to be read in order.</summary>
     public ScriptedInputSource Enqueue(params ConsoleKeyInfo[] keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
-        foreach (var key in keys) _keys.Enqueue(key);
+        foreach (var key in keys) _items.Enqueue(InputItem.FromKey(key));
+        return this;
+    }
+
+    /// <summary>Queue a paste, in order with the queued keys. An empty paste is ignored, as terminals' are.</summary>
+    public ScriptedInputSource EnqueuePaste(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length > 0) _items.Enqueue(InputItem.FromPaste(text));
         return this;
     }
 
@@ -76,12 +110,24 @@ public sealed class ScriptedInputSource : IInputSource
     {
         ArgumentNullException.ThrowIfNull(text);
         foreach (var c in text)
-            _keys.Enqueue(new ConsoleKeyInfo(c, KeyFor(c), shift: char.IsUpper(c), alt: false, control: false));
+            _items.Enqueue(InputItem.FromKey(new ConsoleKeyInfo(c, KeyFor(c), shift: char.IsUpper(c), alt: false, control: false)));
         return this;
     }
 
-    /// <inheritdoc />
-    public bool TryRead(out ConsoleKeyInfo key) => _keys.TryDequeue(out key);
+    /// <summary>Read the next key, skipping any pastes ahead of it.</summary>
+    public bool TryRead(out ConsoleKeyInfo key)
+    {
+        while (_items.TryDequeue(out var item))
+        {
+            if (item.Paste is not null) continue;
+            key = item.Key;
+            return true;
+        }
+        key = default;
+        return false;
+    }
+
+    bool IInputItemSource.TryReadItem(out InputItem item) => _items.TryDequeue(out item);
 
     /// <inheritdoc />
     public void Dispose() { }

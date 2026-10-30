@@ -5,23 +5,25 @@ namespace MiniTui;
 /// <summary>
 /// The default input source: on Linux and macOS it puts the terminal in raw mode and decodes its input bytes
 /// itself, so Esc, Alt, function keys and modifier combinations are reliable, and a key sequence split across
-/// reads is reassembled instead of producing a stray Esc. On Windows, and wherever raw mode isn't available,
-/// it reads keys like <see cref="ConsoleInputSource"/>.
+/// reads is reassembled instead of producing a stray Esc. It also turns on bracketed paste, so a paste arrives as
+/// one <see cref="PasteEvent"/> instead of keys. On Windows, and wherever raw mode isn't available, it reads keys
+/// like <see cref="ConsoleInputSource"/>, and pasted text arrives as keys.
 /// </summary>
 /// <remarks>
 /// In raw mode the terminal doesn't handle Ctrl+C, Ctrl+Z, Ctrl+\, Ctrl+S or Ctrl+Q itself: they reach the app as
 /// keys. Ctrl+C still quits through <see cref="App.Keys"/>. Set the <c>MINITUI_INPUT</c> environment variable to
 /// <c>console</c> to make <see cref="ConsoleInputSource"/> the default instead.
 /// </remarks>
-public sealed class TerminalInputSource : IInputSource, IInputLifecycle, IWaitableInputSource
+public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInputLifecycle, IWaitableInputSource
 {
     private static readonly TimeSpan MaxEscapeTimeout = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan ModeCheckInterval = TimeSpan.FromMilliseconds(250);
 
     private readonly Lock _lock = new();
     private readonly int _fd;
+    private readonly int _outputFd;
     private readonly AnsiInputDecoder _decoder;
-    private readonly KeyQueue _keys = new();
+    private readonly ItemQueue _items = new();
     private readonly ConsoleInputSource _fallback = new();
     private readonly byte[] _buffer = new byte[4096];
     private readonly long _started = Stopwatch.GetTimestamp();
@@ -38,13 +40,15 @@ public sealed class TerminalInputSource : IInputSource, IInputLifecycle, IWaitab
     /// Zero resolves at the end of each read.
     /// </param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="escapeTimeout"/> is negative or over 1 second.</exception>
-    public TerminalInputSource(TimeSpan escapeTimeout) : this(0, escapeTimeout) { }
+    public TerminalInputSource(TimeSpan escapeTimeout) : this(0, escapeTimeout, outputFd: 1) { }
 
-    internal TerminalInputSource(int fd, TimeSpan escapeTimeout)
+    /// <summary>Read from <paramref name="fd"/>; bracketed paste is requested on <paramref name="outputFd"/> (−1 for none).</summary>
+    internal TerminalInputSource(int fd, TimeSpan escapeTimeout, int outputFd = -1)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(escapeTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(escapeTimeout, MaxEscapeTimeout);
         _fd = fd;
+        _outputFd = outputFd;
         EscapeTimeout = escapeTimeout;
         _decoder = new AnsiInputDecoder(escapeTimeout);
     }
@@ -60,17 +64,34 @@ public sealed class TerminalInputSource : IInputSource, IInputLifecycle, IWaitab
 
     private TimeSpan Now => Stopwatch.GetElapsedTime(_started);
 
-    /// <inheritdoc />
+    /// <summary>Read the next key if one is available, skipping any pastes ahead of it. Never blocks.</summary>
     public bool TryRead(out ConsoleKeyInfo key)
+    {
+        while (((IInputItemSource)this).TryReadItem(out var item))
+        {
+            if (item.Paste is not null) continue;
+            key = item.Key;
+            return true;
+        }
+        key = default;
+        return false;
+    }
+
+    bool IInputItemSource.TryReadItem(out InputItem item)
     {
         lock (_lock)
         {
-            if (_keys.TryDequeue(out key)) return true;
-            if (!_raw) return _fallback.TryRead(out key);
+            if (_items.TryDequeue(out item)) return true;
+            if (!_raw)
+            {
+                var read = _fallback.TryRead(out var key);
+                item = InputItem.FromKey(key);
+                return read;
+            }
 
             if (!_closed && (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())) ReadAvailable();
-            _decoder.Expire(Now, _keys);
-            return _keys.TryDequeue(out key);
+            _decoder.Expire(Now, _items);
+            return _items.TryDequeue(out item);
         }
     }
 
@@ -83,7 +104,7 @@ public sealed class TerminalInputSource : IInputSource, IInputLifecycle, IWaitab
         lock (_lock)
         {
             if (_raw || !UnixTerminal.IsSupported) return;
-            _raw = UnixTerminal.TryEnterRaw(_fd);
+            _raw = UnixTerminal.TryEnterRaw(_fd, _outputFd);
             _closed = false;
             _lastModeCheck = Now;
         }
@@ -113,7 +134,7 @@ public sealed class TerminalInputSource : IInputSource, IInputLifecycle, IWaitab
         bool holding;
         lock (_lock)
         {
-            if (_keys.Count > 0) return true;
+            if (_items.Count > 0) return true;
             if (_closed)
             {
                 Thread.Sleep(timeout);
@@ -135,7 +156,7 @@ public sealed class TerminalInputSource : IInputSource, IInputLifecycle, IWaitab
         if (UnixTerminal.Poll(_fd, 0))
         {
             var n = UnixTerminal.Read(_fd, _buffer);
-            if (n > 0) _decoder.Feed(_buffer.AsSpan(0, n), Now, _keys);
+            if (n > 0) _decoder.Feed(_buffer.AsSpan(0, n), Now, _items);
             else _closed = true; // the terminal went away; SIGHUP handling restores it
         }
 
@@ -154,14 +175,16 @@ public sealed class TerminalInputSource : IInputSource, IInputLifecycle, IWaitab
 
     private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
 
-    private sealed class KeyQueue : IInputSink
+    private sealed class ItemQueue : IInputSink
     {
-        private readonly Queue<ConsoleKeyInfo> _queue = new();
+        private readonly Queue<InputItem> _queue = new();
 
         public int Count => _queue.Count;
 
-        public void Key(ConsoleKeyInfo key) => _queue.Enqueue(key);
+        public void Key(ConsoleKeyInfo key) => _queue.Enqueue(InputItem.FromKey(key));
 
-        public bool TryDequeue(out ConsoleKeyInfo key) => _queue.TryDequeue(out key);
+        public void Paste(string text) => _queue.Enqueue(InputItem.FromPaste(text));
+
+        public bool TryDequeue(out InputItem item) => _queue.TryDequeue(out item);
     }
 }

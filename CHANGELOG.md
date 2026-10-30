@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `TerminalInputSource`, the new default input source. On Linux and macOS it reads the terminal in raw mode and decodes keys with MiniTui's own decoder: Esc, Alt and Alt+Shift letters, Ctrl+letters, Shift/Ctrl/Alt arrows, Home/End/PgUp/PgDn/Insert/Delete, Shift+Tab and F1–F12 decode the same way in every terminal. On Windows it reads keys as before.
+- Bracketed paste on Linux and macOS: a paste arrives as one `PasteEvent` instead of a key per character. `Component.HandlePaste` and `App.OnPaste` receive it, `TextFieldState.Paste` inserts it as one line, and `CommandLineOverlay` handles it. `ScriptedInputSource.EnqueuePaste` and `ComponentHarness.Paste` script pastes in tests.
 - The `MINITUI_INPUT=console` environment variable selects the 1.0 input path (`ConsoleInputSource`) without recompiling.
-- Example: an **Input** demo that shows how each key was decoded.
-- `docs/SPEC-1.x.md`: the post-1.0 roadmap and the raw input spec.
+- Example: an **Input** demo that shows how each key and paste was decoded, and the Form screen accepts pastes.
+- `docs/SPEC-1.x.md`: the post-1.0 roadmap and the raw input and bracketed paste specs.
 
 ### Changed
 - On Linux and macOS, Esc is recognized after up to 50 ms (`TerminalInputSource.EscapeTimeout`), and Ctrl+Z, Ctrl+\, Ctrl+S, Ctrl+Q, Ctrl+V and Ctrl+O reach the app as keys instead of being handled by the terminal.
 - Waiting for input no longer wakes every 5 ms on Linux and macOS.
+- On Linux and macOS, pasted text no longer arrives as keys, so a pasted line break doesn't submit and pasted letters don't fire key bindings. A component that edits text needs `HandlePaste` (for example `=> State.Paste(text)`) to accept pastes; a paste nothing handles is dropped. On Windows and with `MINITUI_INPUT=console`, pastes still arrive as keys.
 
 ### Fixed
 - A fast burst of keys (about 1,000 arrow keys at once) could decode as a stray Esc and leave the current screen. Key sequences split across reads are now reassembled.

@@ -3,21 +3,27 @@ using System.Text;
 
 namespace MiniTui;
 
-/// <summary>What <see cref="AnsiInputDecoder"/> produces (1.x spec §2.3). Later phases add paste and mouse.</summary>
+/// <summary>What <see cref="AnsiInputDecoder"/> produces (1.x spec §2.3, §3.3). Phase 10 adds mouse.</summary>
 internal interface IInputSink
 {
     void Key(ConsoleKeyInfo key);
+
+    /// <summary>A bracketed paste, with line breaks normalized to "\n". Never empty.</summary>
+    void Paste(string text);
 }
 
 /// <summary>
-/// Decodes terminal input bytes into keys (1.x spec §2.4). Keeps state across reads, so a sequence split
-/// between two reads is reassembled instead of decoding as Esc plus characters. Pure: no I/O and no clock.
+/// Decodes terminal input bytes into keys (1.x spec §2.4) and bracketed pastes (§3.5). Keeps state across reads,
+/// so a sequence split between two reads is reassembled instead of decoding as Esc plus characters. Pure: no I/O
+/// and no clock.
 /// </summary>
 internal sealed class AnsiInputDecoder
 {
     private const byte Esc = 0x1B;
     private const int MaxCsiLength = 64;
     private const int MaxStringLength = 4096;
+    private static ReadOnlySpan<byte> PasteStart => "\e[200~"u8;
+    private static ReadOnlySpan<byte> PasteEnd => "\e[201~"u8;
 
     // A held prefix is at most an unterminated OSC/DCS string, so this never grows
     private readonly byte[] _pending = new byte[MaxStringLength * 2];
@@ -25,9 +31,14 @@ internal sealed class AnsiInputDecoder
     private int _pendingCount;
     private TimeSpan _lastByte;
 
+    // Paste mode: bytes since CSI 200~, possibly ending in part of the end marker. Grows as needed; never shrinks.
+    private byte[] _paste = new byte[MaxStringLength];
+    private int _pasteCount;
+    private bool _inPaste;
+
     public AnsiInputDecoder(TimeSpan escapeTimeout) => _escapeTimeout = escapeTimeout;
 
-    /// <summary>When held bytes must be resolved, or null if none are held.</summary>
+    /// <summary>When held bytes must be resolved, or null if none are held. A paste never times out.</summary>
     public TimeSpan? Deadline => _pendingCount > 0 ? _lastByte + _escapeTimeout : null;
 
     /// <summary>Decode <paramref name="bytes"/>, which arrived at <paramref name="now"/>.</summary>
@@ -38,11 +49,19 @@ internal sealed class AnsiInputDecoder
 
         while (!bytes.IsEmpty)
         {
+            if (_inPaste)
+            {
+                bytes = bytes[FeedPaste(bytes, sink)..];
+                continue;
+            }
+
             if (_pendingCount == 0)
             {
                 // Common case: decode straight from the caller's span and hold only the incomplete tail
                 var consumed = DecodeAll(bytes, final: false, sink);
-                Hold(bytes[consumed..]);
+                bytes = bytes[consumed..];
+                if (_inPaste) continue;
+                Hold(bytes);
                 break;
             }
 
@@ -50,9 +69,7 @@ internal sealed class AnsiInputDecoder
             chunk.CopyTo(_pending.AsSpan(_pendingCount));
             _pendingCount += chunk.Length;
             bytes = bytes[chunk.Length..];
-
-            var used = DecodeAll(_pending.AsSpan(0, _pendingCount), final: false, sink);
-            Shift(used);
+            DecodePending(final: false, sink);
         }
 
         if (_escapeTimeout <= TimeSpan.Zero) Resolve(sink);
@@ -66,9 +83,46 @@ internal sealed class AnsiInputDecoder
 
     private void Resolve(IInputSink sink)
     {
-        DecodeAll(_pending.AsSpan(0, _pendingCount), final: true, sink);
+        DecodePending(final: true, sink);
         _pendingCount = 0;
     }
+
+    /// <summary>Decode the held bytes, switching in and out of paste mode as markers go by.</summary>
+    private void DecodePending(bool final, IInputSink sink)
+    {
+        while (_pendingCount > 0)
+        {
+            var wasPaste = _inPaste;
+            var span = _pending.AsSpan(0, _pendingCount);
+            Shift(wasPaste ? FeedPaste(span, sink) : DecodeAll(span, final, sink));
+            if (_inPaste == wasPaste) break;
+        }
+    }
+
+    /// <summary>Collect paste bytes until the end marker, then deliver the paste.</summary>
+    /// <returns>Bytes consumed: all of <paramref name="s"/>, or up to the end of the end marker.</returns>
+    private int FeedPaste(ReadOnlySpan<byte> s, IInputSink sink)
+    {
+        var before = _pasteCount;
+        if (_paste.Length < before + s.Length)
+            Array.Resize(ref _paste, Math.Max(_paste.Length * 2, before + s.Length));
+        s.CopyTo(_paste.AsSpan(before));
+        _pasteCount += s.Length;
+
+        // The marker may have started in an earlier read
+        var from = Math.Max(0, before - (PasteEnd.Length - 1));
+        var found = _paste.AsSpan(from, _pasteCount - from).IndexOf(PasteEnd);
+        if (found < 0) return s.Length;
+
+        var end = from + found;
+        _inPaste = false;
+        _pasteCount = 0;
+        if (end > 0) sink.Paste(NormalizeLineBreaks(Encoding.UTF8.GetString(_paste, 0, end)));
+        return end + PasteEnd.Length - before;
+    }
+
+    private static string NormalizeLineBreaks(string text) =>
+        text.Contains('\r', StringComparison.Ordinal) ? text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n') : text;
 
     private void Hold(ReadOnlySpan<byte> tail)
     {
@@ -82,13 +136,22 @@ internal sealed class AnsiInputDecoder
         _pendingCount -= used;
     }
 
-    /// <summary>Decode as much as possible. When <paramref name="final"/> is set, everything is consumed.</summary>
+    /// <summary>
+    /// Decode as much as possible, stopping after a paste start marker. When <paramref name="final"/> is set and
+    /// no paste starts, everything is consumed.
+    /// </summary>
     /// <returns>The number of bytes consumed.</returns>
-    private static int DecodeAll(ReadOnlySpan<byte> s, bool final, IInputSink sink)
+    private int DecodeAll(ReadOnlySpan<byte> s, bool final, IInputSink sink)
     {
         var offset = 0;
         while (offset < s.Length)
         {
+            if (s[offset..].StartsWith(PasteStart))
+            {
+                _inPaste = true;
+                return offset + PasteStart.Length;
+            }
+
             var used = Decode(s[offset..], final, sink);
             if (used == 0) break;
             offset += used;
@@ -293,7 +356,7 @@ internal sealed class AnsiInputDecoder
         >= 17 and <= 21 => ConsoleKey.F6 + (code - 17),
         23 => ConsoleKey.F11,
         24 => ConsoleKey.F12,
-        _ => null, // includes the paste markers 200 and 201
+        _ => null, // includes a stray paste end marker, 201
     };
 
     /// <summary>The modifier parameter m: bits of m − 1 are Shift 1, Alt 2, Control 4, Meta 8 (as Alt).</summary>

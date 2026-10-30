@@ -10,6 +10,9 @@ public abstract record Event;
 /// <summary>A key press.</summary>
 public sealed record KeyEvent(ConsoleKeyInfo Key) : Event;
 
+/// <summary>A paste from the terminal (bracketed paste, 1.x spec §3). Line breaks are normalized to "\n".</summary>
+public sealed record PasteEvent(string Text) : Event;
+
 /// <summary>The terminal was resized. The next frame is a full redraw.</summary>
 public sealed record ResizeEvent(int Width, int Height) : Event;
 

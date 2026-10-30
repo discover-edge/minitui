@@ -16,7 +16,7 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 
 - [x] Raw input parser on Unix (`TerminalInputSource`); Windows `ReadConsoleInput` comes with mouse support
 - [ ] Mouse support - clicking to focus, scrolling (SGR 1006)
-- [ ] Bracketed paste (`?2004`)
+- [x] Bracketed paste (`?2004`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §3
 - [ ] Popup menu - context menus, dropdowns (PopupMenu/Select)
 - [ ] Multi-line text input widget (TextArea)
 - [ ] Canvas (braille 2×4), line Chart and BarChart

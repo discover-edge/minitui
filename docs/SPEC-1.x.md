@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) done; §3 (Phase 9) ready for implementation; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) done; §3 (Phase 9) done; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -397,11 +397,11 @@ internal interface IInputSink
 // Sources that can produce more than keys. TerminalInputSource and ScriptedInputSource implement it.
 internal interface IInputItemSource
 {
-    bool TryRead(out InputItem item);
+    bool TryReadItem(out InputItem item);
 }
 ```
 
-- `InputPump` reads `InputItem`s (from `IInputItemSource.TryRead` when the source implements it, otherwise
+- `InputPump` reads `InputItem`s (from `IInputItemSource.TryReadItem` when the source implements it, otherwise
   wrapping `IInputSource.TryRead` keys), and its batches, orphans and the nested-app handoff in `AppLoop`
   (`RemoveQueuedKeys`/`ReturnKeys`) carry `InputItem[]` instead of `ConsoleKeyInfo[]`. A paste handed back to
   an outer app stays a paste.
