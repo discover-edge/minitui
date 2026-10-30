@@ -9,13 +9,29 @@ public class AnsiInputDecoderTests
     private sealed class Sink : IInputSink
     {
         public List<ConsoleKeyInfo> Keys { get; } = [];
-        public void Key(ConsoleKeyInfo key) => Keys.Add(key);
+        public List<string> Pastes { get; } = [];
+
+        // Keys and pastes in order, a paste as its text
+        public List<object> Events { get; } = [];
+
+        public void Key(ConsoleKeyInfo key)
+        {
+            Keys.Add(key);
+            Events.Add(key);
+        }
+
+        public void Paste(string text)
+        {
+            Pastes.Add(text);
+            Events.Add(text);
+        }
     }
 
     private sealed class CountingSink : IInputSink
     {
         public int Count;
         public void Key(ConsoleKeyInfo key) => Count++;
+        public void Paste(string text) => Count++;
     }
 
     private static ConsoleKeyInfo K(char c, ConsoleKey key, ConsoleModifiers mods = 0) =>
@@ -194,8 +210,7 @@ public class AnsiInputDecoderTests
 
     [Theory]
     [InlineData("\x1b[99~")]          // unknown tilde code
-    [InlineData("\x1b[200~")]         // paste markers (Phase 9)
-    [InlineData("\x1b[201~")]
+    [InlineData("\x1b[201~")]         // a paste end marker outside a paste
     [InlineData("\x1b[1;2;3A")]       // too many parameters
     [InlineData("\x1b[q")]            // unknown final
     [InlineData("\x1b[ q")]           // intermediate byte
@@ -310,6 +325,8 @@ public class AnsiInputDecoderTests
             if (key == up) Ups++;
             else Others++;
         }
+
+        public void Paste(string text) => Others++;
     }
 
     [Fact]
@@ -370,6 +387,134 @@ public class AnsiInputDecoderTests
             for (var offset = 0; offset < data.Length; offset += 4096)
                 decoder.Feed(data.AsSpan(offset, Math.Min(4096, data.Length - offset)), TimeSpan.Zero, sink);
         }
+    }
+
+    private const string PasteStart = "\x1b[200~";
+    private const string PasteEnd = "\x1b[201~";
+
+    [Fact]
+    public void Paste_IsOnePaste_WithEverythingInsideAsText()
+    {
+        var inside = "plain 日本 \x1b \x03\x1b[A " + PasteStart + " end";
+        var sink = DecodeToSink(PasteStart + inside + PasteEnd);
+
+        Assert.Equal([inside], sink.Pastes);
+        Assert.Empty(sink.Keys);
+    }
+
+    [Theory]
+    [InlineData("a\r\nb", "a\nb")]
+    [InlineData("a\rb\r", "a\nb\n")]
+    [InlineData("a\nb", "a\nb")]
+    [InlineData("\r\r\n", "\n\n")]
+    public void Paste_NormalizesLineBreaks(string pasted, string expected)
+    {
+        Assert.Equal([expected], DecodeToSink(PasteStart + pasted + PasteEnd).Pastes);
+    }
+
+    [Fact]
+    public void Paste_KeepsItsPlaceBetweenKeys()
+    {
+        var sink = DecodeToSink("a" + PasteStart + "xy" + PasteEnd + "\x1b[Bb");
+
+        Assert.Equal<object>([K('a', ConsoleKey.A), "xy", N(ConsoleKey.DownArrow), K('b', ConsoleKey.B)], sink.Events);
+    }
+
+    [Fact]
+    public void EmptyPaste_ProducesNothing()
+    {
+        var sink = DecodeToSink(PasteStart + PasteEnd + "x");
+
+        Assert.Equal<object>([K('x', ConsoleKey.X)], sink.Events);
+    }
+
+    [Fact]
+    public void Paste_InvalidUtf8_BecomesReplacementCharacters()
+    {
+        byte[] bytes = [.. Encoding.ASCII.GetBytes(PasteStart), (byte)'a', 0xFF, (byte)'b', .. Encoding.ASCII.GetBytes(PasteEnd)];
+        var decoder = new AnsiInputDecoder(Timeout);
+        var sink = new Sink();
+        decoder.Feed(bytes, TimeSpan.Zero, sink);
+
+        Assert.Equal(["a\uFFFDb"], sink.Pastes);
+    }
+
+    [Fact]
+    public void Paste_SplitAtEveryOffset_DecodesTheSame()
+    {
+        var bytes = Encoding.UTF8.GetBytes("k" + PasteStart + "p\x1b[A日\r\n" + PasteEnd + "\x1b[Cz");
+        object[] expected = [K('k', ConsoleKey.K), "p\x1b[A日\n", N(ConsoleKey.RightArrow), K('z', ConsoleKey.Z)];
+
+        for (var split = 0; split <= bytes.Length; split++)
+        {
+            var decoder = new AnsiInputDecoder(Timeout);
+            var sink = new Sink();
+            decoder.Feed(bytes.AsSpan(0, split), TimeSpan.Zero, sink);
+            decoder.Feed(bytes.AsSpan(split), TimeSpan.FromMilliseconds(1), sink);
+            decoder.Expire(TimeSpan.FromSeconds(1), sink);
+
+            Assert.True(expected.SequenceEqual(sink.Events), $"split at {split}: {string.Join(", ", sink.Events)}");
+        }
+    }
+
+    [Fact]
+    public void Paste_FedOneByteAtATime_DecodesTheSame()
+    {
+        var bytes = Encoding.UTF8.GetBytes(PasteStart + "ab\x1b[20" + PasteEnd + "c");
+        var decoder = new AnsiInputDecoder(Timeout);
+        var sink = new Sink();
+        foreach (var b in bytes) decoder.Feed([b], TimeSpan.Zero, sink);
+        decoder.Expire(TimeSpan.FromSeconds(1), sink);
+
+        Assert.Equal<object>(["ab\x1b[20", K('c', ConsoleKey.C)], sink.Events);
+    }
+
+    [Fact]
+    public void Paste_IsNotResolvedByTheEscapeTimeout()
+    {
+        var decoder = new AnsiInputDecoder(Timeout);
+        var sink = new Sink();
+        decoder.Feed(Encoding.ASCII.GetBytes(PasteStart + "ab\x1b"), TimeSpan.Zero, sink);
+
+        Assert.Null(decoder.Deadline);
+        decoder.Expire(TimeSpan.FromSeconds(10), sink);
+        decoder.Feed(Encoding.ASCII.GetBytes("[201~"), TimeSpan.FromSeconds(11), sink);
+
+        Assert.Equal<object>(["ab"], sink.Events);
+    }
+
+    [Fact]
+    public void Paste_WithZeroTimeout_StillWaitsForTheEndMarker()
+    {
+        var decoder = new AnsiInputDecoder(TimeSpan.Zero);
+        var sink = new Sink();
+        decoder.Feed(Encoding.ASCII.GetBytes(PasteStart + "ab\x1b"), TimeSpan.Zero, sink);
+        decoder.Feed(Encoding.ASCII.GetBytes("[20"), TimeSpan.Zero, sink);
+        decoder.Feed(Encoding.ASCII.GetBytes("1~x"), TimeSpan.Zero, sink);
+
+        Assert.Equal<object>(["ab", K('x', ConsoleKey.X)], sink.Events);
+    }
+
+    [Fact]
+    public void LargePaste_IsOnePaste()
+    {
+        var text = new string('x', 10 * 1024 * 1024);
+        var bytes = Encoding.ASCII.GetBytes(PasteStart + text + PasteEnd);
+        var decoder = new AnsiInputDecoder(Timeout);
+        var sink = new Sink();
+        for (var offset = 0; offset < bytes.Length; offset += 4096)
+            decoder.Feed(bytes.AsSpan(offset, Math.Min(4096, bytes.Length - offset)), TimeSpan.Zero, sink);
+
+        Assert.Equal([text], sink.Pastes);
+    }
+
+    private static Sink DecodeToSink(string input)
+    {
+        var decoder = new AnsiInputDecoder(Timeout);
+        var sink = new Sink();
+        decoder.Feed(Encoding.UTF8.GetBytes(input), TimeSpan.Zero, sink);
+        decoder.Expire(TimeSpan.FromSeconds(1), sink);
+        return sink;
     }
 }
 

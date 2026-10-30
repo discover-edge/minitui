@@ -21,8 +21,8 @@ public partial class App
     private ExceptionDispatchInfo? _failure;
     private Task<bool>? _pendingWait;
 
-    // Keys from a batch that didn't fit in the previous iteration's budget
-    private ConsoleKeyInfo[]? _pendingKeys;
+    // Keys and pastes from a batch that didn't fit in the previous iteration's budget
+    private InputItem[]? _pendingKeys;
     private int _pendingIndex;
 
     private int _tickPending;
@@ -143,9 +143,13 @@ public partial class App
         {
             switch (item)
             {
-                case ConsoleKeyInfo key:
+                case InputItem { Paste: { } text }:
                     dirty = true;
-                    Guard(() => HandleKey(key));
+                    Guard(() => HandlePaste(text));
+                    break;
+                case InputItem input:
+                    dirty = true;
+                    Guard(() => HandleKey(input.Key));
                     break;
                 case Action action:
                     dirty = true;
@@ -217,7 +221,10 @@ public partial class App
     internal bool HasQueuedWork => _pendingKeys is not null || _queue.Reader.TryPeek(out _);
 
     /// <summary>Queue keys as if the input source had read them.</summary>
-    internal void InjectKeys(ConsoleKeyInfo[] keys) => _queue.Writer.TryWrite(new KeyBatch(keys));
+    internal void InjectKeys(ConsoleKeyInfo[] keys) => _queue.Writer.TryWrite(new KeyBatch([.. keys.Select(InputItem.FromKey)]));
+
+    /// <summary>Queue a paste as if the input source had read it.</summary>
+    internal void InjectPaste(string text) => _queue.Writer.TryWrite(new KeyBatch([InputItem.FromPaste(text)]));
 
     /// <summary>Wait up to <paramref name="timeout"/> for something to be queued.</summary>
     internal void WaitForQueue(TimeSpan timeout)
@@ -266,6 +273,14 @@ public partial class App
             _theme.Dispose();
             t_current = _previousApp;
         }
+    }
+
+    // §3.4 of the 1.x spec: OnEvent, OnPaste, then the focus chain. Unhandled pastes are dropped.
+    private void HandlePaste(string text)
+    {
+        _onEvent?.Invoke(new PasteEvent(text));
+        if (_onPaste?.Invoke(text) == true) return;
+        KeyRouter.RoutePaste(this, text);
     }
 
     private void HandleKey(ConsoleKeyInfo key)
@@ -358,10 +373,10 @@ public partial class App
         }
     }
 
-    /// <summary>Take this app's unhandled keys out of its queue, keeping everything else queued.</summary>
-    private List<ConsoleKeyInfo> RemoveQueuedKeys()
+    /// <summary>Take this app's unhandled keys and pastes out of its queue, keeping everything else queued.</summary>
+    private List<InputItem> RemoveQueuedKeys()
     {
-        var keys = new List<ConsoleKeyInfo>();
+        var keys = new List<InputItem>();
         if (_pendingKeys is { } pending) keys.AddRange(pending.AsSpan(_pendingIndex));
         _pendingKeys = null;
         _pendingIndex = 0;
@@ -376,8 +391,8 @@ public partial class App
         return keys;
     }
 
-    /// <summary>Put keys back so they're handled before any this app already has queued.</summary>
-    private void ReturnKeys(List<ConsoleKeyInfo> keys)
+    /// <summary>Put keys and pastes back so they're handled before any this app already has queued.</summary>
+    private void ReturnKeys(List<InputItem> keys)
     {
         if (keys.Count == 0) return;
         if (_pendingKeys is { } pending) keys.AddRange(pending.AsSpan(_pendingIndex));

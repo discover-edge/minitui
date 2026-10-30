@@ -1,8 +1,8 @@
 namespace MiniTui;
 
 /// <summary>
-/// One background reader thread per <see cref="IInputSource"/> (§6.3). Keys go to the most recent
-/// subscriber, so an app started from inside another app gets the keys until it exits.
+/// One background reader thread per <see cref="IInputSource"/> (§6.3). Keys and pastes go to the most recent
+/// subscriber, so an app started from inside another app gets them until it exits.
 /// </summary>
 internal sealed class InputPump
 {
@@ -14,7 +14,7 @@ internal sealed class InputPump
 
     private readonly IInputSource _source;
     private readonly List<Subscription> _subscribers = [];
-    private readonly List<ConsoleKeyInfo> _orphans = [];
+    private readonly List<InputItem> _orphans = [];
     private Thread? _thread;
 
     private InputPump(IInputSource source) => _source = source;
@@ -38,10 +38,10 @@ internal sealed class InputPump
     }
 
     /// <summary>
-    /// Deliver keys from <paramref name="source"/> to <paramref name="sink"/> until the subscription is disposed.
-    /// The sink is called on the reader thread with each burst of keys.
+    /// Deliver input from <paramref name="source"/> to <paramref name="sink"/> until the subscription is disposed.
+    /// The sink is called on the reader thread with each burst of keys and pastes.
     /// </summary>
-    public static IDisposable Subscribe(IInputSource source, Action<ConsoleKeyInfo[]> sink)
+    public static IDisposable Subscribe(IInputSource source, Action<InputItem[]> sink)
     {
         lock (Gate)
         {
@@ -50,7 +50,7 @@ internal sealed class InputPump
             var subscription = new Subscription(pump, sink);
             pump._subscribers.Add(subscription);
 
-            // Keys read while nobody was listening belong to whoever listens next
+            // Input read while nobody was listening belongs to whoever listens next
             if (pump._orphans.Count > 0)
             {
                 sink([.. pump._orphans]);
@@ -69,7 +69,7 @@ internal sealed class InputPump
 
     private void ReadLoop()
     {
-        var burst = new List<ConsoleKeyInfo>();
+        var burst = new List<InputItem>();
         while (true)
         {
             lock (Gate)
@@ -83,7 +83,7 @@ internal sealed class InputPump
             }
 
             burst.Clear();
-            while (TryRead(out var key)) burst.Add(key);
+            while (TryRead(out var item)) burst.Add(item);
             if (burst.Count == 0)
             {
                 Wait();
@@ -117,22 +117,25 @@ internal sealed class InputPump
     // A source that throws (e.g. the console went away) is treated as having no input.
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
         Justification = "The reader thread must not crash the process.")]
-    private bool TryRead(out ConsoleKeyInfo key)
+    private bool TryRead(out InputItem item)
     {
         try
         {
-            return _source.TryRead(out key);
+            if (_source is IInputItemSource items) return items.TryReadItem(out item);
+            var read = _source.TryRead(out var key);
+            item = InputItem.FromKey(key);
+            return read;
         }
         catch (Exception)
         {
-            key = default;
+            item = default;
             return false;
         }
     }
 
-    private sealed class Subscription(InputPump pump, Action<ConsoleKeyInfo[]> sink) : IDisposable
+    private sealed class Subscription(InputPump pump, Action<InputItem[]> sink) : IDisposable
     {
-        public Action<ConsoleKeyInfo[]> Sink { get; } = sink;
+        public Action<InputItem[]> Sink { get; } = sink;
 
         public void Dispose()
         {

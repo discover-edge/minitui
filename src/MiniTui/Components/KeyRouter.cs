@@ -47,6 +47,19 @@ internal static class KeyRouter
         return false;
     }
 
+    /// <summary>
+    /// A paste goes down the focus chain, innermost first, to the top overlay's chain while one is open. Key maps
+    /// aren't consulted (1.x spec §3.4). Returns true if a component handled it.
+    /// </summary>
+    public static bool RoutePaste(App app, string text)
+    {
+        if (app.Overlays.Top is null && app.Screens.Top is null) return false;
+        var chain = Chain(app);
+        for (var i = chain.Count - 1; i >= 0; i--)
+            if (chain[i].HandlePaste(text)) return true;
+        return false;
+    }
+
     private static bool RouteChain(List<Component> chain, ConsoleKeyInfo key)
     {
         var capture = chain[^1].CapturesText;

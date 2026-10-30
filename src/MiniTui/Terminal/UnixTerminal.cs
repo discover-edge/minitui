@@ -4,7 +4,7 @@ using System.Runtime.Versioning;
 namespace MiniTui;
 
 /// <summary>
-/// Raw terminal mode and non-blocking reads on Unix (1.x spec §2.5–2.6). The termios struct is handled as an
+/// Raw terminal mode, bracketed paste and non-blocking reads on Unix (1.x spec §2.5–2.6, §3.6). The termios struct is handled as an
 /// opaque buffer, so nothing here depends on its layout or flag values, which differ between Linux and macOS.
 /// </summary>
 [SupportedOSPlatform("linux")]
@@ -21,6 +21,7 @@ internal static unsafe partial class UnixTerminal
     private static readonly byte[] Saved = new byte[TermiosSize];
     private static readonly byte[] RawMode = new byte[TermiosSize];
     private static int s_fd = -1;
+    private static int s_outputFd = -1;
     private static bool s_exitHooked;
 
     /// <summary>The platforms whose libc and termios this has been checked against.</summary>
@@ -37,9 +38,12 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
-    /// <summary>Save the mode of <paramref name="fd"/> and switch it to raw mode (<c>cfmakeraw</c>).</summary>
+    /// <summary>
+    /// Save the mode of <paramref name="fd"/> and switch it to raw mode (<c>cfmakeraw</c>). Then turn on bracketed
+    /// paste by writing to <paramref name="outputFd"/>, if it's a terminal (−1 for none).
+    /// </summary>
     /// <returns>False if <paramref name="fd"/> isn't a terminal or a call fails; the mode is then unchanged.</returns>
-    public static bool TryEnterRaw(int fd)
+    public static bool TryEnterRaw(int fd, int outputFd)
     {
         lock (Gate)
         {
@@ -62,6 +66,8 @@ internal static unsafe partial class UnixTerminal
                     if (tcgetattr(fd, raw) != 0) return false;
                 }
                 s_fd = fd;
+                s_outputFd = outputFd >= 0 && isatty(outputFd) == 1 ? outputFd : -1;
+                if (s_outputFd >= 0) Write(s_outputFd, "\e[?2004h"u8);
 
                 // A backstop for sources used without a console session, which restores on exit itself
                 if (!s_exitHooked)
@@ -82,7 +88,7 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
-    /// <summary>Put back the mode saved by <see cref="TryEnterRaw"/>. Idempotent, and never throws.</summary>
+    /// <summary>Turn bracketed paste off and put back the mode saved by <see cref="TryEnterRaw"/>. Idempotent, and never throws.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
         Justification = "Runs on exit and signal paths, which must not throw.")]
     public static void Restore()
@@ -92,10 +98,16 @@ internal static unsafe partial class UnixTerminal
             if (s_fd < 0) return;
             try
             {
+                if (s_outputFd >= 0) Write(s_outputFd, "\e[?2004l"u8);
+            }
+            catch (Exception) { }
+            try
+            {
                 fixed (byte* saved = Saved) tcsetattr(s_fd, TcsaNow, saved);
             }
             catch (Exception) { }
             s_fd = -1;
+            s_outputFd = -1;
         }
     }
 
@@ -139,6 +151,22 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
+    /// <summary>Write all of <paramref name="bytes"/>, retrying on EINTR; gives up on any other error.</summary>
+    private static void Write(int fd, ReadOnlySpan<byte> bytes)
+    {
+        fixed (byte* p = bytes)
+        {
+            var offset = 0;
+            while (offset < bytes.Length)
+            {
+                var n = write(fd, p + offset, (nuint)(bytes.Length - offset));
+                if (n > 0) offset += (int)n;
+                else if (n < 0 && Marshal.GetLastPInvokeError() == Eintr) continue;
+                else return;
+            }
+        }
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct PollFd
     {
@@ -161,6 +189,9 @@ internal static unsafe partial class UnixTerminal
 
     [LibraryImport("libc", SetLastError = true)]
     private static partial int poll(PollFd* fds, nuint nfds, int timeout);
+
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial nint write(int fd, byte* buffer, nuint count);
 
     [LibraryImport("libc", SetLastError = true)]
     private static partial nint read(int fd, byte* buffer, nuint count);

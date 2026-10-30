@@ -22,6 +22,7 @@ public partial class App
     private Action<Buffer, Rect>? _onRender;
     private Action? _onUpdate;
     private Func<ConsoleKeyInfo, bool>? _onKey;
+    private Func<string, bool>? _onPaste;
     private Action<Event>? _onEvent;
     private Func<Exception, ErrorAction>? _onError;
     private TimeSpan? _tickRate = DefaultTickRate;
@@ -142,7 +143,17 @@ public partial class App
     }
 
     /// <summary>
-    /// Observe every event (keys, resizes and ticks) before it's handled.
+    /// Handle a paste before the focus chain sees it. Return true if it was handled, so routing stops. Pastes
+    /// arrive on Linux and macOS terminals; elsewhere pasted text arrives as keys.
+    /// </summary>
+    public App OnPaste(Func<string, bool> handler)
+    {
+        _onPaste = handler;
+        return this;
+    }
+
+    /// <summary>
+    /// Observe every event (keys, pastes, resizes and ticks) before it's handled.
     /// </summary>
     public App OnEvent(Action<Event> handler)
     {
@@ -432,6 +443,6 @@ public partial class App
         public static readonly Wake Instance = new();
     }
 
-    /// <summary>Keys read in one burst by the input thread.</summary>
-    private sealed record KeyBatch(ConsoleKeyInfo[] Keys);
+    /// <summary>Keys and pastes read in one burst by the input thread.</summary>
+    private sealed record KeyBatch(InputItem[] Keys);
 }

@@ -44,6 +44,9 @@ public sealed class CommandLineOverlay : Overlay
     }
 
     /// <inheritdoc/>
+    public override bool HandlePaste(string text) => _state.Paste(text);
+
+    /// <inheritdoc/>
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.CommandLine().State(_state).Prompt(":").Draw(buf, area);
 }

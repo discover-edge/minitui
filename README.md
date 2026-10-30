@@ -160,6 +160,7 @@ sealed class SearchBox : Component
     readonly TextFieldState text = new();
     public override bool CapturesText => true;           // typing "q" here doesn't trigger global "q"
     public override bool HandleKey(ConsoleKeyInfo key) => text.HandleKey(key);
+    public override bool HandlePaste(string pasted) => text.Paste(pasted);
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.TextField().State(text).Focused(ctx.Focused).Block(Widget.Block().Title(" Search ")).Draw(buf, area);
 }
@@ -386,6 +387,13 @@ are read through `Console.ReadKey`.
   the process or pausing output.
 - **macOS:** raw input is tested in CI on a pseudo-terminal, but not yet by hand in Terminal.app or
   iTerm2. Terminal.app sends Alt (Option) combinations only with "Use Option as Meta key" turned on.
+- **Paste** arrives as one call, not a key per character, so a pasted line break doesn't submit and pasted
+  letters don't fire bindings. A component accepts pastes by overriding `HandlePaste`; for a text field,
+  `public override bool HandlePaste(string text) => State.Paste(text);` inserts the paste as one line.
+  A paste nothing handles is dropped. `App.OnPaste` sees pastes first, and `ComponentHarness.Paste` tests
+  them. On Windows (and with `MINITUI_INPUT=console`), pasted text still arrives as keys, as in 1.0: line
+  breaks are Enter, which a text field ignores. In conhost, Ctrl+V reaches the app as a key; paste with
+  right-click or the window menu instead. Windows paste events come with Phase 10.
 - If a terminal's keys decode wrongly, set `MINITUI_INPUT=console` to use the `Console.ReadKey` path,
   and please report it: the Example's **Input** demo shows exactly how each key was decoded.
 
@@ -601,7 +609,8 @@ MiniTui/
 │   └── MiniTui.Tests/      # xUnit tests
 ├── docs/                   # SPEC.md (1.0), SPEC-1.x.md (post-1.0 roadmap) and the 0.7 → 1.0 migration guide
 ├── tools/
-│   └── GenWidthTable.cs    # Generates the Unicode width table
+│   ├── GenWidthTable.cs    # Generates the Unicode width table
+│   └── ssh-test/           # An SSH server in Docker for manual QA over SSH
 └── README.md
 ```
 
@@ -621,6 +630,9 @@ Character Database. To regenerate it, run from the repository root:
 ```bash
 dotnet run tools/GenWidthTable.cs
 ```
+
+To check input over SSH (with optional network delay), `tools/ssh-test/run.sh` starts an SSH server in Docker
+with the Example in it; see [tools/ssh-test/README.md](tools/ssh-test/README.md).
 
 ## License
 

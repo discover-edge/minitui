@@ -1,10 +1,11 @@
 using System.Diagnostics;
+using System.Text;
 using MiniTui;
 
 namespace MiniTui.Example;
 
 /// <summary>
-/// Shows every key as MiniTui decoded it (1.x spec §2.8), for checking a terminal and for bug reports.
+/// Shows every key and paste as MiniTui decoded it (1.x spec §2.8, §3.8), for checking a terminal and for bug reports.
 /// Esc is just another key here; q goes back.
 /// </summary>
 internal sealed class InputScreen : Screen
@@ -37,6 +38,18 @@ internal sealed class InputScreen : Screen
         return !Quit.Matches(key);
     }
 
+    public override bool HandlePaste(string text)
+    {
+        var lines = text.Count(c => c == '\n') + 1;
+        var preview = string.Concat(text.EnumerateRunes().Take(40).Select(r => Rune.IsControl(r) ? " " : r.ToString()));
+        Add(new Line([
+            new Span($"{"Paste",-12}", Theme.Current.Info),
+            new Span($" {text.Length} chars, {lines} {(lines == 1 ? "line" : "lines")}: ", Theme.Current.Text),
+            new Span(preview, Theme.Current.TextMuted),
+        ]));
+        return true;
+    }
+
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
         var inner = Widget.Block().Title(" Input ").Padding(new Margin(1, 0)).Draw(buf, area);
@@ -47,7 +60,7 @@ internal sealed class InputScreen : Screen
 
         Widget.Paragraph()
             .Text(new Text([
-                new Line("Press any key to see how it was decoded. q goes back, Ctrl+C quits.", ctx.Theme.Text),
+                new Line("Press any key or paste to see how it was decoded. q goes back, Ctrl+C quits.", ctx.Theme.Text),
                 new Line("Ctrl+R runs a child process, then keys should still decode (QA check 6).", ctx.Theme.TextMuted),
             ]))
             .Wrap(WrapMode.Word)

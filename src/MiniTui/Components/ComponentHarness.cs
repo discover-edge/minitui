@@ -92,6 +92,14 @@ public sealed class ComponentHarness : IDisposable
         RunUntilIdle();
     }
 
+    /// <summary>Paste text, as a terminal with bracketed paste does, then <see cref="RunUntilIdle"/>.</summary>
+    public void Paste(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (text.Length > 0) App.InjectPaste(text);
+        RunUntilIdle();
+    }
+
     /// <summary>
     /// Handle queued keys, posted work and UI-thread continuations until nothing is left and no load or
     /// <see cref="App.RunTask"/> is in flight (other than ones waiting on a dialog), then render one frame.

@@ -35,6 +35,12 @@ public abstract class Component
     /// <summary>Handle a key before <see cref="Keys"/>. Return true if handled.</summary>
     public virtual bool HandleKey(ConsoleKeyInfo key) => false;
 
+    /// <summary>
+    /// Handle pasted text, such as with <see cref="TextFieldState.Paste"/>. Return true if handled; otherwise the
+    /// paste goes on to the component's parent, and is dropped if nothing handles it.
+    /// </summary>
+    public virtual bool HandlePaste(string text) => false;
+
     /// <summary>Draw the component. Called every frame its parent renders it.</summary>
     public abstract void Render(Buffer buf, Rect area, RenderContext ctx);
 

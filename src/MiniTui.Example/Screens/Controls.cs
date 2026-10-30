@@ -8,6 +8,7 @@ internal sealed class TextInput(string label, string placeholder = "") : Compone
     public TextFieldState State { get; } = new();
     public override bool CapturesText => true;
     public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
+    public override bool HandlePaste(string text) => State.Paste(text);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.TextField()
