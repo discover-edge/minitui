@@ -53,6 +53,8 @@ public sealed class FocusScope
         if (_members.Count > 0) _focused = (_focused - 1 + _members.Count) % _members.Count;
     }
 
+    internal bool Contains(Component child) => _members.Contains(child);
+
     internal void Remove(Component child)
     {
         var index = _members.IndexOf(child);

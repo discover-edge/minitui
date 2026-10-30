@@ -114,6 +114,7 @@ public sealed class TableBuilder
         var headerRows = _header is null ? 0 : _headerSeparator ? 2 : 1;
         var viewport = Math.Max(0, inner.Height - headerRows);
         _state?.Fit(_count, viewport);
+        _state?.Track(area, default);
         if (inner.IsEmpty) return;
 
         var offset = _state?.Offset ?? 0;
@@ -121,6 +122,7 @@ public sealed class TableBuilder
         var overflow = _count > viewport && viewport > 0;
         var scrollbarOnBorder = block?.HasRightBorder == true;
         var body = overflow && !scrollbarOnBorder ? inner with { Width = inner.Width - 1 } : inner;
+        _state?.Track(area, new Rect(body.X, body.Y + headerRows, body.Width, visible));
 
         var symbol = _highlightSymbol ?? "";
         var symbolWidth = Math.Min(UnicodeWidth.Of(symbol), body.Width);

@@ -3,17 +3,20 @@ using System.Text;
 
 namespace MiniTui;
 
-/// <summary>What <see cref="AnsiInputDecoder"/> produces (1.x spec §2.3, §3.3). Phase 10 adds mouse.</summary>
+/// <summary>What <see cref="AnsiInputDecoder"/> produces (1.x spec §2.3, §3.3, §4.3).</summary>
 internal interface IInputSink
 {
     void Key(ConsoleKeyInfo key);
 
     /// <summary>A bracketed paste, with line breaks normalized to "\n". Never empty.</summary>
     void Paste(string text);
+
+    /// <summary>A mouse press, release or scroll.</summary>
+    void Mouse(MouseEvent mouse);
 }
 
 /// <summary>
-/// Decodes terminal input bytes into keys (1.x spec §2.4) and bracketed pastes (§3.5). Keeps state across reads,
+/// Decodes terminal input bytes into keys (1.x spec §2.4), bracketed pastes (§3.5) and mouse reports (§4.6). Keeps state across reads,
 /// so a sequence split between two reads is reassembled instead of decoding as Esc plus characters. Pure: no I/O
 /// and no clock.
 /// </summary>
@@ -246,7 +249,25 @@ internal sealed class AnsiInputDecoder
             return length + 1;
         }
 
-        // Private (mouse, replies) and intermediate forms aren't keys
+        // X10 mouse: CSI M and three bytes, from a terminal that ignores ?1006
+        if (finalByte == (byte)'M' && parameters.IsEmpty && !hasIntermediates)
+        {
+            if (s.Length < length + 3) return 0;
+            if (MouseFrom(s[length] - 32, s[length + 1] - 33, s[length + 2] - 33, release: false) is { } x10)
+                sink.Mouse(x10);
+            return length + 3;
+        }
+
+        // SGR mouse: CSI < b ; x ; y M (press) or m (release)
+        if (finalByte is (byte)'M' or (byte)'m' && !parameters.IsEmpty && parameters[0] == (byte)'<' && !hasIntermediates)
+        {
+            if (TryParseMouse(parameters[1..], out var b, out var x, out var y)
+                && MouseFrom(b, x - 1, y - 1, release: finalByte == (byte)'m') is { } sgr)
+                sink.Mouse(sgr);
+            return length;
+        }
+
+        // Private (replies) and intermediate forms aren't keys
         if (hasIntermediates || (!parameters.IsEmpty && parameters[0] is (byte)'<' or (byte)'=' or (byte)'>' or (byte)'?'))
             return length;
 
@@ -369,6 +390,54 @@ internal sealed class AnsiInputDecoder
         if ((bits & (2 | 8)) != 0) modifiers |= ConsoleModifiers.Alt;
         if ((bits & 4) != 0) modifiers |= ConsoleModifiers.Control;
         return modifiers;
+    }
+
+    /// <summary>
+    /// A mouse report's button code <paramref name="b"/>: the low two bits are the button (3 is an X10 release),
+    /// +4 Shift, +8 Alt, +16 Control, +32 motion, +64 the wheel. Motion, buttons 128 and up, and negative
+    /// positions give null.
+    /// </summary>
+    internal static MouseEvent? MouseFrom(int b, int x, int y, bool release)
+    {
+        if (b < 0 || b >= 128 || (b & 32) != 0 || x < 0 || y < 0) return null;
+        ConsoleModifiers modifiers = 0;
+        if ((b & 4) != 0) modifiers |= ConsoleModifiers.Shift;
+        if ((b & 8) != 0) modifiers |= ConsoleModifiers.Alt;
+        if ((b & 16) != 0) modifiers |= ConsoleModifiers.Control;
+
+        var low = b & 3;
+        if ((b & 64) != 0)
+        {
+            var scroll = low switch
+            {
+                0 => MouseAction.ScrollUp,
+                1 => MouseAction.ScrollDown,
+                2 => MouseAction.ScrollLeft,
+                _ => MouseAction.ScrollRight,
+            };
+            return new MouseEvent(scroll, MouseButton.None, x, y, modifiers);
+        }
+
+        if (low == 3) return new MouseEvent(MouseAction.Release, MouseButton.None, x, y, modifiers);
+        var button = low switch
+        {
+            0 => MouseButton.Left,
+            1 => MouseButton.Middle,
+            _ => MouseButton.Right,
+        };
+        return new MouseEvent(release ? MouseAction.Release : MouseAction.Press, button, x, y, modifiers);
+    }
+
+    /// <summary>Parse "b;x;y". Anything else isn't a mouse report.</summary>
+    private static bool TryParseMouse(ReadOnlySpan<byte> p, out int b, out int x, out int y)
+    {
+        b = x = y = 0;
+        var first = p.IndexOf((byte)';');
+        if (first < 0 || !TryParseInt(p[..first], out b)) return false;
+        var rest = p[(first + 1)..];
+        var second = rest.IndexOf((byte)';');
+        return second >= 0 && TryParseInt(rest[..second], out x) && TryParseInt(rest[(second + 1)..], out y)
+               && first > 0 && second > 0 && rest.Length > second + 1;
     }
 
     /// <summary>Parse "", "n" or "n;m". Anything else isn't a key.</summary>

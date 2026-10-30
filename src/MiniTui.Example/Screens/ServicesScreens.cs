@@ -47,6 +47,7 @@ internal sealed class ServicesScreen : Screen
     protected override void OnUnmount() => _http.Dispose();
 
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, _services.Value?.Count ?? 0);
+    public override bool HandleMouse(MouseEvent mouse) => _selection.HandleMouse(mouse, _services.Value?.Count ?? 0);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         _services.Switch(

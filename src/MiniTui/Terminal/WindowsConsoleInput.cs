@@ -4,7 +4,7 @@ using System.Runtime.Versioning;
 namespace MiniTui;
 
 /// <summary>
-/// VT input mode, bracketed paste, non-blocking reads and the clipboard on Windows (1.x spec §4.4–4.5).
+/// VT input mode, bracketed paste, mouse reporting, non-blocking reads and the clipboard on Windows (1.x spec §4.4–4.6).
 /// Source-generated P/Invokes, so they're AOT-safe.
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -16,6 +16,9 @@ internal static unsafe partial class WindowsConsoleInput
     private const uint EnableLineInput = 0x0002;
     private const uint EnableEchoInput = 0x0004;
     private const uint EnableWindowInput = 0x0008;
+    private const uint EnableMouseInput = 0x0010;
+    private const uint EnableQuickEditMode = 0x0040;
+    private const uint EnableExtendedFlags = 0x0080;
     private const uint EnableVirtualTerminalInput = 0x0200;
     private const uint EnableVirtualTerminalProcessing = 0x0004;
     private const uint WaitObject0 = 0;
@@ -26,6 +29,8 @@ internal static unsafe partial class WindowsConsoleInput
     private static nint s_input;
     private static nint s_output;
     private static uint s_savedMode;
+    private static uint s_vtMode;
+    private static bool s_mouse;
     private static bool s_active;
     private static bool s_exitHooked;
 
@@ -58,6 +63,7 @@ internal static unsafe partial class WindowsConsoleInput
 
                 s_input = input;
                 s_savedMode = saved;
+                s_vtMode = mode;
                 s_active = true;
                 var output = GetStdHandle(StdOutputHandle);
                 s_output = IsHandle(output) && GetConsoleMode(output, out var outputMode)
@@ -83,7 +89,34 @@ internal static unsafe partial class WindowsConsoleInput
         }
     }
 
-    /// <summary>Turn bracketed paste off and put back the saved input mode. Idempotent, and never throws.</summary>
+    /// <summary>
+    /// Turn mouse reporting on or off, while in VT input mode: the mouse sequences for consoles that report the
+    /// mouse as VT, and <c>ENABLE_MOUSE_INPUT</c> with quick edit off for those that report it as records.
+    /// </summary>
+    public static void SetMouse(bool enabled)
+    {
+        lock (Gate)
+        {
+            if (!s_active || s_mouse == enabled) return;
+            s_mouse = enabled;
+            var mode = enabled
+                ? (s_vtMode | EnableMouseInput | EnableExtendedFlags) & ~EnableQuickEditMode
+                : s_vtMode | EnableExtendedFlags | (s_savedMode & EnableQuickEditMode);
+            SetConsoleMode(s_input, mode);
+            Write(enabled ? "\e[?1000h\e[?1006h"u8 : "\e[?1006l\e[?1000l"u8);
+        }
+    }
+
+    /// <summary>The console window's top-left cell in buffer coordinates, which mouse records are relative to.</summary>
+    public static Vec2 WindowOrigin()
+    {
+        nint output;
+        lock (Gate) output = s_output;
+        if (output == 0) output = GetStdHandle(StdOutputHandle);
+        return GetConsoleScreenBufferInfo(output, out var info) ? new Vec2(info.WindowLeft, info.WindowTop) : default;
+    }
+
+    /// <summary>Turn mouse reporting and bracketed paste off and put back the saved input mode. Idempotent, and never throws.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
         Justification = "Runs on exit and signal paths, which must not throw.")]
     public static void Restore()
@@ -93,14 +126,17 @@ internal static unsafe partial class WindowsConsoleInput
             if (!s_active) return;
             try
             {
+                if (s_mouse) Write("\e[?1006l\e[?1000l"u8);
                 Write("\e[?2004l"u8);
             }
             catch (Exception) { }
             try
             {
-                SetConsoleMode(s_input, s_savedMode);
+                // With the extended flag, the saved quick edit setting is restored too
+                SetConsoleMode(s_input, s_savedMode | EnableExtendedFlags);
             }
             catch (Exception) { }
+            s_mouse = false;
             s_active = false;
             s_output = 0;
         }
@@ -184,6 +220,17 @@ internal static unsafe partial class WindowsConsoleInput
                 offset += (int)written;
         }
     }
+
+    [StructLayout(LayoutKind.Explicit, Size = 22)]
+    private struct ScreenBufferInfo
+    {
+        [FieldOffset(10)] public short WindowLeft;
+        [FieldOffset(12)] public short WindowTop;
+    }
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetConsoleScreenBufferInfo(nint hConsoleOutput, out ScreenBufferInfo lpConsoleScreenBufferInfo);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial nint GetStdHandle(int nStdHandle);

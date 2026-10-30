@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) approved; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) done; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -677,17 +677,20 @@ internal interface IMouseCapture
 internal static partial class WindowsConsoleInput
 {
     public static bool TryEnterVtInput();            // false if stdin isn't a console or VT input is refused
+    public static void SetMouse(bool enabled);       // the mouse sequences, ENABLE_MOUSE_INPUT and quick edit
+    public static Vec2 WindowOrigin();               // srWindow's top-left, for mouse record positions
     public static void Restore();                    // idempotent; never throws
     public static bool Wait(int milliseconds);       // WaitForSingleObject on the input handle
     public static int Read(Span<InputRecord> records); // only after GetNumberOfConsoleInputEvents > 0
     public static string? ReadClipboardText();      // CF_UNICODETEXT, or null
 }
 
-// Turns console input records into decoder bytes (and, in 10b, mouse events). Pure, so it's tested on every
-// platform. The returned bytes are valid until the next call.
-internal sealed class WindowsInputTranslator
+// Turns console input records into decoder bytes and mouse events, in order. Pure, so it's tested on every
+// platform. windowOrigin is read once per batch that has mouse records.
+internal sealed class WindowsInputTranslator(Func<Vec2> windowOrigin)
 {
-    public ReadOnlySpan<byte> Translate(ReadOnlySpan<InputRecord> records, out bool resized);
+    public void Translate(ReadOnlySpan<InputRecord> records, AnsiInputDecoder decoder, TimeSpan now,
+                          IInputSink sink, out bool resized);
 }
 
 // On Windows, turns a Ctrl+V key into a paste of the clipboard's text (§4.5).

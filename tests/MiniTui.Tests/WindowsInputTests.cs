@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace MiniTui.Tests;
 
@@ -13,19 +12,25 @@ public class WindowsInputTests
         public List<object> Events { get; } = [];
         public void Key(ConsoleKeyInfo key) => Events.Add(key);
         public void Paste(string text) => Events.Add(text);
+        public void Mouse(MouseEvent mouse) => Events.Add(mouse);
     }
 
     private static InputRecord[] Chars(string text) => [.. text.Select(c => InputRecord.Key(c))];
 
-    private static List<object> Decode(params InputRecord[] records)
+    private static WindowsInputTranslator Translator(Vec2 origin = default) => new(() => origin);
+
+    private static List<object> Decode(params InputRecord[] records) => Decode(Translator(), records);
+
+    private static List<object> Decode(WindowsInputTranslator translator, params InputRecord[] records)
     {
-        var bytes = new WindowsInputTranslator().Translate(records, out _).ToArray();
         var decoder = new AnsiInputDecoder(TimeSpan.Zero);
         var sink = new Sink();
-        decoder.Feed(bytes, TimeSpan.Zero, sink);
+        translator.Translate(records, decoder, TimeSpan.Zero, sink, out _);
         decoder.Expire(TimeSpan.Zero, sink);
         return sink.Events;
     }
+
+    private static string Text(List<object> events) => string.Concat(events.Cast<ConsoleKeyInfo>().Select(k => k.KeyChar));
 
     [Fact]
     public void InputRecord_HasTheWin32Layout()
@@ -45,31 +50,26 @@ public class WindowsInputTests
             InputRecord.Key('日'),
         };
 
-        var bytes = new WindowsInputTranslator().Translate(records, out var resized).ToArray();
-
-        Assert.Equal("aé日", Encoding.UTF8.GetString(bytes));
-        Assert.False(resized);
+        Assert.Equal("aé日", Text(Decode(records)));
     }
 
     [Fact]
     public void RepeatCounts_Expand()
     {
-        var bytes = new WindowsInputTranslator().Translate([InputRecord.Key('x', repeat: 3)], out _).ToArray();
-
-        Assert.Equal("xxx", Encoding.UTF8.GetString(bytes));
+        Assert.Equal("xxx", Text(Decode(InputRecord.Key('x', repeat: 3))));
     }
 
     [Fact]
     public void ASurrogatePairSplitAcrossReads_Joins()
     {
-        var translator = new WindowsInputTranslator();
+        var translator = Translator();
         var emoji = "😀";
 
-        var first = translator.Translate([InputRecord.Key(emoji[0])], out _).ToArray();
-        var second = translator.Translate([InputRecord.Key(emoji[1])], out _).ToArray();
+        var first = Decode(translator, InputRecord.Key(emoji[0]));
+        var second = Decode(translator, InputRecord.Key(emoji[1]));
 
         Assert.Empty(first);
-        Assert.Equal(emoji, Encoding.UTF8.GetString(second));
+        Assert.Equal(emoji, Text(second));
     }
 
     [Theory]
@@ -77,25 +77,25 @@ public class WindowsInputTests
     [InlineData(new[] { '\uDE00', 'a' }, "�a")]
     public void LoneSurrogates_BecomeReplacementCharacters(char[] chars, string expected)
     {
-        var bytes = new WindowsInputTranslator().Translate([.. chars.Select(c => InputRecord.Key(c))], out _).ToArray();
-
-        Assert.Equal(expected, Encoding.UTF8.GetString(bytes));
+        Assert.Equal(expected, Text(Decode([.. chars.Select(c => InputRecord.Key(c))])));
     }
 
     [Fact]
     public void CtrlSpace_IsNul()
     {
-        var bytes = new WindowsInputTranslator().Translate([InputRecord.Key('\0', virtualKey: 0x20, controlKeyState: LeftCtrl)], out _).ToArray();
+        var events = Decode(InputRecord.Key('\0', virtualKey: 0x20, controlKeyState: LeftCtrl));
 
-        Assert.Equal([0], bytes);
+        Assert.Equal([new ConsoleKeyInfo('\0', ConsoleKey.Spacebar, false, false, true)], events);
     }
 
     [Fact]
     public void AWindowSizeEvent_ReportsAResize()
     {
-        new WindowsInputTranslator().Translate([InputRecord.Key('a'), InputRecord.Resize()], out var resized);
+        Translator().Translate([InputRecord.Key('a'), InputRecord.Resize()], new AnsiInputDecoder(TimeSpan.Zero), TimeSpan.Zero, new Sink(), out var resized);
+        Translator().Translate([InputRecord.Key('a')], new AnsiInputDecoder(TimeSpan.Zero), TimeSpan.Zero, new Sink(), out var notResized);
 
         Assert.True(resized);
+        Assert.False(notResized);
     }
 
     [Fact]
@@ -170,5 +170,58 @@ public class WindowsInputTests
         decoder.Feed("\e[200~a\x16b\e[201~"u8, TimeSpan.Zero, new ClipboardPasteSink(sink, () => "clip"));
 
         Assert.Equal(["a\x16b"], sink.Events);
+    }
+
+    [Fact]
+    public void MouseRecords_GivePressesAndReleasesFromButtonChanges()
+    {
+        var events = Decode(
+            InputRecord.Mouse(3, 4, buttons: 0x1),
+            InputRecord.Mouse(3, 4, buttons: 0x1 | 0x2),
+            InputRecord.Mouse(3, 4, buttons: 0x2),
+            InputRecord.Mouse(3, 4, buttons: 0));
+
+        Assert.Equal(
+            [
+                new MouseEvent(MouseAction.Press, MouseButton.Left, 3, 4),
+                new MouseEvent(MouseAction.Press, MouseButton.Right, 3, 4),
+                new MouseEvent(MouseAction.Release, MouseButton.Left, 3, 4),
+                new MouseEvent(MouseAction.Release, MouseButton.Right, 3, 4),
+            ],
+            events);
+    }
+
+    [Fact]
+    public void MouseRecords_WheelDirection_ComesFromTheHighWord()
+    {
+        var events = Decode(
+            InputRecord.Mouse(1, 1, buttons: 120u << 16, flags: 0x4),
+            InputRecord.Mouse(1, 1, buttons: unchecked((uint)(-120 << 16)), flags: 0x4),
+            InputRecord.Mouse(1, 1, buttons: 120u << 16, flags: 0x8),
+            InputRecord.Mouse(1, 1, buttons: unchecked((uint)(-120 << 16)), flags: 0x8));
+
+        Assert.Equal(
+            [MouseAction.ScrollUp, MouseAction.ScrollDown, MouseAction.ScrollRight, MouseAction.ScrollLeft],
+            events.Cast<MouseEvent>().Select(m => m.Action));
+    }
+
+    [Fact]
+    public void MouseRecords_AreWindowRelative_WithModifiers_AndMovesAreDropped()
+    {
+        var events = Decode(Translator(new Vec2(0, 100)),
+            InputRecord.Mouse(5, 101, buttons: 0x1, flags: 0x1), // a move with the button down: dropped
+            InputRecord.Mouse(5, 102, buttons: 0x4, controlKeyState: 0x10 | 0x8));
+
+        Assert.Equal([new MouseEvent(MouseAction.Press, MouseButton.Middle, 5, 2, ConsoleModifiers.Shift | ConsoleModifiers.Control)], events);
+    }
+
+    [Fact]
+    public void MouseRecords_StayInOrderWithKeys()
+    {
+        var events = Decode(InputRecord.Key('a'), InputRecord.Mouse(0, 0, buttons: 0x1, flags: 0x2), InputRecord.Key('b'));
+
+        Assert.Equal('a', ((ConsoleKeyInfo)events[0]).KeyChar);
+        Assert.Equal(new MouseEvent(MouseAction.Press, MouseButton.Left, 0, 0), events[1]); // a double click is a press
+        Assert.Equal('b', ((ConsoleKeyInfo)events[2]).KeyChar);
     }
 }

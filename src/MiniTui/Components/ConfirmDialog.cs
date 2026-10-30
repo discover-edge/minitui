@@ -77,8 +77,22 @@ public sealed class ConfirmDialog : Overlay
         var x = area.X + Math.Max(0, (area.Width - ButtonsWidth) / 2);
         var yes = _yesSelected ? ctx.Theme.ButtonFocused : ctx.Theme.Button;
         var no = _yesSelected ? ctx.Theme.Button : ctx.Theme.ButtonFocused;
-        x += WidgetText.DrawString(buf, x, y, $" {_yes} ", area.Right - x, yes) + 4;
-        if (x < area.Right) WidgetText.DrawString(buf, x, y, $" {_no} ", area.Right - x, no);
+        var yesWidth = WidgetText.DrawString(buf, x, y, $" {_yes} ", area.Right - x, yes);
+        _yesButton = new Rect(x, y, yesWidth, 1);
+        x += yesWidth + 4;
+        var noWidth = x < area.Right ? WidgetText.DrawString(buf, x, y, $" {_no} ", area.Right - x, no) : 0;
+        _noButton = new Rect(x, y, noWidth, 1);
+    }
+
+    /// <inheritdoc/>
+    public override bool HandleMouse(MouseEvent mouse)
+    {
+        ArgumentNullException.ThrowIfNull(mouse);
+        if (!mouse.IsClick) return false;
+        if (_yesButton.Contains(mouse.X, mouse.Y)) Answer(true);
+        else if (_noButton.Contains(mouse.X, mouse.Y)) Answer(false);
+        else return false;
+        return true;
     }
 
     /// <inheritdoc/>
@@ -90,6 +104,9 @@ public sealed class ConfirmDialog : Overlay
         App.EndUserWait();
         _result.TrySetResult(false);
     }
+
+    private Rect _yesButton;
+    private Rect _noButton;
 
     private int ButtonsWidth => UnicodeWidth.Of(_yes) + UnicodeWidth.Of(_no) + 8;
 

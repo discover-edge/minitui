@@ -100,6 +100,33 @@ public sealed class ComponentHarness : IDisposable
         RunUntilIdle();
     }
 
+    /// <summary>Press and release <paramref name="button"/> at (<paramref name="x"/>, <paramref name="y"/>), then <see cref="RunUntilIdle"/>.</summary>
+    public void Click(int x, int y, MouseButton button = MouseButton.Left)
+    {
+        App.InjectMouse(new MouseEvent(MouseAction.Press, button, x, y));
+        App.InjectMouse(new MouseEvent(MouseAction.Release, button, x, y));
+        RunUntilIdle();
+    }
+
+    /// <summary>
+    /// Scroll the wheel at (<paramref name="x"/>, <paramref name="y"/>), one event per row: positive
+    /// <paramref name="rows"/> scroll down, negative up. Then <see cref="RunUntilIdle"/>.
+    /// </summary>
+    public void Scroll(int x, int y, int rows)
+    {
+        var action = rows < 0 ? MouseAction.ScrollUp : MouseAction.ScrollDown;
+        for (var i = 0; i < Math.Abs(rows); i++) App.InjectMouse(new MouseEvent(action, MouseButton.None, x, y));
+        RunUntilIdle();
+    }
+
+    /// <summary>Send one mouse event, then <see cref="RunUntilIdle"/>.</summary>
+    public void Mouse(MouseEvent mouse)
+    {
+        ArgumentNullException.ThrowIfNull(mouse);
+        App.InjectMouse(mouse);
+        RunUntilIdle();
+    }
+
     /// <summary>
     /// Handle queued keys, posted work and UI-thread continuations until nothing is left and no load or
     /// <see cref="App.RunTask"/> is in flight (other than ones waiting on a dialog), then render one frame.

@@ -24,9 +24,19 @@ internal sealed class MenuScreen : Screen
 
     public override string Title => "MiniTui Demos";
 
-    public MenuScreen() => Keys.Add("enter", "Open", () => App.Screens.Push(Demos[_selection.Selected].Create()));
+    public MenuScreen() => Keys.Add("enter", "Open", Open);
 
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, Demos.Length);
+
+    // A click on a demo opens it; the wheel moves the selection
+    public override bool HandleMouse(MouseEvent mouse)
+    {
+        if (!_selection.HandleMouse(mouse, Demos.Length)) return false;
+        if (mouse.IsClick) Open();
+        return true;
+    }
+
+    private void Open() => App.Screens.Push(Demos[_selection.Selected].Create());
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {

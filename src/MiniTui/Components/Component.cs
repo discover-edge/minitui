@@ -2,7 +2,8 @@ namespace MiniTui;
 
 /// <summary>
 /// A piece of UI that holds state, handles keys and renders itself every frame (§9.1). Components stay
-/// immediate-mode: a parent renders its children explicitly with <c>child.Render(buf, rect, ctx.For(child))</c>.
+/// immediate-mode: a parent renders its children explicitly with <c>ctx.Render(child, buf, rect)</c>, which also
+/// records where the child is for the mouse.
 /// </summary>
 /// <remarks>
 /// Every callback runs on the UI thread. A parent mounts before its children; children unmount before their
@@ -40,6 +41,19 @@ public abstract class Component
     /// paste goes on to the component's parent, and is dropped if nothing handles it.
     /// </summary>
     public virtual bool HandlePaste(string text) => false;
+
+    /// <summary>
+    /// Handle a mouse event inside this component's <see cref="Area"/> (1.x spec §4.7). Return true if handled;
+    /// otherwise the event goes on to the component's parent, and is dropped if nothing handles it. A press has
+    /// already focused the component when this runs.
+    /// </summary>
+    public virtual bool HandleMouse(MouseEvent mouse) => false;
+
+    /// <summary>
+    /// The area the component was last rendered in through <see cref="RenderContext.Render"/>, or by the app (the
+    /// top screen and overlays). <c>default</c> (an empty rect) until then.
+    /// </summary>
+    public Rect Area { get; internal set; }
 
     /// <summary>Draw the component. Called every frame its parent renders it.</summary>
     public abstract void Render(Buffer buf, Rect area, RenderContext ctx);

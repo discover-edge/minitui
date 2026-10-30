@@ -4,7 +4,7 @@ using System.Runtime.Versioning;
 namespace MiniTui;
 
 /// <summary>
-/// Raw terminal mode, bracketed paste and non-blocking reads on Unix (1.x spec §2.5–2.6, §3.6). The termios struct is handled as an
+/// Raw terminal mode, bracketed paste, mouse reporting and non-blocking reads on Unix (1.x spec §2.5–2.6, §3.6, §4.6). The termios struct is handled as an
 /// opaque buffer, so nothing here depends on its layout or flag values, which differ between Linux and macOS.
 /// </summary>
 [SupportedOSPlatform("linux")]
@@ -23,6 +23,7 @@ internal static unsafe partial class UnixTerminal
     private static int s_fd = -1;
     private static int s_outputFd = -1;
     private static bool s_exitHooked;
+    private static bool s_mouse;
 
     /// <summary>The platforms whose libc and termios this has been checked against.</summary>
     public static bool IsSupported =>
@@ -88,7 +89,18 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
-    /// <summary>Turn bracketed paste off and put back the mode saved by <see cref="TryEnterRaw"/>. Idempotent, and never throws.</summary>
+    /// <summary>Turn mouse reporting (presses, releases and the wheel, SGR encoded) on or off, while in raw mode.</summary>
+    public static void SetMouse(bool enabled)
+    {
+        lock (Gate)
+        {
+            if (s_fd < 0 || s_mouse == enabled) return;
+            s_mouse = enabled;
+            if (s_outputFd >= 0) Write(s_outputFd, enabled ? MouseOn : MouseOff);
+        }
+    }
+
+    /// <summary>Turn mouse reporting and bracketed paste off and put back the mode saved by <see cref="TryEnterRaw"/>. Idempotent, and never throws.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
         Justification = "Runs on exit and signal paths, which must not throw.")]
     public static void Restore()
@@ -98,9 +110,11 @@ internal static unsafe partial class UnixTerminal
             if (s_fd < 0) return;
             try
             {
+                if (s_outputFd >= 0 && s_mouse) Write(s_outputFd, MouseOff);
                 if (s_outputFd >= 0) Write(s_outputFd, "\e[?2004l"u8);
             }
             catch (Exception) { }
+            s_mouse = false;
             try
             {
                 fixed (byte* saved = Saved) tcsetattr(s_fd, TcsaNow, saved);
@@ -166,6 +180,9 @@ internal static unsafe partial class UnixTerminal
             }
         }
     }
+
+    private static ReadOnlySpan<byte> MouseOn => "\e[?1000h\e[?1006h"u8;
+    private static ReadOnlySpan<byte> MouseOff => "\e[?1006l\e[?1000l"u8;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct PollFd

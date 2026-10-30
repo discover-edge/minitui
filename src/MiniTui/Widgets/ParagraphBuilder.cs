@@ -68,6 +68,7 @@ public sealed class ParagraphBuilder
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Draw(buf, area) ?? area;
+        _state?.Track(area);
         if (inner.IsEmpty)
         {
             _state?.Fit(0, 0);

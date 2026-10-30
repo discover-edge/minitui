@@ -25,6 +25,8 @@ public class AnsiInputDecoderTests
             Pastes.Add(text);
             Events.Add(text);
         }
+
+        public void Mouse(MouseEvent mouse) => Events.Add(mouse);
     }
 
     private sealed class CountingSink : IInputSink
@@ -32,6 +34,7 @@ public class AnsiInputDecoderTests
         public int Count;
         public void Key(ConsoleKeyInfo key) => Count++;
         public void Paste(string text) => Count++;
+        public void Mouse(MouseEvent mouse) => Count++;
     }
 
     private static ConsoleKeyInfo K(char c, ConsoleKey key, ConsoleModifiers mods = 0) =>
@@ -214,8 +217,8 @@ public class AnsiInputDecoderTests
     [InlineData("\x1b[1;2;3A")]       // too many parameters
     [InlineData("\x1b[q")]            // unknown final
     [InlineData("\x1b[ q")]           // intermediate byte
-    [InlineData("\x1b[<0;10;5M")]     // SGR mouse (Phase 10)
-    [InlineData("\x1b[<64;1;1m")]
+    [InlineData("\x1b[<0;10M")]       // SGR mouse without a row
+    [InlineData("\x1b[<32;1;1M")]     // SGR mouse motion
     [InlineData("\x1b[?1;2c")]        // a device attributes reply
     [InlineData("\x1bOx")]            // unknown SS3
     [InlineData("\x1b]11;rgb:0000/0000/0000\x07")] // OSC ended by BEL
@@ -327,6 +330,7 @@ public class AnsiInputDecoderTests
         }
 
         public void Paste(string text) => Others++;
+        public void Mouse(MouseEvent mouse) => Others++;
     }
 
     [Fact]

@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Windows reads the console in VT input mode and decodes keys with MiniTui's own decoder, as Linux and macOS do since 1.1. Waiting for input on Windows no longer wakes every 5 ms, and a window resize is noticed at once.
 - Bracketed paste on Windows: in Windows Terminal a paste arrives as one `PasteEvent`. Conhost has no bracketed paste, so there Ctrl+V pastes the clipboard's text as a `PasteEvent`.
+- Mouse support, opt-in with `App.WithMouse()`: SGR (and X10) mouse reports on Linux and macOS and in Windows Terminal, and console mouse records in conhost. A `MouseEvent` goes to `App.OnMouse`, then to `Component.HandleMouse` on the component under the pointer and its ancestors; a press focuses that component first. `RenderContext.Render(child, buf, rect)` renders a child and records its `Component.Area` for hit testing.
+- `SelectionState.HandleMouse` (lists and tables: the wheel moves the selection, a click selects a row), `ScrollState.HandleMouse` (the wheel scrolls text) and `TabBarState.HandleMouse` (a click selects a tab). `ConfirmDialog` answers clicks on its buttons; `MessageDialog` and `HelpOverlay` scroll with the wheel.
+- `ScriptedInputSource.EnqueueMouse`, and `ComponentHarness.Click`, `Scroll` and `Mouse`, for tests.
+- Example: the mouse is on; clicks focus fields, toggle the checkbox, select rows and tabs and open menu items, and the Input demo shows mouse events.
 - `docs/SPEC-1.x.md` §4: the mouse and Windows input spec.
 
 ### Changed

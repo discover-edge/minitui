@@ -18,4 +18,6 @@ internal sealed class ClipboardPasteSink(IInputSink inner, Func<string?> readCli
     }
 
     public void Paste(string text) => inner.Paste(text);
+
+    public void Mouse(MouseEvent mouse) => inner.Mouse(mouse);
 }
