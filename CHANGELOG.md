@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-30
+
+MiniTui 1.2: Windows reads input the way Linux and macOS do (with bracketed paste), opt-in mouse support everywhere, and suspend and resume.
+
 ### Added
 - Windows reads the console in VT input mode and decodes keys with MiniTui's own decoder, as Linux and macOS do since 1.1. Waiting for input on Windows no longer wakes every 5 ms, and a window resize is noticed at once.
 - Bracketed paste on Windows: in Windows Terminal a paste arrives as one `PasteEvent`. Conhost has no bracketed paste, so there Ctrl+V pastes the clipboard's text as a `PasteEvent`.
