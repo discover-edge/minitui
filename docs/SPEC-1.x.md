@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) done; §3 (Phase 9) draft for review; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) done; §3 (Phase 9) ready for implementation; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -326,11 +326,11 @@ halfway through the paste, and a pasted `q` or `?` can fire a global binding whe
 
 Terminals solve this with bracketed paste (`CSI ?2004h`): while it's on, the terminal wraps a paste in
 `CSI 200~` … `CSI 201~`. Phase 9 turns it on wherever Phase 8's raw input is active, decodes the markers, and
-delivers the paste as one event. Text fields insert it in one step. Components that don't handle pastes get
-the old keys, so 1.0 apps behave as before.
+delivers the paste as one event. Text fields insert it in one step.
 
-**Decision:** a paste nobody handles is replayed as keys (§3.4), not dropped. Every 1.0 app that edits text
-with `TextFieldState.HandleKey` in its own component keeps working with pastes, unchanged.
+**Decision:** a paste nobody handles is dropped, never replayed as keys (§3.4). Pasted text is never run as
+commands, as in Textual, Bubble Tea and the shells. A component that edits text with `TextFieldState.HandleKey`
+needs one line to accept pastes: `public override bool HandlePaste(string text) => State.Paste(text);`.
 
 ### 3.2 Public API
 
@@ -340,7 +340,7 @@ public sealed record PasteEvent(string Text) : Event;
 
 public abstract class Component
 {
-    /// Handle pasted text. Return true if handled; otherwise the paste goes on down the focus chain (§3.4).
+    /// Handle pasted text. Return true if handled; otherwise the paste goes on up the focus chain (§3.4).
     public virtual bool HandlePaste(string text) => false;
 }
 
@@ -352,8 +352,9 @@ public sealed class App
 
 public class TextFieldState
 {
-    /// Insert pasted text at the cursor: each line break and tab becomes a space, and other control
-    /// characters are removed. Always returns true, so a component can write `HandlePaste(t) => State.Paste(t)`.
+    /// Insert pasted text at the cursor: leading and trailing line breaks are dropped, each other line break
+    /// and each tab becomes a space, and other control characters are removed. Always returns true, so a
+    /// component can write `HandlePaste(t) => State.Paste(t)`.
     public bool Paste(string text);
 }
 
@@ -415,10 +416,7 @@ A paste goes through these steps, stopping at the first that handles it:
 2. `App.OnPaste`, if set.
 3. The focus chain, innermost first: `Component.HandlePaste`. With an overlay open, only the overlay's chain,
    as for keys. Key maps (`Component.Keys`, `App.Keys`) aren't consulted: a paste is never a binding.
-4. **Replay:** nobody handled it, so it becomes keys, queued ahead of anything else waiting, and goes through
-   normal key routing, including the per-iteration budget of 256 items. `\n` replays as Enter (`'\r'`,
-   `ConsoleKey.Enter`), `\t` as Tab, and other characters the way the decoder maps a plain byte (§2.4), so a
-   replayed paste is the same keys 1.0 delivered. Surrogate pairs replay as two keys, as `Console.ReadKey` does.
+4. Nobody handled it: the paste is dropped. With no text field focused, a paste does nothing.
 
 ### 3.5 Decoding
 
@@ -428,11 +426,12 @@ A paste goes through these steps, stopping at the first that handles it:
 - At the end marker the bytes are decoded as UTF-8 (invalid bytes become U+FFFD), `\r\n` and lone `\r` become
   `\n`, and the result goes to `IInputSink.Paste`. An empty paste (`CSI 200~ CSI 201~`) is dropped.
 - The escape timeout doesn't apply in paste mode: a paste over a slow link can pause mid-way.
-- **Size limit:** a paste is delivered in chunks of at most 1 MiB of input bytes (split at a UTF-8 boundary),
-  each as its own `PasteEvent`, so memory stays bounded and a terminal that never sends `201~` still delivers
-  what it sent. This is the only way one paste becomes several events.
+- **No size limit:** one paste is always one `PasteEvent`, however large, as in crossterm, Bubble Tea and
+  Textual. A terminal that never sends `201~` leaves the decoder in paste mode until the app exits; terminals
+  generate both markers themselves, so this isn't guarded against.
 - A stray `CSI 201~` outside a paste is dropped, as in Phase 8. A `CSI 200~` inside a paste is text.
-- The paste buffer is reused between pastes; the only per-paste allocation is the delivered string.
+- The paste buffer is reused between pastes and grows as needed; the only per-paste allocation is the
+  delivered string (and the buffer's growth for a paste larger than any before it).
 
 ### 3.6 Terminal mode
 
@@ -454,7 +453,7 @@ A paste goes through these steps, stopping at the first that handles it:
 |---|---|
 | `MINITUI_INPUT=console` | Also turns bracketed paste off (no raw input). |
 
-No new settings. An app that wants pastes as keys can leave `HandlePaste` unimplemented, which replays them.
+No new settings.
 
 ### 3.8 Example
 
@@ -468,14 +467,13 @@ Automated (all platforms unless noted):
 - **Decoder:** a paste with plain text, UTF-8, Esc, control bytes, `CSI A` and `CSI 200~` inside it decodes as
   one `Paste` with that text; `\r\n` and `\r` become `\n`; the start and end markers split at every byte offset;
   keys before and after a paste stay in order; an empty paste produces nothing; a stray `201~` is dropped; a
-  3 MiB paste arrives as 3 chunks totalling the same text; a paste held across a pause longer than the escape
+  10 MiB paste arrives as one paste with the same text; a paste held across a pause longer than the escape
   timeout isn't resolved early; invalid UTF-8 becomes U+FFFD.
 - **Routing** (`ComponentHarness`): a focused component's `HandlePaste` gets the text; `OnPaste` returning true
-  stops it; an overlay's chain gets it while open; `PasteEvent` reaches `OnEvent`; with no handler, a paste of
-  `"ab\ncd"` replays as `a b Enter c d` and fires the same bindings typing it does; a paste is never matched
-  against key maps when handled.
-- **TextFieldState.Paste:** inserts at the cursor; line breaks and tabs become spaces; other controls are
-  removed; the cursor ends after the text on a cluster boundary.
+  stops it; an overlay's chain gets it while open; `PasteEvent` reaches `OnEvent`; a paste is never matched
+  against key maps; with no handler, a paste of `"q?\n"` fires nothing and changes nothing.
+- **TextFieldState.Paste:** inserts at the cursor; `"\nab\r\ncd\tef\n"` inserts `"ab cd ef"`; other controls
+  are removed; the cursor ends after the text on a cluster boundary.
 - **Pump:** `ScriptedInputSource` pastes and keys arrive in order; a paste queued for a nested app that exits
   goes back to the outer app as a paste.
 - **Pseudo-terminal** (Linux and macOS CI): entering raw mode writes `CSI ?2004h` to a terminal stdout and
@@ -486,7 +484,7 @@ Automated (all platforms unless noted):
 Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux and SSH to Linux:
 1. Pasting 1,000 characters with line breaks into a Form field inserts them in one step, as one line, without
    submitting.
-2. The same paste on the Counter screen (no text field) behaves as typing it.
+2. The same paste on the Counter screen (no text field) does nothing.
 3. The Input demo shows one `Paste` entry with the right counts.
 4. After exit, by every Phase 8 restore path, pasting into the shell isn't wrapped in `^[[200~` (bracketed
    paste is off again, unless the shell itself turns it on).
@@ -497,10 +495,10 @@ Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux and SSH
 
 - New public API (§3.2) in `PublicAPI.Unshipped.txt`. Nothing changes incompatibly: `HandlePaste` is a new
   virtual with a default, and `IInputSource` is unchanged.
-- **Behavior changes on Linux and macOS** (CHANGELOG "Changed"): a component that handles pastes gets them as
-  one call instead of keys. Apps that handle none see no difference, apart from bracketed paste mode being on
-  in the terminal while they run.
-- README: a "Paste" paragraph under "Keyboard input" with `HandlePaste`, `TextFieldState.Paste` and the replay
+- **Behavior changes on Linux and macOS** (CHANGELOG "Changed"): pastes no longer arrive as keys. A component
+  that edits text needs `HandlePaste` to accept them; without it, a paste is dropped. On Windows and with
+  `MINITUI_INPUT=console`, pastes still arrive as keys until Phase 10.
+- README: a "Paste" paragraph under "Keyboard input" with `HandlePaste`, `TextFieldState.Paste` and the drop
   rule.
 
 ### 3.11 Implementation order
@@ -509,7 +507,7 @@ Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux and SSH
 2. `InputItem` and `IInputItemSource`, and carrying items through `InputPump` and `AppLoop`
    (including the nested-app handoff), with `ScriptedInputSource.EnqueuePaste`. Existing tests must pass
    unchanged at this step.
-3. `PasteEvent`, `OnPaste`, `Component.HandlePaste`, routing and replay, `ComponentHarness.Paste`, with the
+3. `PasteEvent`, `OnPaste`, `Component.HandlePaste`, routing, `ComponentHarness.Paste`, with the
    routing tests.
 4. `TextFieldState.Paste`, `CommandLineOverlay`.
 5. `CSI ?2004h`/`l` in `UnixTerminal`, with the pty test.
@@ -525,11 +523,11 @@ Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux and SSH
   in every terminal app.
 - Clipboard access (OSC 52) or a copy command.
 
-### 3.13 Open questions (defaults apply if unanswered)
+### 3.13 Decisions taken
 
-| # | Question | Default |
+| # | Question | Decision |
 |---|---|---|
-| 1 | A paste nobody handles: replay it as keys (1.0 behavior), or drop it (crossterm's behavior)? | **Replay** (§3.1). |
-| 2 | Normalize line breaks in `PasteEvent.Text` to `\n`, or deliver them as the terminal sent them (usually `\r`)? | **Normalize.** |
-| 3 | What a single-line field does with pasted line breaks: spaces, keep only the first line, or reject the paste? | **Spaces.** |
-| 4 | Chunk size for very large pastes? | **1 MiB.** |
+| 1 | A paste nobody handles: replay it as keys (1.0 behavior), or drop it? | **Drop** (§3.1), as Textual and crossterm apps do. |
+| 2 | Normalize line breaks in `PasteEvent.Text` to `\n`, or deliver them as the terminal sent them (usually `\r`)? | **Normalize**, as prompt_toolkit does. |
+| 3 | A single-line field given pasted line breaks: spaces, first line only, or reject? | **Spaces**, as Bubbles' `textinput` does, after dropping leading and trailing line breaks. |
+| 4 | A size limit for very large pastes? | **None**, as in crossterm, Bubble Tea and Textual. |
