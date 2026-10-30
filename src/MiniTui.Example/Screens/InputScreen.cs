@@ -5,7 +5,8 @@ using MiniTui;
 namespace MiniTui.Example;
 
 /// <summary>
-/// Shows every key and paste as MiniTui decoded it (1.x spec §2.8, §3.8), for checking a terminal and for bug reports.
+/// Shows every key, paste and mouse event as MiniTui decoded it (1.x spec §2.8, §3.8, §4.10), for checking a terminal
+/// and for bug reports.
 /// Esc is just another key here; q goes back.
 /// </summary>
 internal sealed class InputScreen : Screen
@@ -50,6 +51,19 @@ internal sealed class InputScreen : Screen
         return true;
     }
 
+    public override bool HandleMouse(MouseEvent mouse)
+    {
+        var modifiers = mouse.Modifiers == 0 ? "" : mouse.Modifiers.ToString().Replace(", ", "+", StringComparison.Ordinal);
+        var button = mouse.Button == MouseButton.None ? "" : $" {mouse.Button}";
+        Add(new Line([
+            new Span($"{"Mouse",-12}", Theme.Current.Info),
+            new Span($" {mouse.Action}{button}", Theme.Current.Text),
+            new Span($"  ({mouse.X}, {mouse.Y})", Theme.Current.Text),
+            new Span($"  {modifiers}", Theme.Current.Warning),
+        ]));
+        return true;
+    }
+
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
         var inner = Widget.Block().Title(" Input ").Padding(new Margin(1, 0)).Draw(buf, area);
@@ -60,7 +74,7 @@ internal sealed class InputScreen : Screen
 
         Widget.Paragraph()
             .Text(new Text([
-                new Line("Press any key or paste to see how it was decoded. q goes back, Ctrl+C quits.", ctx.Theme.Text),
+                new Line("Press any key, paste or use the mouse to see how it was decoded. q goes back, Ctrl+C quits.", ctx.Theme.Text),
                 new Line("Ctrl+R runs a child process, then keys should still decode (QA check 6).", ctx.Theme.TextMuted),
             ]))
             .Wrap(WrapMode.Word)

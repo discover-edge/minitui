@@ -98,6 +98,7 @@ public class ListBuilder
 
         if (_title is not null) block.Title(TitleWithScrollInfo(offset, visible, viewport));
         block.Draw(buf, area);
+        _state?.Track(area, default);
         if (inner.IsEmpty) return;
 
         var overflow = _count > viewport;
@@ -105,6 +106,7 @@ public class ListBuilder
             ? new Rect(area.Right - 1, inner.Y, 1, inner.Height)
             : new Rect(inner.Right - 1, inner.Y, 1, inner.Height);
         var rows = overflow && !block.HasRightBorder ? inner with { Width = inner.Width - 1 } : inner;
+        _state?.Track(area, rows with { Height = visible });
 
         var style = theme.Text.Patch(_style ?? default);
         var highlight = (_focused || block.IsFocused ? theme.Selection : theme.SelectionUnfocused).Patch(_highlightStyle ?? default);

@@ -25,6 +25,11 @@ public partial class App
     private InputItem[]? _pendingKeys;
     private int _pendingIndex;
 
+    // Mouse hit targets: those being recorded by the frame in progress, and those of the last frame drawn
+    private List<MouseRouter.Hit> _hits = [];
+    private List<MouseRouter.Hit> _lastHits = [];
+    private Rect _lastFrame;
+
     private int _tickPending;
     private long _lastTick;
     private ITimer? _ticker;
@@ -89,6 +94,11 @@ public partial class App
 
             run.Subscription = InputPump.Subscribe(input, keys => _queue.Writer.TryWrite(new KeyBatch(keys)));
             _activeInput = input;
+            if (_mouse && input is IMouseCapture capture)
+            {
+                capture.SetMouseCapture(true);
+                run.MouseCapture = capture;
+            }
 
             // An app started from inside another one on the same input gets the keys the outer one hasn't handled yet
             var outer = run.PreviousApp is { _running: true } app && ReferenceEquals(app._activeInput, input) ? app : null;
@@ -143,6 +153,10 @@ public partial class App
         {
             switch (item)
             {
+                case InputItem { Mouse: { } mouse }:
+                    dirty = true;
+                    Guard(() => HandleMouse(mouse));
+                    break;
                 case InputItem { Paste: { } text }:
                     dirty = true;
                     Guard(() => HandlePaste(text));
@@ -191,6 +205,7 @@ public partial class App
         CancelStopping();
         if (run.ResizeHooked) TerminalSession.Resized -= OnResizeSignal;
         run.Cancellation.Dispose();
+        run.MouseCapture?.SetMouseCapture(false);
         run.Subscription?.Dispose();
 
         // Restore the writers before leaving the terminal, and replay stderr after, so it lands on the real screen
@@ -226,6 +241,8 @@ public partial class App
     /// <summary>Queue a paste as if the input source had read it.</summary>
     internal void InjectPaste(string text) => _queue.Writer.TryWrite(new KeyBatch([InputItem.FromPaste(text)]));
 
+    internal void InjectMouse(MouseEvent mouse) => _queue.Writer.TryWrite(new KeyBatch([InputItem.FromMouse(mouse)]));
+
     /// <summary>Wait up to <paramref name="timeout"/> for something to be queued.</summary>
     internal void WaitForQueue(TimeSpan timeout)
     {
@@ -244,6 +261,7 @@ public partial class App
         public IDisposable? Subscription { get; set; }
         public CancellationTokenRegistration Cancellation { get; set; }
         public bool ResizeHooked { get; set; }
+        public IMouseCapture? MouseCapture { get; set; }
         public bool FirstFrame { get; set; } = true;
     }
 
@@ -275,6 +293,22 @@ public partial class App
         }
     }
 
+    // §4.7 of the 1.x spec: OnEvent, OnMouse, then the component under the pointer. Unhandled events are dropped.
+    private void HandleMouse(MouseEvent mouse)
+    {
+        _onEvent?.Invoke(mouse);
+        if (_onMouse?.Invoke(mouse) == true) return;
+        if (_onRender is not null) return;
+        MouseRouter.Route(this, mouse, _lastHits, _lastFrame);
+    }
+
+    /// <summary>Record a hit target for this frame (1.x spec §4.7) and set its <see cref="Component.Area"/>.</summary>
+    internal void RecordHit(Component component, Rect hit, Rect area)
+    {
+        component.Area = area;
+        _hits.Add(new MouseRouter.Hit(component, hit));
+    }
+
     // §3.4 of the 1.x spec: OnEvent, OnPaste, then the focus chain. Unhandled pastes are dropped.
     private void HandlePaste(string text)
     {
@@ -304,6 +338,20 @@ public partial class App
     /// </summary>
     private void RenderFrame(Buffer buf, Rect area)
     {
+        _hits.Clear();
+        try
+        {
+            RenderLayers(buf, area);
+        }
+        finally
+        {
+            (_lastHits, _hits) = (_hits, _lastHits);
+            _lastFrame = area;
+        }
+    }
+
+    private void RenderLayers(Buffer buf, Rect area)
+    {
         var body = area;
         if (_onRender is not null)
         {
@@ -313,7 +361,11 @@ public partial class App
         {
             var chrome = _chromeStatusBar && area.Height >= 2;
             if (chrome) body = area with { Height = area.Height - 1 };
-            if (Screens.Top is { } top) top.Render(buf, body, new RenderContext(this, top, focused: !Overlays.Any));
+            if (Screens.Top is { } top)
+            {
+                RecordHit(top, body, body);
+                top.Render(buf, body, new RenderContext(this, top, focused: !Overlays.Any));
+            }
             if (chrome) DrawStatusBar(buf, new Rect(area.X, area.Bottom - 1, area.Width, 1));
         }
 
@@ -328,6 +380,7 @@ public partial class App
                 .TitleStyle(theme.ModalTitle)
                 .Padding(new Margin(1, 0))
                 .Draw(buf, rect);
+            RecordHit(overlay, rect, inner);
             overlay.Render(buf, inner, new RenderContext(this, overlay, focused: ReferenceEquals(overlay, Overlays.Top)));
         }
 

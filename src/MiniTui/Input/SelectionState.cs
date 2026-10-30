@@ -65,6 +65,35 @@ public sealed class SelectionState
     }
 
     /// <summary>
+    /// Handle the mouse over the list or table drawn last (1.x spec §4.8): the wheel moves the selection by one
+    /// item, and a left press on a visible row selects it.
+    /// </summary>
+    /// <returns>True if the event did either.</returns>
+    public bool HandleMouse(MouseEvent mouse, int count)
+    {
+        ArgumentNullException.ThrowIfNull(mouse);
+        if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
+        switch (mouse.Action)
+        {
+            case MouseAction.ScrollUp: Previous(count); return true;
+            case MouseAction.ScrollDown: Next(count); return true;
+        }
+
+        if (!mouse.IsClick || !_mouseRows.Contains(mouse.X, mouse.Y)) return false;
+        var index = Offset + (mouse.Y - _mouseRows.Y);
+        if (index >= count) return false;
+        Selected = index;
+        return true;
+    }
+
+    /// <summary>Called by widgets while drawing: the widget's area, and the rows its items are drawn in.</summary>
+    internal void Track(Rect area, Rect rows)
+    {
+        _mouseArea = area;
+        _mouseRows = rows;
+    }
+
+    /// <summary>
     /// Called by widgets while drawing: clamp the selection to <paramref name="count"/> and scroll so it's
     /// within a viewport of <paramref name="viewportHeight"/> rows.
     /// </summary>
@@ -85,6 +114,9 @@ public sealed class SelectionState
     }
 
     private int Page => Math.Max(1, ViewportHeight);
+
+    private Rect _mouseArea;
+    private Rect _mouseRows;
 
     private static int Clamp(int index, int count) => count <= 0 ? 0 : Math.Clamp(index, 0, count - 1);
 }

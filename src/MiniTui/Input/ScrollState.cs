@@ -44,6 +44,25 @@ public sealed class ScrollState
         }
     }
 
+    /// <summary>
+    /// Handle the mouse over the text drawn last (1.x spec §4.8): the wheel scrolls by three rows.
+    /// </summary>
+    /// <returns>True if it scrolled or tried to.</returns>
+    public bool HandleMouse(MouseEvent mouse)
+    {
+        ArgumentNullException.ThrowIfNull(mouse);
+        if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
+        switch (mouse.Action)
+        {
+            case MouseAction.ScrollUp: ScrollBy(-WheelRows); return true;
+            case MouseAction.ScrollDown: ScrollBy(WheelRows); return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>Called by widgets while drawing: the area the text was drawn in.</summary>
+    internal void Track(Rect area) => _mouseArea = area;
+
     /// <summary>Called by widgets while drawing.</summary>
     internal void Fit(int contentHeight, int viewportHeight)
     {
@@ -51,6 +70,10 @@ public sealed class ScrollState
         ViewportHeight = Math.Max(0, viewportHeight);
         Offset = Clamp(Offset);
     }
+
+    private const int WheelRows = 3;
+
+    private Rect _mouseArea;
 
     private int MaxOffset => Math.Max(0, ContentHeight - ViewportHeight);
 

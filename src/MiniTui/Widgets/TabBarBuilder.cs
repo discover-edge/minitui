@@ -30,6 +30,7 @@ public sealed class TabBarBuilder
     {
         ArgumentNullException.ThrowIfNull(buf);
         _state?.Fit(_labels.Count);
+        _state?.TrackRow(area.IsEmpty ? -1 : area.Y);
         if (area.IsEmpty) return;
 
         var theme = Theme.Current;
@@ -45,7 +46,9 @@ public sealed class TabBarBuilder
         for (var i = first; i < labels.Count && x < area.Right; i++)
         {
             var style = (i != selected ? theme.TabInactive : _focused ? theme.TabActive : theme.TabActiveUnfocused).Patch(_style ?? default);
-            x += WidgetText.DrawString(buf, x, area.Y, labels[i], area.Right - x, style) + 1;
+            var drawn = WidgetText.DrawString(buf, x, area.Y, labels[i], area.Right - x, style);
+            _state?.TrackTab(i, x, drawn);
+            x += drawn + 1;
         }
 
         if (area.Height > 1)

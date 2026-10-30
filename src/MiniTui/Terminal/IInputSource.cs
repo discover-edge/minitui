@@ -11,29 +11,38 @@ public interface IInputSource : IDisposable
     bool TryRead(out ConsoleKeyInfo key);
 }
 
-/// <summary>What <see cref="InputPump"/> carries: a key or a paste, in arrival order (1.x spec §3.3).</summary>
+/// <summary>What <see cref="InputPump"/> carries: a key, a paste or a mouse event, in arrival order (1.x spec §3.3, §4.3).</summary>
 internal readonly struct InputItem
 {
-    private InputItem(ConsoleKeyInfo key, string? paste)
+    private InputItem(ConsoleKeyInfo key, string? paste, MouseEvent? mouse)
     {
         Key = key;
         Paste = paste;
+        Mouse = mouse;
     }
 
     public ConsoleKeyInfo Key { get; }
 
-    /// <summary>The pasted text, or null for a key.</summary>
+    /// <summary>The pasted text, or null unless a paste.</summary>
     public string? Paste { get; }
 
-    public static InputItem FromKey(ConsoleKeyInfo key) => new(key, null);
+    /// <summary>The mouse event, or null unless a mouse event.</summary>
+    public MouseEvent? Mouse { get; }
 
-    public static InputItem FromPaste(string text) => new(default, text);
+    /// <summary>True for a key.</summary>
+    public bool IsKey => Paste is null && Mouse is null;
+
+    public static InputItem FromKey(ConsoleKeyInfo key) => new(key, null, null);
+
+    public static InputItem FromPaste(string text) => new(default, text, null);
+
+    public static InputItem FromMouse(MouseEvent mouse) => new(default, null, mouse);
 }
 
-/// <summary>A source that produces pastes as well as keys.</summary>
+/// <summary>A source that produces pastes and mouse events as well as keys.</summary>
 internal interface IInputItemSource
 {
-    /// <summary>Read a key or paste if one is available. Never blocks.</summary>
+    /// <summary>Read a key, paste or mouse event if one is available. Never blocks.</summary>
     bool TryReadItem(out InputItem item);
 }
 
@@ -45,6 +54,13 @@ internal interface IInputLifecycle
 
     /// <summary>The last app stopped reading: restore the terminal mode.</summary>
     void Deactivate();
+}
+
+/// <summary>A source that can have the terminal report the mouse (1.x spec §4.6).</summary>
+internal interface IMouseCapture
+{
+    /// <summary>Take (true) or release (false) a reference: the mouse is reported while any is held.</summary>
+    void SetMouseCapture(bool enabled);
 }
 
 /// <summary>A source <see cref="InputPump"/> can wait on instead of polling.</summary>
@@ -83,7 +99,7 @@ public sealed class ScriptedInputSource : IInputSource, IInputItemSource
 {
     private readonly ConcurrentQueue<InputItem> _items = new();
 
-    /// <summary>The number of keys and pastes not yet read.</summary>
+    /// <summary>The number of keys, pastes and mouse events not yet read.</summary>
     public int Pending => _items.Count;
 
     /// <summary>Queue keys to be read in order.</summary>
@@ -102,6 +118,14 @@ public sealed class ScriptedInputSource : IInputSource, IInputItemSource
         return this;
     }
 
+    /// <summary>Queue a mouse event, in order with the queued keys and pastes.</summary>
+    public ScriptedInputSource EnqueueMouse(MouseEvent mouse)
+    {
+        ArgumentNullException.ThrowIfNull(mouse);
+        _items.Enqueue(InputItem.FromMouse(mouse));
+        return this;
+    }
+
     /// <summary>
     /// Queue one key per character. Letters, digits, space, tab and line breaks get their
     /// <see cref="ConsoleKey"/>; uppercase letters are shifted.
@@ -114,12 +138,12 @@ public sealed class ScriptedInputSource : IInputSource, IInputItemSource
         return this;
     }
 
-    /// <summary>Read the next key, skipping any pastes ahead of it.</summary>
+    /// <summary>Read the next key, skipping any pastes and mouse events ahead of it.</summary>
     public bool TryRead(out ConsoleKeyInfo key)
     {
         while (_items.TryDequeue(out var item))
         {
-            if (item.Paste is not null) continue;
+            if (!item.IsKey) continue;
             key = item.Key;
             return true;
         }

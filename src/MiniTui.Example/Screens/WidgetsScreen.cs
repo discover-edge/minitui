@@ -14,6 +14,7 @@ internal sealed class WidgetsScreen : Screen
     private readonly TabBarState _tabs = new(2);
     private readonly SelectionState _list = new();
     private readonly SelectionState _table = new() { SortColumn = 0 };
+    private readonly ScrollState _unicode = new();
     private readonly List<double> _samples = [];
     private readonly Component _tabBar;
     private readonly Component _items;
@@ -41,6 +42,15 @@ internal sealed class WidgetsScreen : Screen
 
         Keys.Add("t", "Theme", ToggleTheme)
             .Add("n", "Toast", () => App.Toasts.Push($"Toast at {DateTime.Now:HH:mm:ss}", (ToastLevel)(_samples.Count % 4)));
+    }
+
+    // The tab bar, list and button are inline components, so their clicks come here
+    public override bool HandleMouse(MouseEvent mouse)
+    {
+        if (_tabs.HandleMouse(mouse)) return true;
+        if (_tabs.Selected == 0 ? _list.HandleMouse(mouse, Fruits.Length) : _table.HandleMouse(mouse, Fruits.Length)) return true;
+        if (mouse.IsClick && _greet.Area.Contains(mouse.X, mouse.Y)) return Greet();
+        return _unicode.HandleMouse(mouse);
     }
 
     protected override void OnMount() => Animation.Every(App, TimeSpan.FromMilliseconds(200), Lifetime, () =>
@@ -72,12 +82,12 @@ internal sealed class WidgetsScreen : Screen
             .Add("unicode", Constraint.Fill())
             .Build();
 
-        _tabBar.Render(buf, rows["tabs"], ctx.For(_tabBar));
-        _items.Render(buf, left["items"], ctx.For(_items));
-        _name.Render(buf, left["name"], ctx.For(_name));
+        ctx.Render(_tabBar, buf, rows["tabs"]);
+        ctx.Render(_items, buf, left["items"]);
+        ctx.Render(_name, buf, left["name"]);
         var controls = Layout.Split(left["controls"], Direction.Horizontal, Constraint.Fill(), Constraint.Length(12));
-        _agree.Render(buf, controls[0], ctx.For(_agree));
-        _greet.Render(buf, controls[1], ctx.For(_greet));
+        ctx.Render(_agree, buf, controls[0]);
+        ctx.Render(_greet, buf, controls[1]);
 
         Widget.Gauge().Ratio(_progress).Block(Widget.Block().Title(" Gauge ")).Draw(buf, right["gauge"]);
         Widget.Sparkline().Data(_samples).Max(100).Block(Widget.Block().Title(" Sparkline ")).Draw(buf, right["sparkline"]);
@@ -97,6 +107,7 @@ internal sealed class WidgetsScreen : Screen
                 new Line($"Theme: {(_monochrome ? "monochrome" : "default")} (t toggles)", ctx.Theme.TextMuted),
             ]))
             .Wrap(WrapMode.Word)
+            .State(_unicode)
             .Block(Widget.Block().Title(" Unicode ").BorderType(BoxStyle.Rounded))
             .Draw(buf, right["unicode"]);
     }

@@ -34,6 +34,7 @@ internal sealed class ListScreen : Screen
     public override string Title => "List Selection";
 
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, Fruits.Length);
+    public override bool HandleMouse(MouseEvent mouse) => _selection.HandleMouse(mouse, Fruits.Length);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
@@ -115,9 +116,9 @@ internal sealed class FormScreen : Screen
             .Add("gap2", Constraint.Length(1))
             .Add("help", Constraint.Length(1))
             .Build();
-        _name.Render(buf, rows["name"], ctx.For(_name));
-        _email.Render(buf, rows["email"], ctx.For(_email));
-        _subscribe.Render(buf, rows["subscribe"], ctx.For(_subscribe));
+        ctx.Render(_name, buf, rows["name"]);
+        ctx.Render(_email, buf, rows["email"]);
+        ctx.Render(_subscribe, buf, rows["subscribe"]);
         buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S submit", ctx.Theme.TextMuted);
     }
 
@@ -242,6 +243,7 @@ internal sealed class CommandScreen : Screen
     }
 
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, _notes.Count);
+    public override bool HandleMouse(MouseEvent mouse) => _selection.HandleMouse(mouse, _notes.Count);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
@@ -282,10 +284,13 @@ internal sealed class TabsScreen : Screen
         Focus.Add(_bar).Add(_list);
     }
 
+    // The tab bar is an inline component, so its clicks come here
+    public override bool HandleMouse(MouseEvent mouse) => _tabs.HandleMouse(mouse);
+
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
         var rows = Layout.Vertical(area).Add("tabs", Constraint.Length(2)).Add("list", Constraint.Fill()).Build();
-        _bar.Render(buf, rows["tabs"], ctx.For(_bar));
-        _list.Render(buf, rows["list"], ctx.For(_list));
+        ctx.Render(_bar, buf, rows["tabs"]);
+        ctx.Render(_list, buf, rows["list"]);
     }
 }

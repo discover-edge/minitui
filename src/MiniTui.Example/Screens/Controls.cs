@@ -19,14 +19,17 @@ internal sealed class TextInput(string label, string placeholder = "") : Compone
             .Draw(buf, area);
 }
 
-/// <summary>A checkbox toggled with Space or Enter.</summary>
+/// <summary>A checkbox toggled with Space, Enter or a click.</summary>
 internal sealed class Toggle(string label) : Component
 {
     public bool Checked { get; set; }
 
-    public override bool HandleKey(ConsoleKeyInfo key)
+    public override bool HandleKey(ConsoleKeyInfo key) => key.Key is ConsoleKey.Spacebar or ConsoleKey.Enter && Flip();
+
+    public override bool HandleMouse(MouseEvent mouse) => mouse.IsClick && Flip();
+
+    private bool Flip()
     {
-        if (key.Key is not (ConsoleKey.Spacebar or ConsoleKey.Enter)) return false;
         Checked = !Checked;
         return true;
     }
@@ -41,6 +44,7 @@ internal sealed class ListView(string title, Func<IReadOnlyList<string>> items) 
     public SelectionState Selection { get; } = new();
     public override string KeysGroup => title.Trim();
     public override bool HandleKey(ConsoleKeyInfo key) => Selection.HandleKey(key, items().Count);
+    public override bool HandleMouse(MouseEvent mouse) => Selection.HandleMouse(mouse, items().Count);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.List().Title(title).Items(items()).State(Selection).HighlightSymbol("> ").Focused(ctx.Focused).Draw(buf, area);

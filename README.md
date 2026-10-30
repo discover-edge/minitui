@@ -152,7 +152,8 @@ sealed class ServicesScreen(ServicesClient api) : Screen
 ```
 
 Components are plain classes that hold state, handle keys and render every frame; there's no retained
-widget tree. A parent renders its children explicitly with `child.Render(buf, rect, ctx.For(child))`.
+widget tree. A parent renders its children explicitly with `ctx.Render(child, buf, rect)`, which also records
+where the child is, so the mouse can click it.
 
 ```csharp
 sealed class SearchBox : Component
@@ -181,8 +182,8 @@ sealed class FilesScreen : Screen
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
         var rows = Layout.Split(area, Direction.Vertical, Constraint.Length(3), Constraint.Fill());
-        search.Render(buf, rows[0], ctx.For(search));
-        list.Render(buf, rows[1], ctx.For(list));
+        ctx.Render(search, buf, rows[0]);
+        ctx.Render(list, buf, rows[1]);
     }
 
     void Reload() { }
@@ -398,6 +399,39 @@ arrive without the Ctrl.
 - If a terminal's keys decode wrongly, set `MINITUI_INPUT=console` to use the `Console.ReadKey` path,
   and please report it: the Example's **Input** demo shows exactly how each key was decoded.
 
+### Mouse
+
+Call `app.WithMouse()` to have the terminal report mouse presses, releases and the wheel. It's off by
+default because, while an app captures the mouse, selecting text in the terminal needs Shift+drag
+(Option+drag in iTerm2).
+
+- **Click to focus:** a press focuses the component under the pointer (or its nearest focusable
+  ancestor), so clicking a text field focuses it. The wheel and releases don't move focus.
+- **Routing:** `App.OnMouse` sees each `MouseEvent` first; then the component under the pointer gets
+  `HandleMouse`, and if it returns false, its parent, up to the screen. With a dialog open, only the
+  dialog can be clicked. Key bindings never fire from the mouse. `X` and `Y` are 0-based cells.
+- **Hit testing** uses where components were drawn in the last frame: the top screen, overlays, and
+  children rendered with `ctx.Render(child, buf, rect)`, which also sets `child.Area`. A child rendered
+  with `child.Render(buf, rect, ctx.For(child))` isn't a target; its clicks go to its parent.
+- **Built in:** `SelectionState.HandleMouse(mouse, count)` (lists and tables: the wheel moves the
+  selection, a click selects a row), `ScrollState.HandleMouse` (the wheel scrolls text by three rows),
+  `TabBarState.HandleMouse` (a click selects a tab). Confirm dialogs take clicks on Yes and No; message
+  and help dialogs scroll with the wheel.
+- **Your own controls** handle clicks themselves; `IsClick` is a left-button press:
+
+```csharp
+public override bool HandleMouse(MouseEvent mouse)
+{
+    if (!mouse.IsClick) return false;
+    Checked = !Checked;
+    return true;
+}
+```
+
+`ComponentHarness.Click(x, y)`, `Scroll(x, y, rows)` and `Mouse(event)` test it, and
+`ScriptedInputSource.EnqueueMouse` scripts it for whole apps. In conhost, mouse capture also turns off
+Quick Edit while the app runs.
+
 ### Backends
 
 `Terminal` draws through an `ITerminalBackend`:
@@ -470,7 +504,8 @@ thread that called `Run()`.
 App.Create()
     .OnSetup(app => { })                       // Optional: run once before the first frame
     .OnKey(key => false)                       // Optional: see keys first; true = handled
-    .OnEvent(e => { })                         // Optional: KeyEvent, ResizeEvent, TickEvent
+    .WithMouse()                               // Optional: report the mouse (see Mouse)
+    .OnEvent(e => { })                         // Optional: KeyEvent, PasteEvent, MouseEvent, ResizeEvent, TickEvent
     .OnUpdate(() => { })                       // Optional: run each loop iteration before render
     .OnError(ex => ErrorAction.Continue)       // Optional: default restores the terminal and rethrows
     .WithTickRate(TimeSpan.FromMilliseconds(100)) // Optional: default 250 ms; null = redraw only on events

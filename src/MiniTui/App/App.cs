@@ -23,6 +23,8 @@ public partial class App
     private Action? _onUpdate;
     private Func<ConsoleKeyInfo, bool>? _onKey;
     private Func<string, bool>? _onPaste;
+    private Func<MouseEvent, bool>? _onMouse;
+    private bool _mouse;
     private Action<Event>? _onEvent;
     private Func<Exception, ErrorAction>? _onError;
     private TimeSpan? _tickRate = DefaultTickRate;
@@ -144,7 +146,8 @@ public partial class App
 
     /// <summary>
     /// Handle a paste before the focus chain sees it. Return true if it was handled, so routing stops. Pastes
-    /// arrive on Linux and macOS terminals; elsewhere pasted text arrives as keys.
+    /// arrive from <see cref="TerminalInputSource"/>; with <see cref="ConsoleInputSource"/>, pasted text arrives
+    /// as keys.
     /// </summary>
     public App OnPaste(Func<string, bool> handler)
     {
@@ -153,7 +156,28 @@ public partial class App
     }
 
     /// <summary>
-    /// Observe every event (keys, pastes, resizes and ticks) before it's handled.
+    /// Ask the terminal to report mouse presses, releases and the wheel while the app runs (1.x spec §4.6). Off by
+    /// default: while the app captures the mouse, selecting text in the terminal needs Shift+drag (Option+drag
+    /// in iTerm2). Needs <see cref="TerminalInputSource"/>, the default input.
+    /// </summary>
+    public App WithMouse(bool enabled = true)
+    {
+        _mouse = enabled;
+        return this;
+    }
+
+    /// <summary>
+    /// Handle a mouse event before the components see it. Return true if it was handled, so routing stops. In
+    /// an app with a <see cref="Render"/> callback, this is the only place mouse events go.
+    /// </summary>
+    public App OnMouse(Func<MouseEvent, bool> handler)
+    {
+        _onMouse = handler;
+        return this;
+    }
+
+    /// <summary>
+    /// Observe every event (keys, pastes, mouse events, resizes and ticks) before it's handled.
     /// </summary>
     public App OnEvent(Action<Event> handler)
     {

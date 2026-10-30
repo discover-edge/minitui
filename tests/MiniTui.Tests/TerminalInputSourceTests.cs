@@ -193,6 +193,58 @@ public class TerminalInputSourceTests
     }
 
     [Fact]
+    public void MouseCapture_WritesTheMouseModes_AndRestoreTurnsThemOff()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
+        var capture = (IMouseCapture)source;
+
+        ((IInputLifecycle)source).Activate();
+        Assert.Equal("\x1b[?2004h", pty.ReadEcho());
+
+        // Reference counted: only the first take and the last release write
+        capture.SetMouseCapture(true);
+        capture.SetMouseCapture(true);
+        Assert.Equal("\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        capture.SetMouseCapture(false);
+        capture.SetMouseCapture(false);
+        Assert.Equal("\x1b[?1006l\x1b[?1000l", pty.ReadEcho());
+
+        capture.SetMouseCapture(true);
+        Assert.Equal("\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        pty.Write("\x1b[<0;5;6M");
+        var items = new List<MouseEvent>();
+        var clock = Stopwatch.StartNew();
+        while (items.Count < 1 && clock.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            while (((IInputItemSource)source).TryReadItem(out var item))
+                if (item.Mouse is { } mouse) items.Add(mouse);
+            ((IWaitableInputSource)source).WaitForInput(TimeSpan.FromMilliseconds(100));
+        }
+        Assert.Equal([new MouseEvent(MouseAction.Press, MouseButton.Left, 4, 5)], items);
+
+        ((IInputLifecycle)source).Deactivate();
+        Assert.Equal("\x1b[?1006l\x1b[?1000l\x1b[?2004l", pty.ReadEcho());
+        capture.SetMouseCapture(false);
+    }
+
+    [Fact]
+    public void MouseCapture_TakenBeforeActivating_TurnsOnWithRawMode()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
+
+        ((IMouseCapture)source).SetMouseCapture(true);
+        Assert.Equal("", pty.ReadEcho());
+        ((IInputLifecycle)source).Activate();
+        Assert.Equal("\x1b[?2004h\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        ((IInputLifecycle)source).Deactivate();
+        Assert.Equal("\x1b[?1006l\x1b[?1000l\x1b[?2004l", pty.ReadEcho());
+    }
+
+    [Fact]
     public void RawMode_WithoutATerminalOutput_DoesNotWriteBracketedPaste()
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
@@ -277,13 +329,21 @@ public class TerminalInputSourceTests
         }
 
         /// <summary>Whatever the terminal echoed back to the leader.</summary>
+        /// <summary>Everything written to the follower: waits 100 ms for the first bytes, then reads until 20 ms pass with none.</summary>
         public string ReadEcho()
         {
-            var poll = new PollFd { Fd = Leader, Events = 1 };
-            if (poll_(ref poll, 1, 100) <= 0) return "";
+            var text = new StringBuilder();
             var buffer = new byte[256];
-            var n = read(Leader, buffer, (nuint)buffer.Length);
-            return n > 0 ? Encoding.UTF8.GetString(buffer, 0, (int)n) : "";
+            var timeout = 100;
+            while (true)
+            {
+                var poll = new PollFd { Fd = Leader, Events = 1 };
+                if (poll_(ref poll, 1, timeout) <= 0) return text.ToString();
+                var n = read(Leader, buffer, (nuint)buffer.Length);
+                if (n <= 0) return text.ToString();
+                text.Append(Encoding.UTF8.GetString(buffer, 0, (int)n));
+                timeout = 20;
+            }
         }
 
         public void Dispose()

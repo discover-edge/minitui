@@ -15,7 +15,7 @@ namespace MiniTui;
 /// keys. Ctrl+C still quits through <see cref="App.Keys"/>. Set the <c>MINITUI_INPUT</c> environment variable to
 /// <c>console</c> to make <see cref="ConsoleInputSource"/> the default instead.
 /// </remarks>
-public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInputLifecycle, IWaitableInputSource
+public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInputLifecycle, IWaitableInputSource, IMouseCapture
 {
     private static readonly TimeSpan MaxEscapeTimeout = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan ModeCheckInterval = TimeSpan.FromMilliseconds(250);
@@ -26,7 +26,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private readonly AnsiInputDecoder _decoder;
     private readonly ItemQueue _items = new();
     private readonly IInputSink _sink;
-    private readonly WindowsInputTranslator _translator = new();
+    private readonly WindowsInputTranslator _translator;
     private readonly InputRecord[] _records = new InputRecord[256];
     private readonly ConsoleInputSource _fallback = new();
     private readonly byte[] _buffer = new byte[4096];
@@ -34,6 +34,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private volatile bool _raw;
     private bool _closed;
     private TimeSpan _lastModeCheck;
+    private int _mouseRefs;
 
     /// <summary>Create a source with the <see cref="DefaultEscapeTimeout"/>.</summary>
     public TerminalInputSource() : this(DefaultEscapeTimeout) { }
@@ -55,7 +56,16 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         _outputFd = outputFd;
         EscapeTimeout = escapeTimeout;
         _decoder = new AnsiInputDecoder(escapeTimeout);
-        _sink = OperatingSystem.IsWindows() ? new ClipboardPasteSink(_items, WindowsConsoleInput.ReadClipboardText) : _items;
+        if (OperatingSystem.IsWindows())
+        {
+            _sink = new ClipboardPasteSink(_items, WindowsConsoleInput.ReadClipboardText);
+            _translator = new WindowsInputTranslator(WindowsConsoleInput.WindowOrigin);
+        }
+        else
+        {
+            _sink = _items;
+            _translator = new WindowsInputTranslator(() => default);
+        }
     }
 
     /// <summary>The default escape timeout, 50 ms.</summary>
@@ -69,12 +79,12 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
 
     private TimeSpan Now => Stopwatch.GetElapsedTime(_started);
 
-    /// <summary>Read the next key if one is available, skipping any pastes ahead of it. Never blocks.</summary>
+    /// <summary>Read the next key if one is available, skipping any pastes and mouse events ahead of it. Never blocks.</summary>
     public bool TryRead(out ConsoleKeyInfo key)
     {
         while (((IInputItemSource)this).TryReadItem(out var item))
         {
-            if (item.Paste is not null) continue;
+            if (!item.IsKey) continue;
             key = item.Key;
             return true;
         }
@@ -120,7 +130,25 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             }
             _closed = false;
             _lastModeCheck = Now;
+            if (_raw && _mouseRefs > 0) ApplyMouse(true);
         }
+    }
+
+    void IMouseCapture.SetMouseCapture(bool enabled)
+    {
+        lock (_lock)
+        {
+            var before = _mouseRefs > 0;
+            _mouseRefs = Math.Max(0, _mouseRefs + (enabled ? 1 : -1));
+            var after = _mouseRefs > 0;
+            if (before != after && _raw) ApplyMouse(after);
+        }
+    }
+
+    private static void ApplyMouse(bool enabled)
+    {
+        if (OperatingSystem.IsWindows()) WindowsConsoleInput.SetMouse(enabled);
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.SetMouse(enabled);
     }
 
     void IInputLifecycle.Deactivate()
@@ -193,8 +221,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         }
         if (n == 0) return;
 
-        var bytes = _translator.Translate(_records.AsSpan(0, n), out var resized);
-        if (bytes.Length > 0) _decoder.Feed(bytes, Now, _sink);
+        _translator.Translate(_records.AsSpan(0, n), _decoder, Now, _sink, out var resized);
         if (resized) TerminalSession.RaiseResized();
     }
 
@@ -216,6 +243,8 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         public void Key(ConsoleKeyInfo key) => _queue.Enqueue(InputItem.FromKey(key));
 
         public void Paste(string text) => _queue.Enqueue(InputItem.FromPaste(text));
+
+        public void Mouse(MouseEvent mouse) => _queue.Enqueue(InputItem.FromMouse(mouse));
 
         public bool TryDequeue(out InputItem item) => _queue.TryDequeue(out item);
     }
