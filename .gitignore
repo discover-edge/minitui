@@ -416,3 +416,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Published Example for the SSH test server (tools/ssh-test)
+tools/ssh-test/out/

@@ -609,7 +609,8 @@ MiniTui/
 │   └── MiniTui.Tests/      # xUnit tests
 ├── docs/                   # SPEC.md (1.0), SPEC-1.x.md (post-1.0 roadmap) and the 0.7 → 1.0 migration guide
 ├── tools/
-│   └── GenWidthTable.cs    # Generates the Unicode width table
+│   ├── GenWidthTable.cs    # Generates the Unicode width table
+│   └── ssh-test/           # An SSH server in Docker for manual QA over SSH
 └── README.md
 ```
 
@@ -629,6 +630,9 @@ Character Database. To regenerate it, run from the repository root:
 ```bash
 dotnet run tools/GenWidthTable.cs
 ```
+
+To check input over SSH (with optional network delay), `tools/ssh-test/run.sh` starts an SSH server in Docker
+with the Example in it; see [tools/ssh-test/README.md](tools/ssh-test/README.md).
 
 ## License
 
