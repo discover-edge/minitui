@@ -24,7 +24,8 @@
     <!-- NuGet Package Properties -->
     <PackageId>MiniTui</PackageId>
     <Version>1.0.0</Version>
-    <Authors>discover-edge</Authors>
+    <Authors>Discover Edge LLC</Authors>
+    <Copyright>Copyright (c) 2026 Discover Edge LLC</Copyright>
     <Description>A minimal, immediate-mode TUI framework for .NET inspired by ratatui</Description>
     <PackageTags>tui;terminal;console;ui;immediate-mode</PackageTags>
     <RepositoryUrl>https://github.com/discover-edge/minitui</RepositoryUrl>

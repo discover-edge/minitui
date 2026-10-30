@@ -98,6 +98,7 @@ See [docs/MIGRATION-0.7-to-1.0.md](docs/MIGRATION-0.7-to-1.0.md) for the replace
 - Stale duplicate solution file `src/MiniTui/MiniTui.sln` (D19). `src/MiniTui.sln` is the canonical solution.
 
 ### Fixed
+- `LICENSE` contained the AGPL-3.0 text while the package and README declared MIT; it is now the MIT license (copyright Discover Edge LLC), and the package lists Discover Edge LLC as its author.
 - Ctrl+C is delivered as input (`TreatControlCAsInput`) and quits `App.Run`, instead of killing the process with the terminal left in TUI mode; Ctrl+C sent as `\x03` is recognised too (D1).
 - Apps run on the alternate screen and never call `Console.Clear()`, so the user's screen and scrollback are preserved (D2).
 - A frame is one write instead of thousands of console calls (D5).
