@@ -384,7 +384,8 @@ are read through `Console.ReadKey`.
   start with Esc. Change it with `app.WithInput(new TerminalInputSource(TimeSpan.FromMilliseconds(100)))`.
 - **Ctrl+C** quits. **Ctrl+Z**, Ctrl+\, Ctrl+S and Ctrl+Q reach the app as keys instead of suspending
   the process or pausing output.
-- **macOS Terminal.app** sends Alt (Option) combinations only with "Use Option as Meta key" turned on.
+- **macOS:** raw input is tested in CI on a pseudo-terminal, but not yet by hand in Terminal.app or
+  iTerm2. Terminal.app sends Alt (Option) combinations only with "Use Option as Meta key" turned on.
 - If a terminal's keys decode wrongly, set `MINITUI_INPUT=console` to use the `Console.ReadKey` path,
   and please report it: the Example's **Input** demo shows exactly how each key was decoded.
 

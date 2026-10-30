@@ -258,12 +258,14 @@ Automated (all platforms unless noted):
 - `TerminalInputSource` on a non-terminal stdin (CI) behaves like `ConsoleInputSource` and doesn't throw.
 - Existing tests keep passing unchanged; `ScriptedInputSource` and `ComponentHarness` aren't affected.
 
-Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux, SSH to Linux, macOS Terminal.app and
-iTerm2, using the Input demo:
+Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux and SSH to Linux, using the Input demo.
+There's no Mac to test on, so on macOS the pseudo-terminal tests in CI are the check: they cover entering raw
+mode, decoding, reapplying and restoring there. The decoder is the same code on every platform, and Terminal.app
+and iTerm2 send xterm sequences it already handles. Until someone checks a Mac by hand, the README says so.
 1. A 3 KB burst of arrow keys (e.g. `tmux send-keys` or a held key) produces only arrows and never leaves the
    screen.
 2. Alt+letter, Alt+Shift+letter, Alt+arrows, Ctrl+arrows, Shift+arrows, Ctrl+Shift+arrows, Shift+Tab, F1–F12,
-   Insert, Delete, Home, End, PgUp and PgDn decode as named. Terminal.app needs "Use Option as Meta key" for Alt.
+   Insert, Delete, Home, End, PgUp and PgDn decode as named.
 3. Esc responds without a noticeable delay.
 4. Ctrl+C quits, and Ctrl+Z, Ctrl+S and Ctrl+Q do nothing harmful.
 5. After a normal exit, Ctrl+C, the forced exception, and `kill -TERM` / `kill -HUP` from another shell, the
