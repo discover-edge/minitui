@@ -1,6 +1,3 @@
-// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
-#pragma warning disable CS0618
-
 namespace MiniTui.Tests;
 
 // Regression tests for the loop defects in docs/SPEC.md §2 (D3, D4, D12, D16) and the §6.3 acceptance list.
@@ -37,82 +34,87 @@ public class LoopDefectTests
         Assert.InRange(framesWithKeys, 1, 4);
     }
 
+    // D4 was RunWhile's condition and the loop both polling, so keys were lost. 1.0 has one path for keys
+    // (OnKey, then routing), so these check that no key is lost or delivered twice along it.
+
     [Fact]
-    public async Task D4_RunWhile_ConditionPollingEveryKey_LosesNone()
+    public async Task D4_KeyMapOnAScreen_LosesNoKeys()
     {
-        // The README pattern: poll in the condition, quit on q
         var input = new ScriptedInputSource().Enqueue(Enumerable.Repeat(AppHarness.Key('k'), 999).ToArray()).Enqueue(AppHarness.Key('q'));
         var count = 0;
-        var app = AppHarness.Create(new TestBackend(20, 5), input).Render((_, _) => { });
+        var app = AppHarness.Create(new TestBackend(20, 5), input);
+        var screen = new KeyScreen();
+        screen.Keys.Add("k", "Count", () => count++);
+        app.Keys.Add("q", "Quit", app.Quit);
+        app.Screens.Push(screen);
 
-        await AppHarness.RunWhile(app, () =>
-        {
-            var key = Input.Poll();
-            if (Input.IsQuit(key)) return false;
-            if (key?.KeyChar == 'k') count++;
-            return true;
-        });
+        await AppHarness.Run(app);
 
         Assert.Equal(999, count);
     }
 
     [Fact]
-    public async Task D4_RunWhile_KeysTheConditionDoesNotTake_GoToTheRouter_AndNoneTwice()
+    public async Task D4_KeysOnKeyDoesNotTake_GoToTheScreen_AndNoneTwice()
     {
-        // 1,000 distinct keys, so a key delivered to both the condition and the router shows up
+        // 1,000 distinct keys, so a key delivered to both OnKey and the screen shows up
         var keys = Enumerable.Range(0, 1000).Select(i => AppHarness.Key((char)(0x100 + i), ConsoleKey.A)).ToArray();
         var input = new ScriptedInputSource().Enqueue(keys);
         var taken = new List<char>();
         var routed = new List<char>();
-        var poll = false;
-        App app = null!;
-        app = AppHarness.Create(new TestBackend(20, 5), input)
-            .UseRouter(new InputRouter().Add("main", key =>
+        var app = AppHarness.Create(new TestBackend(20, 5), input);
+        var screen = new KeyScreen
+        {
+            OnKeyPress = key =>
             {
                 routed.Add(key.KeyChar);
                 if (key.KeyChar == keys[^1].KeyChar) app.Quit();
-            }))
-            .Render((_, _) => { });
-
-        // The condition takes every other key it sees
-        await AppHarness.RunWhile(app, () =>
+                return true;
+            },
+        };
+        app.Screens.Push(screen);
+        var take = false;
+        app.OnKey(key =>
         {
-            poll = !poll;
-            if (poll && Input.Poll() is { } key)
-            {
-                taken.Add(key.KeyChar);
-                if (key.KeyChar == keys[^1].KeyChar) return false;
-            }
+            take = !take;
+            if (!take) return false;
+            taken.Add(key.KeyChar);
+            if (key.KeyChar == keys[^1].KeyChar) app.Quit();
             return true;
         });
 
+        await AppHarness.Run(app);
+
         Assert.Empty(taken.Intersect(routed));
         Assert.Equal(keys.Select(k => k.KeyChar).Order(), taken.Concat(routed).Order());
-        Assert.NotEmpty(taken);
-        Assert.NotEmpty(routed);
     }
 
     [Fact]
-    public async Task D12_ModalOpenedViaPost_IsActiveAtTheNextRender_WithoutAKeyPress()
+    public async Task D12_OverlayShownViaPost_IsActiveAndDrawnAtTheNextRender_WithoutAKeyPress()
     {
-        var showModal = false;
-        var router = new InputRouter().Add("main", _ => { }).WithModal(() => showModal, _ => { });
+        var backend = new TestBackend(40, 10);
         bool? activeWhenRendered = null;
 
         App app = null!;
-        app = AppHarness.Create(new TestBackend(20, 5), new ScriptedInputSource())
-            .UseRouter(router)
-            .OnSetup(() => app.Post(() => showModal = true))
+        app = AppHarness.Create(backend, new ScriptedInputSource())
+            .OnSetup(() => app.Post(() => _ = app.Overlays.ShowMessageAsync("Note", "posted")))
             .Render((_, _) =>
             {
-                if (!showModal) return;
-                activeWhenRendered = router.IsModalActive;
-                app.Quit();
+                if (!app.Overlays.Any) return;
+                activeWhenRendered = true;
+                app.Post(app.Quit);
             });
 
         await AppHarness.Run(app);
 
         Assert.True(activeWhenRendered);
+        Assert.Contains(backend.Lines, l => l.Contains("posted", StringComparison.Ordinal));
+    }
+
+    private sealed class KeyScreen : Screen
+    {
+        public Func<ConsoleKeyInfo, bool>? OnKeyPress { get; init; }
+        public override bool HandleKey(ConsoleKeyInfo key) => OnKeyPress?.Invoke(key) == true;
+        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx) { }
     }
 
     [Fact]

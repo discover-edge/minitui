@@ -34,6 +34,18 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: dotnet test src/MiniTui.sln --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory ./coverage
 
+      - name: Check coverage (at least 85% of lines in src/MiniTui)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          report=$(find ./coverage -name coverage.cobertura.xml | head -1)
+          python3 - "$report" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          rate = next(float(p.get("line-rate")) for p in ET.parse(sys.argv[1]).getroot().iter("package") if p.get("name") == "MiniTui")
+          print(f"Line coverage of MiniTui: {rate:.1%}")
+          sys.exit(0 if rate >= 0.85 else f"Line coverage {rate:.1%} is below 85%")
+          PY
+
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4

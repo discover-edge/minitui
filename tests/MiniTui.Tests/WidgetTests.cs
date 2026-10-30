@@ -1,6 +1,3 @@
-// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
-#pragma warning disable CS0618
-
 using Microsoft.Extensions.Time.Testing;
 using static MiniTui.Tests.Snapshot;
 using Buffer = MiniTui.Buffer;
@@ -41,11 +38,20 @@ public class WidgetSweepTests
         ["TabBar"] = (b, r) => Widget.TabBar().Tabs("One", "Two", "日本").State(new TabBarState { Selected = 2 }).Focused().Draw(b, r),
         ["Button"] = (b, r) => Widget.Button().Label("OK").Focused().Draw(b, r),
         ["Checkbox"] = (b, r) => Widget.Checkbox().Label("Enabled").Checked().Focused().Draw(b, r),
-        ["Modal"] = (b, _) => Widget.Modal().Title(" Help ").Lines(Items).State(new ScrollState()).Draw(b),
-        ["Confirm"] = (b, _) => Widget.Confirm().Message("Really delete 日本?").Draw(b),
+        ["ConfirmDialog"] = (b, r) => DrawOverlay(new ConfirmDialog("Really delete 日本?"), b, r),
+        ["MessageDialog"] = (b, r) => DrawOverlay(new MessageDialog("Note", string.Join("\n", Items)), b, r),
+        ["HelpOverlay"] = (b, r) => DrawOverlay(new HelpOverlay(["Group", "  r  Refresh", "", "  q  Quit"]), b, r),
     };
 
     public static TheoryData<string> Names => [.. Draws.Keys];
+
+    // An overlay's placement and content, as the app draws them (border included)
+    private static void DrawOverlay(Overlay overlay, Buffer buf, Rect screen)
+    {
+        var rect = overlay.Placement(screen);
+        var inner = Widget.Block().Title(overlay.Title is { } t ? new Line(t) : null).Draw(buf, rect);
+        overlay.Render(buf, inner, new RenderContext(App.Create(), overlay, focused: true));
+    }
 
     [Theory]
     [MemberData(nameof(Names))]
@@ -333,27 +339,6 @@ public class SmallWidgetTests
         // "[ Two ] [ Three ]" is 17 columns, so the bar starts at the selected tab
         AssertTrimmed(buf, "[ Three ]");
     }
-
-    [Fact]
-    public void Modal_LeavesATwoCellMargin_AndWraps()
-    {
-        var buf = new Buffer(20, 10);
-
-        Widget.Modal().Title("Info").Lines("one two three four five").Footer(null).Draw(buf);
-
-        AssertTrimmed(buf, """
-
-
-              ┌Info──────────┐
-              │ one two      │
-              │ three four   │
-              │ five         │
-              └──────────────┘
-
-
-
-            """);
-    }
 }
 
 public class ThemeTests
@@ -395,6 +380,31 @@ public class ThemeTests
 
         Assert.Same(custom, seen);
         Assert.Same(Theme.Default, Theme.Current);
+    }
+
+    [Fact]
+    public void App_UsesMonochrome_ForAnExplicitDefaultTheme_WhenTheTerminalHasNoColors()
+    {
+        var custom = Theme.Default with { Selection = Style.Default.Bold() };
+        Theme? seen = null, afterSwitch = null, afterCustom = null;
+        var app = App.Create().WithBackend(new AnsiBackend(ColorMode.None, new FakeConsoleHost(10, 3)))
+            .WithInput(new ScriptedInputSource()).WithTickRate(null).CaptureConsoleOutput(false)
+            .WithTheme(Theme.Default);
+        app.OnSetup(a =>
+        {
+            seen = Theme.Current;
+            a.WithTheme(Theme.Default);
+            afterSwitch = Theme.Current;
+            a.WithTheme(custom);
+            afterCustom = Theme.Current;
+            a.Quit();
+        }).Render((_, _) => { });
+
+        app.Run();
+
+        Assert.Same(Theme.Monochrome, seen);
+        Assert.Same(Theme.Monochrome, afterSwitch);
+        Assert.Same(custom, afterCustom); // a custom theme is the app's choice
     }
 
     [Fact]

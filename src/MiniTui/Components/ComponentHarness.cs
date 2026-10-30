@@ -37,7 +37,7 @@ public sealed class ComponentHarness : IDisposable
         if (time is not null) App.WithTimeProvider(time);
         App.Screens.Push(root);
 
-        App.StartRun(condition: null, CancellationToken.None);
+        App.StartRun(CancellationToken.None);
         try
         {
             using (App.EnterUi()) App.Setup();

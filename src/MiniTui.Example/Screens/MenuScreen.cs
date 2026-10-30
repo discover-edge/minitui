@@ -16,6 +16,7 @@ internal sealed class MenuScreen : Screen
         ("Tabs", "A tab bar and a list in one focus scope", () => new TabsScreen()),
         ("Services (async)", "Loading, refresh, detail screens and confirm dialogs over a fake HTTP API", () => new ServicesScreen()),
         ("Widgets", "Every widget, a theme toggle and a Unicode panel", () => new WidgetsScreen()),
+        ("Throw an exception", "QA check: an unhandled exception restores the terminal and prints the stack trace", () => new CrashScreen()),
     ];
 
     private readonly SelectionState _selection = new();
@@ -46,4 +47,12 @@ internal sealed class MenuScreen : Screen
             .Wrap(WrapMode.Word)
             .Draw(buf, columns["about"] with { Y = columns["about"].Y + 1 });
     }
+}
+
+/// <summary>Throws when opened, to check that a crash restores the terminal (QA matrix, check 4).</summary>
+internal sealed class CrashScreen : Screen
+{
+    protected override void OnMount() => throw new InvalidOperationException("Forced exception from the Example's QA screen.");
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
 }

@@ -3,8 +3,7 @@ namespace MiniTui;
 /// <summary>
 /// A yes/no dialog centered on the screen.
 /// </summary>
-[Obsolete("Use App.Overlays.ConfirmAsync instead.")]
-public class ConfirmBuilder
+internal sealed class ConfirmBuilder
 {
     private string _message = "Are you sure?";
     private string _yesText = "Yes";
@@ -19,8 +18,6 @@ public class ConfirmBuilder
     public ConfirmBuilder NoText(string text) { _noText = text ?? ""; return this; }
     /// <summary>Set which button is selected.</summary>
     public ConfirmBuilder Selected(bool yesSelected) { _yesSelected = yesSelected; return this; }
-    /// <summary>Set state from a ConfirmState.</summary>
-    public ConfirmBuilder State(ConfirmState state) { _yesSelected = state.YesSelected; return this; }
 
     /// <summary>Draw the confirmation dialog centered on the buffer.</summary>
     public void Draw(Buffer buf)

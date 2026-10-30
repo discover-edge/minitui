@@ -1,6 +1,3 @@
-// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
-#pragma warning disable CS0618
-
 using Buffer = MiniTui.Buffer;
 using static MiniTui.Tests.Snapshot;
 
@@ -26,10 +23,6 @@ public class BufferTests
 
         buf.FillRect(rect, Wide);
         buf.SetStyle(rect, new Style(Color.Red));
-        buf.DrawBox(rect);
-        buf.DrawBoxWithTitle(rect, "Title 日本");
-        buf.DrawProgressBar(rect, 0.5f);
-        buf.DrawTextCentered(rect, "x");
         buf.SetString(rect.X, rect.Y, "日本語", Style.Default, rect.Width);
         buf.SetLine(rect.X, rect.Y, new Line("abc"), rect.Width);
         buf.Set(rect.X, rect.Y, Wide);
@@ -283,58 +276,23 @@ public class BufferTests
             """);
     }
 
-    // ===== Legacy primitives keep the background (D10) =====
+    // ===== Line primitives keep the background (D10) =====
 
     [Fact]
-    public void DrawText_WithBackground_SetsIt()
-    {
-        var buf = new Buffer(2, 1);
-
-        buf.DrawText(0, 0, "x", ConsoleColor.White, ConsoleColor.DarkBlue);
-
-        AssertStyle(buf, 0, 0, Color.White, Color.DarkBlue);
-    }
-
-    [Fact]
-    public void DrawHLineAndProgressBar_KeepBackground()
+    public void DrawHLineAndVLine_KeepBackground()
     {
         var buf = new Buffer(4, 2);
         buf.SetStyle(buf.Area, new Style(Bg: Color.Blue));
 
-        buf.DrawHLine(0, 0, 4);
-        buf.DrawProgressBar(new Rect(0, 1, 4, 1), 0.5f);
+        buf.DrawHLine(0, 0, 4, style: new Style(Color.Gray));
+        buf.DrawVLine(3, 1, 1, style: new Style(Color.Gray));
 
         AssertLines(buf, """
             ────
-            ██░░
+               │
             """);
         AssertStyle(buf, 0, 0, Color.Gray, Color.Blue);
-        AssertStyle(buf, 3, 1, Color.DarkGray, Color.Blue);
-    }
-
-    [Fact]
-    public void DrawBoxWithTitle_TruncatesTitleByWidth()
-    {
-        var buf = new Buffer(8, 3);
-
-        buf.DrawBoxWithTitle(buf.Area, "日本語");
-
-        // Truncated with an ellipsis since Phase 5 (rule W2)
-        AssertLines(buf, """
-            ┌─日…──┐
-            │      │
-            └──────┘
-            """);
-    }
-
-    [Fact]
-    public void DrawTextCentered_UsesDisplayWidth()
-    {
-        var buf = new Buffer(6, 1);
-
-        buf.DrawTextCentered(buf.Area, "日本");
-
-        AssertLines(buf, " 日本 ");
+        AssertStyle(buf, 3, 1, Color.Gray, Color.Blue);
     }
 }
 

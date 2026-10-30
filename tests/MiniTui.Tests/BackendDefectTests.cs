@@ -1,6 +1,3 @@
-// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
-#pragma warning disable CS0618
-
 using System.Text;
 
 namespace MiniTui.Tests;
@@ -24,15 +21,15 @@ public class BackendDefectTests
     [InlineData('\x03', ConsoleKey.C, true)]
     [InlineData('\x03', (ConsoleKey)0, false)]
     [InlineData('c', ConsoleKey.C, true)]
-    public void D1_IsQuit_RecognisesCtrlC(char keyChar, ConsoleKey key, bool control)
+    public void D1_CtrlC_IsRecognised(char keyChar, ConsoleKey key, bool control)
     {
-        Assert.True(Input.IsQuit(new ConsoleKeyInfo(keyChar, key, false, false, control)));
+        Assert.True(KeyInput.IsCtrlC(new ConsoleKeyInfo(keyChar, key, false, false, control)));
     }
 
     [Fact]
-    public void D1_IsQuit_PlainC_IsNotQuit()
+    public void D1_PlainC_IsNotCtrlC()
     {
-        Assert.False(Input.IsQuit(new ConsoleKeyInfo('c', ConsoleKey.C, false, false, false)));
+        Assert.False(KeyInput.IsCtrlC(new ConsoleKeyInfo('c', ConsoleKey.C, false, false, false)));
     }
 
     [Fact]

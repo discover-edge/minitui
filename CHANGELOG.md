@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-29
+
+MiniTui 1.0: an event loop with async support, constraint layout, a themed widget set, and screens and
+components for larger apps. It removes the 0.7 APIs that 0.8 and 0.9 marked obsolete (they were never
+released separately); [docs/MIGRATION-0.7-to-1.0.md](docs/MIGRATION-0.7-to-1.0.md) maps each one to its
+replacement.
+
 ### Added
+- `docs/MIGRATION-0.7-to-1.0.md`.
+- The public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers` (`PublicAPI.Shipped.txt`); changing it fails the build until the file is updated.
+- CI requires at least 85% line coverage of `src/MiniTui`.
+- The publish workflow also pushes to nuget.org with trusted publishing (no stored API key) when the repository has a `NUGET_USER` variable.
 - Components (§9): `Component` (keys, `HandleKey`, `CapturesText`, children, `Lifetime`, `Load`, mount/activate hooks, `Component.From`), `RenderContext` and `FocusScope`.
 - `Screen` and `App.Screens` (`ScreenStack`: `Push`, `Pop`, `Replace`, `PopTo`). With screens, the app draws the top screen and a status bar with key hints and a breadcrumb (`WithChrome`), and quits when the last screen is popped (`QuitWhenEmpty`).
 - `Overlay` and `App.Overlays` (`OverlayStack`: `Show`, `Close`, `ConfirmAsync`, `ShowMessageAsync`, `ShowHelp`), with the built-in `ConfirmDialog`, `MessageDialog`, `HelpOverlay` and `CommandLineOverlay`. Overlays are modal and work in render-callback apps too.
@@ -52,64 +63,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Rect.IsEmpty`, `Intersect`, `Clamp`, `Inner(Margin)`, `Rows()` and `Columns()`, and the `Margin` type.
 
 ### Changed
-- The static `Widgets` functions and `Buffer.DrawBox`, `DrawBoxWithTitle` and `DrawProgressBar` draw through the new builders, so they're themed, width-aware and never throw on small or off-screen areas (D6). Titles and cells that don't fit end in `…`.
-- An unfocused list shows its selection with the `SelectionUnfocused` style instead of hiding it (D11).
-- `Widgets.Table` sizes columns with the layout solver (one column of spacing) and scrolls to keep the selected row visible (D15).
-- `InputHelpers.HandleTextInput` and `IsTextEditKey` accept non-ASCII characters (D8).
-- `InputHelpers.HandleCommandInput` no longer changes the history list it was given, and `CommandInputState.WithHistory` copies the list (D13).
-- `StatusBar` draws on the area's row when the area is one row high, and truncates the left text when both sides don't fit.
-- `Modal` wraps its text, scrolls it with `State(ScrollState)`, and leaves a 2-cell margin around it.
-- `Layout` uses a deterministic constraint algorithm (§7.2). The indexer builds the layout if needed, and an unknown region name throws `KeyNotFoundException` naming it. Adding two regions with the same name throws `ArgumentException`.
-- Version 0.9.0.
-- The Example is one app with a stack of screens, with no nested `App.Run`; every demo uses the current APIs. Services gains a detail screen and delete with a confirm dialog.
-- `App.RunTask` runs its work under the app's synchronization context even when called from another context, so its awaits resume on the UI thread.
+- Version 1.0.0.
 - The app draws a frame only when something happened (input, tick, posted action, resize, redraw request) instead of every 16 ms.
-- In `RunWhile`, the condition is called once per key, with `Input.Poll()` returning that key, and once per wake-up without one. While an app reads the console, `Input.Poll()` elsewhere returns null instead of stealing its keys.
+- `OnKey` sees every key first; keys it doesn't handle are routed to overlays, screens and `App.Keys` (§9.4).
 - An app started from inside another app receives the keys the outer app hadn't handled yet, and returns the ones it didn't handle when it exits.
 - `OnSetup` runs on the UI thread after the terminal is entered, so it can `Post` and start loads.
+- `App.RunTask` runs its work under the app's synchronization context even when called from another context, so its awaits resume on the UI thread.
 - On Windows, VT processing is enabled and the output encoding is set to UTF-8 while an app runs; both are restored afterwards.
-- `Buffer.Set` and `FillRect` store a symbol that starts with a zero-width character (a lone combining mark, ZWJ, VS16) as a space, and `SetString` skips such graphemes, so they can't merge with the neighbouring cell on screen.
-- `MiniTui.csproj` now builds with `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, missing XML docs (CS1591) as errors, `IsAotCompatible`, and deterministic/CI builds.
-- The publish workflow runs tests before packing and takes the package version from the tag (`v1.2.3` → `1.2.3`).
-- `Terminal.Dispose()` calls `GC.SuppressFinalize`.
+- `Layout` uses a deterministic constraint algorithm (§7.2). The indexer builds the layout if needed, and an unknown region name throws `KeyNotFoundException` naming it. Adding two regions with the same name throws `ArgumentException`.
 - `Cell` is now `Cell(string Symbol, Color Fg, Color Bg, Modifiers Modifiers)`: one grapheme cluster per cell, and wide characters are followed by a continuation cell. `Cell.Fg`/`Bg` are `Color` instead of `ConsoleColor`.
 - `Cell.Empty` uses the terminal's default colors instead of gray on black (D10).
-- `Buffer.DrawText` and `DrawTextCentered` take `ConsoleColor? bg = null`. Null keeps the existing background; previously it was painted black (D10). `DrawHLine`, `DrawVLine`, `DrawBox`, `DrawBoxWithTitle` and `DrawProgressBar` keep the background too.
+- `Buffer.DrawHLine` and `DrawVLine` take a `Style` instead of a `ConsoleColor`, and keep the existing background.
+- `Buffer.Set` and `FillRect` store a symbol that starts with a zero-width character (a lone combining mark, ZWJ, VS16) as a space, and `SetString` skips such graphemes, so they can't merge with the neighbouring cell on screen.
+- Widgets draw with the theme, measure text by display width, end truncated text with `…`, and never throw on small or off-screen areas.
+- An unfocused list or table shows its selection with the `SelectionUnfocused` style instead of hiding it (D11).
+- `StatusBar` draws on the area's row when the area is one row high, and truncates the left text when both sides don't fit.
 - `Rect.SplitHorizontal`/`SplitVertical` clamp the split offset, so neither part has a negative size.
-- `Layout` moved to `Layout/Layout.cs`, `Buffer`/`Geometry` to `Core/` (no API change).
-
-### Deprecated
-- `App.RunWhile`, `Input.Poll` and `Input.Read`. Use `Run` or `RunAsync` with `OnKey`, a `KeyMap` or screens.
-- `Input.IsKey`, `IsChar`, `IsQuit` and `InputHelpers.IsListNavigationKey`. Use `KeyMap` and `KeyBinding`.
-- `InputRouter`, `App.UseRouter` and `FocusManager`. Use screens, components and `FocusScope`.
-- `Widget.Modal`, `Widget.Confirm`, `ModalBuilder`, `ConfirmBuilder`, `ConfirmState`, `InputHelpers.HandleConfirmInput`, `InputRouter.WithModal` and `InputHelpers.IsModalDismissKey`. Use `App.Overlays`.
-- The static `Widgets` class. Use the `Widget.*` builders; `Widgets` becomes internal in 1.0.
-- `Buffer.DrawText`, `DrawTextCentered`, `DrawBox`, `DrawBoxWithTitle` and `DrawProgressBar`. Use `SetString`, `Widget.Paragraph`, `Widget.Block` and `Widget.Gauge`.
-- `ListState`, `TextInputState`, `CommandInputState`, `CommandInputResult`, `TabsState` and `InputHelpers.HandleListNavigation`, `HandleTextInput`, `IsTextEditKey`, `HandleCommandInput`, `HandleTabsNavigation`. Use `SelectionState`, `TextFieldState`, `CommandLineState` and `TabBarState`.
-- `Widgets.TextInput`, `Widgets.CommandInput`, `Widgets.Tabs`, `Widget.CommandInput()`, `Widget.Tabs()`, `CommandInputBuilder`, `TabsBuilder` and `ListBuilder.State(ListState)`. Use `Widget.TextField()`, `Widget.CommandLine()`, `Widget.TabBar()` and `State(SelectionState)`.
-- `Layout.Add(name, int)` and `Layout.AddFill(name)`. Use `Add(name, Constraint.Length(n))` and `Add(name, Constraint.Fill())`.
-- `App.WithFrameDelay`. Use `WithTickRate`.
-- `Cell(char, ConsoleColor, ConsoleColor)`, `Cell.Char` and `Cell.From(char)`. Use `new Cell(string, Color, Color, Modifiers)`, `Cell.Symbol` and `Cell.Empty with { Symbol = ... }`.
+- The Example is one app with a stack of screens, with no nested `App.Run`, and adds the Services and Widgets demos.
+- `MiniTui.csproj` builds with `TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`, missing XML docs (CS1591) as errors, `IsAotCompatible`, and deterministic/CI builds.
+- The publish workflow runs tests before packing and takes the package version from the tag (`v1.2.3` → `1.2.3`).
+- `Terminal.Dispose()` calls `GC.SuppressFinalize`.
+- Source files moved into `App/`, `Core/`, `Text/`, `Layout/`, `Terminal/`, `Components/`, `Input/` and `Widgets/` (no API change).
 
 ### Removed
+See [docs/MIGRATION-0.7-to-1.0.md](docs/MIGRATION-0.7-to-1.0.md) for the replacement of each.
+- `App.RunWhile`, `App.WithFrameDelay`, `App.UseRouter`, and the static `Input` class (`Poll`, `Read`, `IsKey`, `IsChar`, `IsQuit`).
+- `InputRouter`, `FocusManager` and `InputHelpers`.
+- `ListState`, `TextInputState`, `CommandInputState`, `CommandInputResult`, `TabsState` and `ConfirmState`.
+- The static `Widgets` class (now internal), `Widget.Modal`, `Widget.Confirm`, `Widget.CommandInput`, `Widget.Tabs`, `ModalBuilder`, `ConfirmBuilder`, `CommandInputBuilder`, `TabsBuilder` and `ListBuilder.State(ListState)`.
+- `Buffer.DrawText`, `DrawTextCentered`, `DrawBox`, `DrawBoxWithTitle` and `DrawProgressBar`.
+- `Layout.Add(name, int)` and `Layout.AddFill(name)`.
+- `Cell(char, ConsoleColor, ConsoleColor)`, `Cell.Char` and `Cell.From(char)`.
+- `Command`, which had no public members, is internal.
 - Stale duplicate solution file `src/MiniTui/MiniTui.sln` (D19). `src/MiniTui.sln` is the canonical solution.
 
 ### Fixed
-- Ctrl+C is delivered as input (`TreatControlCAsInput`) and quits `App.Run`/`RunWhile`, instead of killing the process with the terminal left in TUI mode. `Input.IsQuit` also recognises Ctrl+C sent as `\x03` (D1).
+- `LICENSE` contained the AGPL-3.0 text while the package and README declared MIT; it is now the MIT license (copyright Discover Edge LLC), and the package lists Discover Edge LLC as its author.
+- Ctrl+C is delivered as input (`TreatControlCAsInput`) and quits `App.Run`, instead of killing the process with the terminal left in TUI mode; Ctrl+C sent as `\x03` is recognised too (D1).
 - Apps run on the alternate screen and never call `Console.Clear()`, so the user's screen and scrollback are preserved (D2).
 - A frame is one write instead of thousands of console calls (D5).
 - The terminal is restored on SIGTERM, SIGHUP, SIGQUIT, process exit and unhandled exceptions.
 - Nested apps share the terminal session: the inner app doesn't clear the screen, and the outer app redraws fully when it exits, without `app.Invalidate()` (D17).
 - `Layout` never gives a region a negative size when fixed sizes exceed the space (they shrink proportionally), and the integer-division remainder is distributed instead of dropped: three fills in 10 rows are 4/3/3 (D7).
 - All pending keys are handled before the next frame (up to 256 per frame), so pasted text and key repeat are no longer throttled to one key per frame (D3).
-- `RunWhile` no longer drops keys: a key is either taken by the condition through `Input.Poll()` or passed to the router, never lost (D4).
-- `InputRouter` recomputes the modal stack every loop iteration (`Refresh`), so a modal opened from code is active at the next render without a key press (D12).
+- Keys are no longer dropped: each key goes through one path (`OnKey`, then routing) exactly once (D4).
+- A dialog opened from code (for example by an HTTP error) is modal and drawn at the next frame, without a key press (D12).
 - An idle app no longer redraws every 16 ms (D16).
 - README license section now states MIT, matching `LICENSE` and the package metadata (D18).
 - README box-style examples show the actual box-drawing glyphs (D18).
-- Drawing never throws for any coordinates or `Rect`, and `Rect.Shrink` never returns a negative size; an over-shrunk rect collapses to its center (D6). `Widgets.List`, `Table` and `Modal` no longer throw on narrow areas.
+- Drawing never throws for any coordinates or `Rect`, and `Rect.Shrink` never returns a negative size; an over-shrunk rect collapses to its center (D6). No widget throws on narrow areas.
 - Wide characters and surrogate pairs are no longer split. Text, truncation and centering use display width, including in the existing widgets (D9).
 - Control characters (including ESC) in drawn text are replaced with U+FFFD, so data can't inject escape sequences (D14).
+- With `NO_COLOR`, an explicit `WithTheme(Theme.Default)` also becomes `Theme.Monochrome`, so the selection stays visible.
+- Text input accepts any non-control character, including accented letters, CJK and emoji (D8).
+- Widgets no longer paint a black background over light or custom terminal themes (D10).
+- Command history is an immutable list that copies its seed, so copies of a state never share or change each other's history (D13).
+- Tables size columns with constraints instead of equal widths, show rows beyond the area by scrolling, and keep the selected row visible (D15).
 
 ## [0.7.0]
 

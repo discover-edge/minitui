@@ -1,6 +1,3 @@
-// Also exercises APIs that are obsolete in 0.9 and removed in 1.0 (§9.7).
-#pragma warning disable CS0618
-
 namespace MiniTui.Tests;
 
 /// <summary>
@@ -21,10 +18,6 @@ internal static class AppHarness
 
     /// <summary>Run the app and wait for it to exit.</summary>
     public static Task Run(App app) => app.RunAsync().WaitAsync(Timeout);
-
-    /// <summary>Run with a RunWhile condition on a dedicated thread and wait for it to exit.</summary>
-    public static Task RunWhile(App app, Func<bool> condition) =>
-        Task.Factory.StartNew(() => app.RunWhile(condition), TaskCreationOptions.LongRunning).WaitAsync(Timeout);
 
     /// <summary>Evaluate <paramref name="read"/> on the UI thread.</summary>
     public static async Task<T> OnUi<T>(App app, Func<T> read)

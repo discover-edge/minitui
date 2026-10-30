@@ -109,3 +109,49 @@ public class ReadmeSnippetTests
         Assert.True(harness.App.IsRunning);
     }
 }
+
+// Keeps docs/MIGRATION-0.7-to-1.0.md's form example honest.
+public class MigrationSnippetTests
+{
+    private sealed class FormScreen : Screen
+    {
+        readonly TextFieldState name = new();
+        readonly Component nameField, subscribeBox;
+        bool subscribe;
+
+        public FormScreen()
+        {
+            nameField = AddChild(Component.From(
+                (buf, area, ctx) => Widget.TextField().State(name).Focused(ctx.Focused).Draw(buf, area),
+                name.HandleKey, capturesText: true));
+            subscribeBox = AddChild(Component.From(
+                (buf, area, ctx) => Widget.Checkbox().Label("Subscribe").Checked(subscribe).Focused(ctx.Focused).Draw(buf, area),
+                key =>
+                {
+                    if (key.Key != ConsoleKey.Spacebar) return false;
+                    subscribe = !subscribe;
+                    return true;
+                }));
+            Focus.Add(nameField).Add(subscribeBox);
+        }
+
+        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx)
+        {
+            var rows = Layout.Split(area, Direction.Vertical, Constraint.Length(1), Constraint.Length(1));
+            nameField.Render(buf, rows[0], ctx.For(nameField));
+            subscribeBox.Render(buf, rows[1], ctx.For(subscribeBox));
+        }
+    }
+
+    [Fact]
+    public void FocusAndModals_FormScreen()
+    {
+        using var harness = new ComponentHarness(new FormScreen(), 30, 5);
+
+        harness.Type("Ann q");
+        harness.Press("tab space");
+
+        Assert.Equal("Ann q", harness.Lines[0].TrimEnd());
+        Assert.StartsWith("[✓] Subscribe", harness.Lines[1], StringComparison.Ordinal);
+    }
+}

@@ -1,6 +1,6 @@
-// Phase 5 regression tests (docs/SPEC.md §2). They go through the 0.7 APIs, which exist on main,
-// so each one fails there; the new-API equivalents are in the widget and state tests.
-#pragma warning disable CS0618
+// Phase 5 regression tests (docs/SPEC.md §2), written against the 0.7 static widgets so they failed on the
+// code before the fix. The static functions are internal since 1.0. D8 and D13 were written against the
+// removed 0.7 text-input helpers; their 1.0 equivalents are in StateTests.
 
 using Buffer = MiniTui.Buffer;
 
@@ -8,52 +8,6 @@ namespace MiniTui.Tests;
 
 public class WidgetPhase5DefectTests
 {
-    private static ConsoleKeyInfo Char(char c) => new(c, 0, shift: false, alt: false, control: false);
-    private static ConsoleKeyInfo Key(ConsoleKey key) => new('\0', key, shift: false, alt: false, control: false);
-
-    [Theory]
-    [InlineData('é')]
-    [InlineData('ü')]
-    [InlineData('日')]
-    [InlineData('Ж')]
-    public void D8_HandleTextInput_AcceptsNonAsciiCharacters(char c)
-    {
-        var state = InputHelpers.HandleTextInput(Char(c), TextInputState.Empty);
-
-        Assert.Equal(c.ToString(), state.Value);
-        Assert.Equal(1, state.CursorPos);
-    }
-
-    [Fact]
-    public void D8_IsTextEditKey_IsTrueForNonAsciiCharacters()
-    {
-        Assert.True(InputHelpers.IsTextEditKey(Char('é')));
-        Assert.True(InputHelpers.IsTextEditKey(Char('日')));
-    }
-
-    [Fact]
-    public void D13_HandleCommandInput_DoesNotMutateTheHistoryOfOtherCopies()
-    {
-        var original = CommandInputState.WithHistory(["first"]) with { Value = ":second", CursorPos = 7 };
-        var copy = original;
-
-        var result = InputHelpers.HandleCommandInput(Key(ConsoleKey.Enter), copy);
-
-        Assert.Equal(["first"], original.History);
-        Assert.Equal(["first", ":second"], result.State.History);
-    }
-
-    [Fact]
-    public void D13_WithHistory_CopiesTheList()
-    {
-        var seed = new List<string> { "a" };
-
-        var state = CommandInputState.WithHistory(seed);
-        seed.Add("b");
-
-        Assert.Equal(["a"], state.History);
-    }
-
     [Fact]
     public void D11_List_ShowsSelectionWhenUnfocused()
     {
@@ -100,15 +54,12 @@ public class WidgetPhase5DefectTests
     private static readonly Dictionary<string, Action<Buffer, Rect>> StaticDraws = new()
     {
         ["Button"] = (b, r) => Widgets.Button(b, r, "OK", focused: true),
-        ["TextInput"] = (b, r) => Widgets.TextInput(b, r, "hello world", focused: true, cursorPos: 3),
         ["Checkbox"] = (b, r) => Widgets.Checkbox(b, r.X, r.Y, "Enabled", isChecked: true, focused: true),
         ["List"] = (b, r) => Widgets.List(b, r, ["alpha", "beta", "gamma"], 1, focused: true, title: "Items"),
         ["Table"] = (b, r) => Widgets.Table(b, r, ["Name", "Value"], [["alpha", "1"], ["beta", "2"]], 1),
         ["StatusBar"] = (b, r) => Widgets.StatusBar(b, r, "left text", "right"),
-        ["CommandInput"] = (b, r) => Widgets.CommandInput(b, r, ":open file", cursorPos: 4),
         ["Modal"] = (b, _) => Widgets.Modal(b, "Title", ["a line that is much too long for the box"], "footer"),
         ["Confirm"] = (b, _) => Widgets.Confirm(b, "Delete everything?"),
-        ["Tabs"] = (b, r) => Widgets.Tabs(b, r, ["One", "Two", "Three"], 2, focused: true),
     };
 
     [Theory]

@@ -18,9 +18,6 @@ public partial class App
     private readonly Channel<object> _queue = Channel.CreateUnbounded<object>(
         new UnboundedChannelOptions { SingleReader = true });
 
-#pragma warning disable CS0618 // Kept for the obsolete UseRouter until 1.0
-    private InputRouter? _router;
-#pragma warning restore CS0618
     private Action<App>? _onSetup;
     private Action<Buffer, Rect>? _onRender;
     private Action? _onUpdate;
@@ -57,16 +54,6 @@ public partial class App
     /// Create a new App builder.
     /// </summary>
     public static App Create() => new();
-
-    /// <summary>
-    /// Configure the input router for handling keyboard input.
-    /// </summary>
-    [Obsolete("Use screens, components and FocusScope instead (§9.4).")]
-    public App UseRouter(InputRouter router)
-    {
-        _router = router;
-        return this;
-    }
 
     /// <summary>
     /// Set up code to run once on the UI thread before the first frame.
@@ -146,7 +133,7 @@ public partial class App
     }
 
     /// <summary>
-    /// Handle a key before the router sees it. Return true if the key was handled, so the router doesn't get it.
+    /// Handle a key before anything else sees it (§9.4 step 1). Return true if the key was handled, so routing stops.
     /// </summary>
     public App OnKey(Func<ConsoleKeyInfo, bool> handler)
     {
@@ -183,13 +170,6 @@ public partial class App
         _tickRate = rate;
         return this;
     }
-
-    /// <summary>
-    /// Set the time between frames in milliseconds.
-    /// </summary>
-    [Obsolete("Use WithTickRate instead.")]
-    public App WithFrameDelay(int milliseconds) =>
-        WithTickRate(TimeSpan.FromMilliseconds(Math.Max(1, milliseconds)));
 
     /// <summary>
     /// The clock for ticks, <see cref="Loadable{T}.LoadedAt"/> and log timestamps. Tests can pass a fake one.
@@ -234,7 +214,8 @@ public partial class App
 
     /// <summary>
     /// The theme widgets draw with while the app runs (<see cref="Theme.Current"/>). Without one, the app uses
-    /// <see cref="Theme.Default"/>, or <see cref="Theme.Monochrome"/> when the terminal has no colors.
+    /// <see cref="Theme.Default"/>. When the terminal has no colors (<c>NO_COLOR</c>), <see cref="Theme.Default"/>
+    /// is replaced by <see cref="Theme.Monochrome"/> so the selection stays visible; custom themes are used as is.
     /// Can be called while running, from any thread; the next frame uses the new theme.
     /// </summary>
     public App WithTheme(Theme theme)
@@ -243,8 +224,8 @@ public partial class App
         _theme = theme;
         if (_running) InvokeOnUiThread(() =>
         {
-            _activeTheme = theme;
-            Theme.ReplaceCurrent(theme);
+            _activeTheme = ResolveTheme(theme);
+            Theme.ReplaceCurrent(_activeTheme);
         });
         return this;
     }
@@ -333,7 +314,7 @@ public partial class App
     /// <summary>
     /// Run the application on this thread. Blocks until <see cref="Quit"/> is called.
     /// </summary>
-    public void Run() => RunCore(condition: null, CancellationToken.None);
+    public void Run() => RunCore(CancellationToken.None);
 
     /// <summary>
     /// Run the application on a new UI thread. Cancelling <paramref name="cancellationToken"/> quits it.
@@ -350,7 +331,7 @@ public partial class App
         {
             try
             {
-                RunCore(condition: null, cancellationToken);
+                RunCore(cancellationToken);
                 completion.SetResult();
             }
             catch (Exception ex)
@@ -360,18 +341,6 @@ public partial class App
         }) { Name = "MiniTui UI" };
         thread.Start();
         return completion.Task;
-    }
-
-    /// <summary>
-    /// Run the application with a custom run condition. <paramref name="condition"/> is called once per key
-    /// (which <see cref="Input.Poll"/> returns while it runs) and once per wake-up without a key.
-    /// The app stops when it returns false.
-    /// </summary>
-    [Obsolete("Use Run with OnKey, KeyMap or screens instead.")]
-    public void RunWhile(Func<bool> condition)
-    {
-        ArgumentNullException.ThrowIfNull(condition);
-        RunCore(condition, CancellationToken.None);
     }
 
     internal bool HasRenderCallback => _onRender is not null;

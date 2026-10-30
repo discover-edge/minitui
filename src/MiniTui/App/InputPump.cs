@@ -49,21 +49,6 @@ internal sealed class InputPump
         }
     }
 
-    /// <summary>Take a key read by the pump after its last subscriber left.</summary>
-    public static bool TryTakeOrphan(IInputSource source, out ConsoleKeyInfo key)
-    {
-        lock (Gate)
-        {
-            if (Pumps.TryGetValue(source, out var pump) && pump._orphans.Count > 0)
-            {
-                key = pump._orphans[0];
-                pump._orphans.RemoveAt(0);
-                return true;
-            }
-        }
-        key = default;
-        return false;
-    }
 
     private void ReadLoop()
     {
