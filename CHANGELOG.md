@@ -18,7 +18,7 @@ replacement.
 - `docs/MIGRATION-0.7-to-1.0.md`.
 - The public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers` (`PublicAPI.Shipped.txt`); changing it fails the build until the file is updated.
 - CI requires at least 85% line coverage of `src/MiniTui`.
-- The publish workflow also pushes to nuget.org when the repository has a `NUGET_API_KEY` secret.
+- The publish workflow also pushes to nuget.org with trusted publishing (no stored API key) when the repository has a `NUGET_USER` variable.
 - Components (§9): `Component` (keys, `HandleKey`, `CapturesText`, children, `Lifetime`, `Load`, mount/activate hooks, `Component.From`), `RenderContext` and `FocusScope`.
 - `Screen` and `App.Screens` (`ScreenStack`: `Push`, `Pop`, `Replace`, `PopTo`). With screens, the app draws the top screen and a status bar with key hints and a breadcrumb (`WithChrome`), and quits when the last screen is popped (`QuitWhenEmpty`).
 - `Overlay` and `App.Overlays` (`OverlayStack`: `Show`, `Close`, `ConfirmAsync`, `ShowMessageAsync`, `ShowHelp`), with the built-in `ConfirmDialog`, `MessageDialog`, `HelpOverlay` and `CommandLineOverlay`. Overlays are modal and work in render-callback apps too.
