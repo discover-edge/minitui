@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) draft; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -32,7 +32,7 @@ or add to them:
 |---|---|---|---|---|
 | **8. Raw input** | Read Unix terminal input as bytes and decode it ourselves: reliable Esc, Alt, function keys and modifier combinations, and no stray Esc from split sequences. Groundwork for paste and mouse. | — | §2 | **1.1.0** |
 | **9. Bracketed paste** | `?2004`: a paste arrives as one `PasteEvent` instead of thousands of keys; text fields insert it in one step. | 8 | §3 | 1.1.0 |
-| **10. Mouse and Windows input** | Windows reads `ReadConsoleInput` records directly. Paste events on Windows: bracketed paste in Windows Terminal (VT input), and a decision for conhost, which has none and delivers Ctrl+V as a key (found in Phase 9 QA). Mouse on both platforms (SGR 1006 on Unix, `MOUSE_EVENT` records on Windows): `MouseEvent`, click to focus, wheel scrolling in lists, tables and paragraphs, clicking buttons, checkboxes and tabs. | 8 | To be specced | 1.2.0 |
+| **10. Mouse and Windows input** | Windows reads `ReadConsoleInput` records directly. Paste events on Windows: bracketed paste in Windows Terminal (VT input), and a decision for conhost, which has none and delivers Ctrl+V as a key (found in Phase 9 QA). Mouse on both platforms (SGR 1006 on Unix, `MOUSE_EVENT` records on Windows): `MouseEvent`, click to focus, wheel scrolling in lists, tables and paragraphs, clicking buttons, checkboxes and tabs. | 8, 9 | §4 | 1.2.0 |
 | **11. Suspend and resume** | Ctrl+Z suspends the app (SIGTSTP), restoring the terminal; resuming (SIGCONT) re-enters it and redraws. Also `app.Suspend(Action)` for running a child process such as `$EDITOR` in the real terminal. | 8 | To be specced | 1.2.0 |
 | **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | To be specced | 1.3.0 |
 | **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | To be specced | 1.3.0 |
@@ -533,3 +533,366 @@ Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux and SSH
 | 2 | Normalize line breaks in `PasteEvent.Text` to `\n`, or deliver them as the terminal sent them (usually `\r`)? | **Normalize**, as prompt_toolkit does. |
 | 3 | A single-line field given pasted line breaks: spaces, first line only, or reject? | **Spaces**, as Bubbles' `textinput` does, after dropping leading and trailing line breaks. |
 | 4 | A size limit for very large pastes? | **None**, as in crossterm, Bubble Tea and Textual. |
+
+---
+
+## 4. Mouse and Windows input (Phase 10)
+
+### 4.1 Purpose
+
+Two gaps remain after Phases 8 and 9:
+- **Windows input is still 1.0's.** Keys come from `Console.ReadKey`, so a paste arrives as keys (a pasted line
+  break is Enter), and in conhost Ctrl+V reaches the app as a key and pastes nothing (found in Phase 9 QA).
+  Windows also can't report the mouse through `Console.ReadKey`.
+- **No mouse.** Users expect to click a field to focus it, click a checkbox, tab or list row, and scroll a list
+  with the wheel.
+
+Phase 10 reads Windows input with `ReadConsoleInput` in VT input mode, so Windows Terminal sends the same bytes
+as a Unix terminal and the Phase 8 decoder handles both: Windows gets the Unix key rules (§2.4), bracketed paste
+(§3) and mouse reports. Conhost has no bracketed paste, so there MiniTui answers Ctrl+V by reading the clipboard
+itself, as PSReadLine does. Then mouse support is added on every platform: a `MouseEvent`, click to focus, and
+mouse handling in the built-in states and dialogs.
+
+**Decision:** mouse reporting is opt-in (`app.WithMouse()`), as in crossterm, Bubble Tea and Ratatui. While the
+app captures the mouse, the terminal's own text selection needs Shift+drag (Option+drag in iTerm2), so turning
+it on is the app's choice, not a 1.2 upgrade surprise. Without `WithMouse`, nothing changes for the mouse.
+
+**Decision:** Windows keys decode through VT input mode (§4.4), not through key records. That makes key handling
+the same on every platform and is what gives bracketed paste and mouse in Windows Terminal. The cost: keys that
+VT can't express (Ctrl+Enter, Ctrl+Tab, Ctrl+digits) lose their modifier on Windows, as they already do on
+Unix. `MINITUI_INPUT=console` restores 1.0 input on Windows too.
+
+### 4.2 Public API
+
+```csharp
+public enum MouseButton { None, Left, Middle, Right }
+
+public enum MouseAction { Press, Release, ScrollUp, ScrollDown, ScrollLeft, ScrollRight }
+
+/// A mouse report. X and Y are 0-based cells, like Buffer coordinates. Button is None for scrolls, and for a
+/// release when the terminal doesn't say which button was released.
+public sealed record MouseEvent(MouseAction Action, MouseButton Button, int X, int Y,
+                                ConsoleModifiers Modifiers = 0) : Event
+{
+    public Vec2 Position { get; }       // (X, Y)
+    public bool IsClick { get; }        // a left-button press
+}
+
+public sealed class App
+{
+    /// Ask the terminal to report mouse presses, releases and the wheel while this app runs (§4.6).
+    public App WithMouse(bool enabled = true);
+
+    /// Called for each mouse event before the components see it; return true to consume it. Like OnKey.
+    public App OnMouse(Func<MouseEvent, bool> handler);
+}
+
+public abstract class Component
+{
+    /// Handle a mouse event inside this component's Area (§4.7). Return true if handled; otherwise it goes on to
+    /// the parent, and is dropped if nothing handles it.
+    public virtual bool HandleMouse(MouseEvent mouse) => false;
+
+    /// The area the component was last rendered in, through RenderContext.Render or by the app (the top screen
+    /// and overlays). Rect.Empty until then.
+    public Rect Area { get; }
+}
+
+public sealed class RenderContext
+{
+    /// Render a child: records its Area for mouse hit testing, then calls
+    /// child.Render(buf, area, For(child)).
+    public void Render(Component child, Buffer buf, Rect area);
+}
+
+public sealed class SelectionState
+{
+    /// The wheel over the list or table moves the selection by one; a left press on a row selects it.
+    /// Uses the area from the last draw. Returns true if the event did either.
+    public bool HandleMouse(MouseEvent mouse, int count);
+}
+
+public sealed class ScrollState
+{
+    /// The wheel over the text scrolls by three rows. Returns true if it scrolled or tried to.
+    public bool HandleMouse(MouseEvent mouse);
+}
+
+public sealed class TabBarState
+{
+    /// A left press on a tab selects it. Returns true if it hit a tab.
+    public bool HandleMouse(MouseEvent mouse);
+}
+
+public sealed class ScriptedInputSource
+{
+    /// Queue a mouse event, in order with the queued keys and pastes.
+    public ScriptedInputSource EnqueueMouse(MouseEvent mouse);
+}
+
+public sealed class ComponentHarness
+{
+    /// Press and release a button at (x, y), then RunUntilIdle.
+    public void Click(int x, int y, MouseButton button = MouseButton.Left);
+
+    /// Scroll the wheel at (x, y): positive rows scroll down, one event per row. Then RunUntilIdle.
+    public void Scroll(int x, int y, int rows);
+
+    /// Send one mouse event, then RunUntilIdle.
+    public void Mouse(MouseEvent mouse);
+}
+```
+
+- `child.Render(buf, rect, ctx.For(child))` keeps working; a child rendered that way just isn't a hit target, so
+  its clicks go to its nearest ancestor that is (§4.7). The README and Example switch to `ctx.Render`.
+- `ConfirmDialog`, `MessageDialog` and `HelpOverlay` handle the mouse (§4.8).
+
+### 4.3 Internal model
+
+```csharp
+// Phase 9's item gains a third kind.
+internal readonly struct InputItem
+{
+    public static InputItem FromMouse(MouseEvent mouse);
+    public MouseEvent? Mouse { get; }    // null unless a mouse event
+}
+
+internal interface IInputSink
+{
+    void Key(ConsoleKeyInfo key);
+    void Paste(string text);
+    void Mouse(MouseEvent mouse);        // new
+}
+
+// Sources that can turn mouse reporting on and off. TerminalInputSource implements it.
+internal interface IMouseCapture
+{
+    void SetMouseCapture(bool enabled);  // reference counted across running apps
+}
+
+// Win32 P/Invokes ([LibraryImport], AOT-safe): GetStdHandle, Get/SetConsoleMode, GetNumberOfConsoleInputEvents,
+// ReadConsoleInputW, WaitForSingleObject, GetConsoleScreenBufferInfo, WriteFile; and the clipboard:
+// OpenClipboard, IsClipboardFormatAvailable, GetClipboardData, GlobalLock, GlobalUnlock, CloseClipboard.
+[SupportedOSPlatform("windows")]
+internal static partial class WindowsConsoleInput
+{
+    public static bool TryEnterVtInput(bool mouse);  // false if stdin isn't a console or VT input is refused
+    public static void Restore();                    // idempotent; never throws
+    public static bool Wait(int milliseconds);       // WaitForSingleObject on the input handle
+    public static int Read(Span<InputRecord> records); // only after GetNumberOfConsoleInputEvents > 0
+    public static string? ReadClipboardText();      // CF_UNICODETEXT, or null
+}
+
+// Turns console input records into decoder bytes and mouse events. Pure, so it's tested on every platform.
+internal sealed class WindowsInputTranslator(IInputSink sink)
+{
+    public void Translate(ReadOnlySpan<InputRecord> records, Span<byte> utf8Out, out int bytesWritten);
+}
+```
+
+### 4.4 Windows input
+
+- **Entering** (in `TerminalInputSource.Activate` on Windows, when stdin is a console): save the input mode,
+  then set it to the saved mode with `ENABLE_VIRTUAL_TERMINAL_INPUT` and `ENABLE_WINDOW_INPUT` added, and
+  `ENABLE_PROCESSED_INPUT`, `ENABLE_LINE_INPUT` and `ENABLE_ECHO_INPUT` removed. Ctrl+C arrives as 0x03, a key,
+  as on Unix. If `SetConsoleMode` fails (Windows before 10, or a console without VT input), the source falls back
+  to `Console.ReadKey` as in 1.1.
+- **Reading:** `WaitForInput` waits on the input handle with `WaitForSingleObject` (no 5 ms polling, as on Unix);
+  `TryReadItem` reads what's pending with `ReadConsoleInputW` (never blocking) and translates it:
+  - `KEY_EVENT` key-downs with a character: the UTF-16 character, repeated `wRepeatCount` times, is encoded as
+    UTF-8 and fed to `AnsiInputDecoder`. A surrogate pair split across records is joined. Key-ups and
+    key-downs with no character (bare Shift, Ctrl, Alt) are skipped: in VT input mode, the console has already
+    encoded every key as text or a sequence.
+  - `MOUSE_EVENT`: translated to `MouseEvent` directly (§4.6), for consoles that report the mouse as records
+    instead of sequences.
+  - `WINDOW_BUFFER_SIZE_EVENT`: wakes the loop to check the size (the 250 ms poll stays as a fallback).
+  - `FOCUS_EVENT` and `MENU_EVENT` are ignored.
+- **Output modes:** after entering, `CSI ?2004h` (and the mouse modes, §4.6) are written to stdout when stdout
+  is a console with VT processing on. `AnsiBackend.Enter` turns VT processing on, and runs before input starts.
+- **Restoring:** `SetConsoleMode` with the saved input mode, after writing `CSI ?2004l` and the mouse-off
+  sequences. It's called from the same paths as on Unix (`Deactivate` and `TerminalSession`'s restore hooks,
+  including process exit, unhandled exceptions and the console close event).
+- The escape timeout (§2.4) applies on Windows too: a lone Esc resolves after 50 ms.
+- `Console.ReadKey`, `Console.KeyAvailable` and `Console.In` aren't called while VT input is active.
+
+### 4.5 Paste on Windows
+
+- **Windows Terminal** honors `?2004h` in VT input mode, so pastes there are `PasteEvent`s, exactly as on Unix.
+- **Conhost** has no bracketed paste. **Decision:** when VT input is active on Windows and Ctrl+V (0x16)
+  arrives as a key outside a paste, MiniTui reads the clipboard's text and delivers it as a `PasteEvent`
+  (line breaks normalized, §3.5), instead of the key. If the clipboard has no text, or can't be opened after 3
+  tries 10 ms apart, the Ctrl+V key is delivered. Windows Terminal handles Ctrl+V itself, so the app never sees
+  0x16 there unless the user unbinds it, and then pasting from the clipboard is still what they meant.
+- Right-click paste in conhost types the text as keys, as in 1.0 (a line break is Enter). There's no reliable
+  way to tell it from typing; the README says to use Ctrl+V.
+- `MINITUI_INPUT=console` and the `Console.ReadKey` fallback keep 1.0 behavior: no paste events, and Ctrl+V is a
+  key.
+
+### 4.6 Mouse reporting and decoding
+
+- **Turning it on:** each running app that called `WithMouse` holds a reference on its input source
+  (`IMouseCapture`); while any is held, the source has the terminal report the mouse:
+  - Unix and VT consoles: `CSI ?1000h` (presses, releases, wheel) then `CSI ?1006h` (SGR encoding), and
+    `CSI ?1006l CSI ?1000l` to turn it off, on stdout when it's a terminal. No motion modes (`?1002`, `?1003`).
+  - Windows: also `ENABLE_MOUSE_INPUT` on, and `ENABLE_QUICK_EDIT_MODE` off (with `ENABLE_EXTENDED_FLAGS`),
+    since quick edit takes mouse drags for selection in conhost. Both are restored with the rest of the mode.
+  - Mouse modes are turned off by every restore path, like bracketed paste. Without raw or VT input (fallbacks,
+    `MINITUI_INPUT=console`, custom sources), `WithMouse` does nothing.
+- **Decoding SGR:** `CSI < b ; x ; y M` is a press and `… m` a release. In `b`: the low two bits are the button
+  (0 left, 1 middle, 2 right), +4 Shift, +8 Alt, +16 Control, +32 motion, +64 the wheel (64 up, 65 down,
+  66 left, 67 right). `x` and `y` are 1-based and become 0-based. Motion reports and other buttons (128 and up)
+  are dropped, as are reports with missing or out-of-range numbers.
+- **Decoding X10:** `CSI M` followed by three bytes (button + 32, x + 33, y + 33) decodes the same way, with a
+  release (button 3) reporting `MouseButton.None`. A terminal that ignores `?1006` sends this, and without it
+  the three bytes would leak as typed characters.
+- **Windows records:** `dwButtonState` bit 1 is left, 2 right, 4 middle; a press or release is a bit that
+  changed since the previous record. `MOUSE_WHEELED` and `MOUSE_HWHEELED` scroll up or right when the high word
+  of `dwButtonState` is positive. `MOUSE_MOVED` records are dropped; `DOUBLE_CLICK` is a press. Positions are
+  made relative to the window (`srWindow.Left`, `srWindow.Top`). Modifiers come from `dwControlKeyState`.
+- Mouse events outside the current buffer size are dropped. The decoder allocates one `MouseEvent` per report;
+  keys still allocate nothing.
+
+### 4.7 Hit testing and routing
+
+- **Hit map.** While a frame renders, the app records each hit target and its rect in render order: the top
+  screen (its body rect), each overlay (its placement rect, border included), and every child rendered with
+  `ctx.Render`. `Component.Area` is set at the same time. Mouse events are matched against the last frame
+  drawn, which is what the user sees.
+- **Target.** The target is the last-rendered entry containing the point (later draws are on top, and children
+  render after their parents) whose component is still mounted under the current root: the top overlay if one
+  is open, otherwise the top screen.
+- **Overlays are modal:** with an overlay open, only the top overlay's tree can be hit, and a click outside it
+  is dropped. The status bar and toasts aren't targets.
+
+A mouse event goes through these steps, stopping at the first that handles it:
+
+1. `App.OnEvent` sees `MouseEvent`.
+2. `App.OnMouse`, if set. Render-callback apps (no screens) stop here.
+3. **Click to focus:** a press of any button focuses the target. For each component from the root down to the
+   target whose parent's `FocusScope` contains it, the parent focuses it. A target that isn't focusable
+   focuses its nearest focusable ancestor. This happens before step 4, so a field is focused when its handler
+   runs. Scrolls and releases don't move focus: the wheel scrolls what's under the pointer, as in GUIs.
+4. `HandleMouse` on the target, then each ancestor up to the root.
+5. Nobody handled it: the event is dropped. Key maps are never consulted.
+
+### 4.8 Built-in mouse handling
+
+| Where | Behavior |
+|---|---|
+| `SelectionState.HandleMouse` (lists, tables) | Wheel over the widget's area: `Previous`/`Next`. Left press on a visible row: select it. Header and border presses aren't handled. |
+| `ScrollState.HandleMouse` (paragraphs, dialogs) | Wheel over the area: `ScrollBy(±3)`. |
+| `TabBarState.HandleMouse` | Left press on a tab's label: select it. |
+| `ConfirmDialog` | Left press on Yes or No: choose it and close, as Enter would. |
+| `MessageDialog`, `HelpOverlay` | Wheel scrolls the text. |
+
+- The widgets record what the states need while drawing, as `Fit` already does: the list and table record their
+  area and row rect (below the header), the paragraph its area, the tab bar each label's x range.
+- Checkboxes and buttons are drawn by stateless builders, so the component that owns them handles the click
+  (`HandleMouse(m) => m.IsClick && Toggle()`). The README shows the pattern.
+- Clicking in a text field focuses it (§4.7); placing the cursor by clicking is out of scope (§4.14).
+
+### 4.9 Configuration
+
+| Setting | Effect |
+|---|---|
+| `app.WithMouse()` | Report the mouse while the app runs. Off by default. |
+| `MINITUI_INPUT=console` | Now also applies on Windows: 1.0 input, no paste events, no mouse. |
+
+### 4.10 Example
+
+- The Example calls `WithMouse()`. Its components render children with `ctx.Render`: clicking focuses text
+  fields, toggles checkboxes, selects list rows and tabs, and the wheel scrolls lists and the paragraph demo.
+  Clicking a menu item opens it.
+- The Input demo lists mouse events as `Mouse  Press Left  (12, 4)  Ctrl`.
+
+### 4.11 Tests and acceptance
+
+Automated (all platforms unless noted):
+- **Decoder:** SGR presses, releases and wheels for every button and modifier bit; 1-based to 0-based; motion
+  and out-of-range reports dropped; X10 reports, including release and the 223-column limit; a report split at
+  every byte offset; mouse reports between keys and pastes stay in order; a mouse report inside a paste is text.
+- **Windows translator** (pure, on every OS): key-down records become the right UTF-8, repeat counts expand,
+  key-ups and bare modifiers are skipped, a surrogate pair split across records joins, and the bytes for
+  arrows, Alt+letter and F5 decode to those keys; mouse records give presses and releases from button-state
+  changes, wheel direction from the high word, window-relative positions, and drop moves.
+- **Clipboard paste:** with a fake clipboard, Ctrl+V on the Windows VT path becomes a `PasteEvent`; with no text
+  it stays a key; inside a bracketed paste 0x16 stays text.
+- **Routing** (`ComponentHarness`): the innermost `ctx.Render`ed child gets the event, then its ancestors; a
+  press focuses the target's path (and the nearest focusable ancestor of a non-focusable target); wheel and
+  release don't move focus; with an overlay open, a click outside it does nothing and a click inside goes to
+  it; `OnMouse` returning true stops it; `OnEvent` sees it; key bindings never fire; a popped screen's
+  children aren't hit; a child rendered without `ctx.Render` routes to its parent; render-callback apps get
+  `OnMouse` only.
+- **States and dialogs:** a click on row N of a scrolled list selects `Offset + N`; header and border clicks
+  don't; the wheel moves the selection and scrolls a paragraph by three rows; tab clicks select the tab under
+  the pointer, including when the first tabs are scrolled off; Yes and No clicks in `ConfirmDialog` resolve it.
+- **Pseudo-terminal** (Linux and macOS CI): an app with `WithMouse` writes `?1000h` and `?1006h` after raw mode
+  and `?1006l ?1000l` on restore; an app without it writes neither.
+- Existing tests pass unchanged.
+
+Manual QA (results in the PR):
+- **Windows Terminal (PowerShell) and conhost**, the Windows-only code: Esc, Alt+letter, Ctrl+arrows,
+  Shift+Tab, F1–F12, Ctrl+C quits, Ctrl+Z and Ctrl+S do nothing harmful; a 1,000-character multi-line paste
+  into a Form field is one line and doesn't submit (Windows Terminal: bracketed; conhost: Ctrl+V); the Input
+  demo shows one `Paste`; mouse checks below; after exit by `q`, Ctrl+C and the forced exception, the shell
+  echoes, quick edit and selection work again, and pasting isn't bracketed.
+- **WSL in Windows Terminal, tmux on Linux and SSH to Linux** (`tools/ssh-test`): click to focus each Form field,
+  toggle the checkbox, select list rows and tabs, scroll lists and the paragraph with the wheel, click a
+  menu item, click Yes/No in a confirm dialog, click outside an open dialog (nothing happens); the Input demo
+  shows presses, releases, wheels and modifiers with the right cells; Shift+drag still selects text; after
+  exit by every restore path, clicking in the shell prints nothing.
+- **Without `WithMouse`:** the wheel and clicks behave as before (the terminal's own scrolling and selection).
+
+### 4.12 Migration impact
+
+- New public API (§4.2) in `PublicAPI.Unshipped.txt`. Nothing changes incompatibly: `HandleMouse` is a new
+  virtual with a default, `Area` and `ctx.Render` are new members, and `IInputSource` is unchanged.
+- **Behavior changes on Windows** (CHANGELOG "Changed"): keys decode by the §2.4 rules (Esc resolves after up to
+  50 ms; Ctrl+Enter, Ctrl+Tab and Ctrl+digits lose their modifier, as on Unix); in Windows Terminal, pastes
+  are `PasteEvent`s; in conhost, Ctrl+V pastes the clipboard as a `PasteEvent`. A component that edits text
+  needs `HandlePaste`, as on Unix since 1.1.
+- Apps that don't call `WithMouse` see no mouse change.
+- README: a "Mouse" section (`WithMouse`, `ctx.Render`, `HandleMouse`, click to focus, the state helpers,
+  Shift+drag to select); the Windows paste note is replaced.
+
+### 4.13 Implementation order
+
+Two PRs, both shipping in 1.2.0:
+
+**10a. Windows input**
+1. `WindowsInputTranslator` with its tests (pure).
+2. `WindowsConsoleInput` P/Invokes, VT input in `TerminalInputSource` on Windows, `WaitForSingleObject`, the
+   resize wake, restore hooks, and the fallback.
+3. Bracketed paste on Windows and the conhost Ctrl+V clipboard paste, with the fake-clipboard tests.
+4. README, CHANGELOG, Windows manual QA.
+
+**10b. Mouse**
+1. `IInputSink.Mouse`, SGR and X10 decoding, and Windows mouse records, with the decoder and translator tests.
+2. `InputItem.FromMouse`, `MouseEvent`, `ScriptedInputSource.EnqueueMouse`, carrying mouse items through the pump.
+3. `IMouseCapture`, `WithMouse` and the mode sequences, with the pty test.
+4. The hit map, `ctx.Render`, `Component.Area`, routing, click to focus, `OnMouse`, the harness helpers, with the
+   routing tests.
+5. The state helpers and dialogs, the Example, README, CHANGELOG, manual QA.
+
+### 4.14 Out of scope
+
+- Drag and motion (`?1002`/`?1003`): dragging a scrollbar or selecting text, and hover styles.
+- Double click: terminals don't report it; an app can time two presses itself.
+- Placing the text cursor by clicking, and text selection in fields (with TextArea, Phase 12, if wanted).
+- Clicking a table header to sort.
+- Closing an overlay by clicking outside it (PopupMenu, Phase 13, will need it for its own overlay).
+- The Windows Terminal `win32-input-mode` (`?9001`) and the kitty keyboard protocol, which would keep Ctrl+Enter
+  and the like.
+- Telling right-click paste from typing in conhost.
+- A public way for custom input sources to produce pastes or mouse events.
+
+### 4.15 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Mouse on by default (as Textual), or opt-in with `WithMouse` (as crossterm, Bubble Tea and Ratatui)? Capturing the mouse takes over the terminal's text selection. | **Opt-in** (§4.1). |
+| 2 | Windows keys through VT input mode (Unix decoding rules everywhere, bracketed paste and mouse in Windows Terminal), or through key records (keeps Ctrl+Enter and friends, but Windows Terminal pastes arrive as keys)? | **VT input** (§4.1), as Textual does. |
+| 3 | Conhost Ctrl+V: read the clipboard and deliver a `PasteEvent`, or leave it a key? | **Read the clipboard** (§4.5), as PSReadLine does. |
+| 4 | Clicks act on press (crossterm and most TUIs) or on release over the same target (GUI buttons)? | **Press.** Release events are still delivered. |
+| 5 | Wheel step: one item per event in lists and tables, three rows in text? | **1 and 3.** |
+| 6 | One PR for the phase (SPEC.md §0), or two, 10a Windows input and 10b mouse? | **Two** (§4.13): the Windows part needs hand testing on its own. |
