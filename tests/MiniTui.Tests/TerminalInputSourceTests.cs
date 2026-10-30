@@ -211,6 +211,11 @@ public class TerminalInputSourceTests
         {
             var buffer = new byte[256];
             Assert.Equal(0, tcgetattr(Follower, buffer));
+
+            // PENDIN is status the kernel sets itself (macOS does when leaving raw mode), not a setting to restore.
+            // It's in c_lflag: macOS 0x20000000 at offset 24, Linux 0x4000 at offset 12 (little-endian).
+            if (OperatingSystem.IsMacOS()) buffer[27] &= unchecked((byte)~0x20);
+            else buffer[13] &= unchecked((byte)~0x40);
             return Convert.ToHexString(buffer);
         }
 
