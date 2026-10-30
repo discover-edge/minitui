@@ -391,7 +391,9 @@ are read through `Console.ReadKey`.
   letters don't fire bindings. A component accepts pastes by overriding `HandlePaste`; for a text field,
   `public override bool HandlePaste(string text) => State.Paste(text);` inserts the paste as one line.
   A paste nothing handles is dropped. `App.OnPaste` sees pastes first, and `ComponentHarness.Paste` tests
-  them. On Windows (and with `MINITUI_INPUT=console`), pasted text still arrives as keys.
+  them. On Windows (and with `MINITUI_INPUT=console`), pasted text still arrives as keys, as in 1.0: line
+  breaks are Enter, which a text field ignores. In conhost, Ctrl+V reaches the app as a key; paste with
+  right-click or the window menu instead. Windows paste events come with Phase 10.
 - If a terminal's keys decode wrongly, set `MINITUI_INPUT=console` to use the `Console.ReadKey` path,
   and please report it: the Example's **Input** demo shows exactly how each key was decoded.
 

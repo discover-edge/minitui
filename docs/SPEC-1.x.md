@@ -32,7 +32,7 @@ or add to them:
 |---|---|---|---|---|
 | **8. Raw input** | Read Unix terminal input as bytes and decode it ourselves: reliable Esc, Alt, function keys and modifier combinations, and no stray Esc from split sequences. Groundwork for paste and mouse. | — | §2 | **1.1.0** |
 | **9. Bracketed paste** | `?2004`: a paste arrives as one `PasteEvent` instead of thousands of keys; text fields insert it in one step. | 8 | §3 | 1.1.0 |
-| **10. Mouse and Windows input** | Windows reads `ReadConsoleInput` records directly. Mouse on both platforms (SGR 1006 on Unix, `MOUSE_EVENT` records on Windows): `MouseEvent`, click to focus, wheel scrolling in lists, tables and paragraphs, clicking buttons, checkboxes and tabs. | 8 | To be specced | 1.2.0 |
+| **10. Mouse and Windows input** | Windows reads `ReadConsoleInput` records directly. Paste events on Windows: bracketed paste in Windows Terminal (VT input), and a decision for conhost, which has none and delivers Ctrl+V as a key (found in Phase 9 QA). Mouse on both platforms (SGR 1006 on Unix, `MOUSE_EVENT` records on Windows): `MouseEvent`, click to focus, wheel scrolling in lists, tables and paragraphs, clicking buttons, checkboxes and tabs. | 8 | To be specced | 1.2.0 |
 | **11. Suspend and resume** | Ctrl+Z suspends the app (SIGTSTP), restoring the terminal; resuming (SIGCONT) re-enters it and redraws. Also `app.Suspend(Action)` for running a child process such as `$EDITOR` in the real terminal. | 8 | To be specced | 1.2.0 |
 | **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | To be specced | 1.3.0 |
 | **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | To be specced | 1.3.0 |
@@ -515,7 +515,9 @@ Manual QA (results in the PR), in WSL in Windows Terminal, tmux on Linux and SSH
 
 ### 3.12 Out of scope
 
-- Windows paste events (Phase 10 decides, with `ReadConsoleInput`).
+- Windows paste events (Phase 10 decides, with `ReadConsoleInput`). Phase 9 QA found that in conhost a pasted
+  line break is an Enter key (which a text field ignores, so lines run together) and Ctrl+V arrives as a key,
+  because MiniTui clears processed input to receive Ctrl+C; right-click paste types the text as keys.
 - Multi-line paste into a text area (Phase 12 builds on `HandlePaste`).
 - A public way for custom input sources to produce pastes.
 - Filtering pasted escape sequences ("paste injection" through a pasted `CSI 201~`): the terminal is
