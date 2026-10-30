@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) done; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) done; §5 (Phase 11) specced; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -33,7 +33,7 @@ or add to them:
 | **8. Raw input** | Read Unix terminal input as bytes and decode it ourselves: reliable Esc, Alt, function keys and modifier combinations, and no stray Esc from split sequences. Groundwork for paste and mouse. | — | §2 | **1.1.0** |
 | **9. Bracketed paste** | `?2004`: a paste arrives as one `PasteEvent` instead of thousands of keys; text fields insert it in one step. | 8 | §3 | 1.1.0 |
 | **10. Mouse and Windows input** | Windows reads `ReadConsoleInput` records directly. Paste events on Windows: bracketed paste in Windows Terminal (VT input), and a decision for conhost, which has none and delivers Ctrl+V as a key (found in Phase 9 QA). Mouse on both platforms (SGR 1006 on Unix, `MOUSE_EVENT` records on Windows): `MouseEvent`, click to focus, wheel scrolling in lists, tables and paragraphs, clicking buttons, checkboxes and tabs. | 8, 9 | §4 | 1.2.0 |
-| **11. Suspend and resume** | Ctrl+Z suspends the app (SIGTSTP), restoring the terminal; resuming (SIGCONT) re-enters it and redraws. Also `app.Suspend(Action)` for running a child process such as `$EDITOR` in the real terminal. | 8 | To be specced | 1.2.0 |
+| **11. Suspend and resume** | Ctrl+Z suspends the app (SIGTSTP), restoring the terminal; resuming (SIGCONT) re-enters it and redraws. Also `app.Suspend(Action)` for running a child process such as `$EDITOR` in the real terminal. | 8 | §5 | 1.2.0 |
 | **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | To be specced | 1.3.0 |
 | **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | To be specced | 1.3.0 |
 | **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | To be specced | 1.4.0 |
@@ -903,3 +903,252 @@ Two PRs, both shipping in 1.2.0:
 | 4 | Clicks act on press (crossterm and most TUIs) or on release over the same target (GUI buttons)? | **Press.** Release events are still delivered. |
 | 5 | Wheel step: one item per event in lists and tables, three rows in text? | **1 and 3.** |
 | 6 | One PR for the phase (SPEC.md §0), or two, 10a Windows input and 10b mouse? | **Two** (§4.13): the Windows part needs hand testing on its own. |
+
+---
+
+## 5. Suspend and resume (Phase 11)
+
+### 5.1 Purpose
+
+Since Phase 8, raw mode clears `ISIG`, so Ctrl+Z reaches the app as a key and does nothing (§2.5). Unix users
+expect Ctrl+Z to put a terminal program in the background and `fg` to bring it back. And an app that runs a
+child process in the terminal, such as `$EDITOR` for a commit message or `less` for a log, has no way to hand
+the terminal over: the child inherits raw mode, bracketed paste and mouse reporting, draws on MiniTui's
+alternate screen, and MiniTui's input thread steals its keystrokes.
+
+Phase 11 adds `app.Suspend(Action)`, which gives the terminal back to the shell's state, runs the action, then
+re-enters and redraws, and builds job control on it: on Linux and macOS, `app.SuspendProcess()` stops the
+process (SIGTSTP) with the terminal restored, `fg` resumes it (SIGCONT) and the app redraws, and
+`app.WithSuspendKey()` makes an unhandled Ctrl+Z do that. `Suspend` works on Windows too; Ctrl+Z there stays an
+ordinary key, since Windows consoles have no job control.
+
+**Decision:** Ctrl+Z suspending is opt-in (`WithSuspendKey()`), as in Bubble Tea, crossterm, prompt_toolkit and
+tview, which deliver Ctrl+Z as a key and leave suspending to the app. Without it, Ctrl+Z stays a key that does
+nothing unless the app binds it, as in 1.1.
+
+### 5.2 Public API
+
+```csharp
+public sealed class App
+{
+    /// Give the terminal back while action runs: stop reading input, turn mouse reporting and bracketed paste
+    /// off, restore the terminal mode, leave the alternate screen and stop capturing Console.Out/Error. Then
+    /// enter again, send OnEvent a ResumeEvent and redraw fully. Input typed during the action goes to the
+    /// action or its child process, not to the app. If action throws, the app resumes and the exception
+    /// propagates. Calls from inside an action run their action directly.
+    /// Throws InvalidOperationException if the app isn't running or this isn't the UI thread.
+    public void Suspend(Action action);
+
+    /// Stop the process and return to the shell, with the terminal given back as Suspend does; returns once the
+    /// shell resumes it (fg), after the app has re-entered. Returns false without doing anything where there's no
+    /// job control: Windows, or an app not drawing to the real console. Same thread rules as Suspend.
+    public bool SuspendProcess();
+
+    /// Make an unhandled Ctrl+Z call SuspendProcess (§5.5). Off by default. Has no effect on Windows.
+    public App WithSuspendKey(bool enabled = true);
+}
+
+/// Sent to OnEvent after the app re-enters the terminal: after Suspend, after the process is resumed from
+/// Ctrl+Z, and after a SIGCONT the app didn't cause.
+public sealed record ResumeEvent : Event;
+```
+
+- README: a "Running other programs" section with the `$EDITOR` example (§5.8), and Ctrl+Z in the keyboard
+  section.
+
+### 5.3 Internal model
+
+```csharp
+// Pauses the reader thread for a source and gives the terminal back (Deactivate); Resume reactivates it.
+// Pause returns only once the reader is outside TryRead, so it never reads a byte meant for a child.
+internal sealed class InputPump
+{
+    public static IDisposable Pause(IInputSource source);   // nests; the last dispose resumes
+}
+
+// Leaves the whole console session, whatever its lease count (nested apps share it), and enters it again.
+internal static class TerminalSession
+{
+    public static IDisposable Suspend(ITerminalBackend backend);  // Leave now; Enter and bump Version on dispose
+    public static event Action? Continued;                        // SIGCONT while the session is entered
+    public static event Action? StopRequested;                    // SIGTSTP from outside (§5.5)
+}
+
+internal sealed class ConsoleCapture
+{
+    public IDisposable Pause();   // put the original writers back until disposed; lines already captured stay
+}
+
+// Stopping the process, swappable in tests so a test never stops the test runner.
+internal static class ProcessControl
+{
+    public static bool CanStop { get; }       // Linux or macOS, and the app draws to the real console
+    public static Action Stop { get; set; }   // kill(getpid(), SIGTSTP); returns after SIGCONT
+}
+```
+
+`UnixTerminal` gains `kill` and `getpid` P/Invokes. `UnixTerminal` and `WindowsConsoleInput` keep the mode saved
+on first entry across a suspend: re-entering reapplies raw (or VT) mode without saving again, so a child that
+exits without restoring its own mode can't become the mode MiniTui restores at exit.
+
+### 5.4 Suspend
+
+`app.Suspend(action)` on the UI thread:
+
+1. **Give the terminal back,** in this order: pause the app's input source (`InputPump.Pause`: the reader
+   stops, then `Deactivate` turns mouse reporting and bracketed paste off and restores the saved termios or
+   console mode); pause console capture; suspend the session (`Backend.Leave`: reset attributes, show the
+   cursor, re-enable wrapping, leave the alternate screen, restore `TreatControlCAsInput`, the output encoding
+   and the Windows output mode).
+2. **Run the action.** While it runs, MiniTui's SIGINT and SIGQUIT handling (and Ctrl+C on Windows) is
+   cancelled, as `system(3)` does, so Ctrl+C in a child like `ping` stops the child and not the app. The
+   SIGTERM and SIGHUP restore handlers stay; they find the terminal already restored.
+3. **Take the terminal again,** in reverse: enter the session (alternate screen, cleared; every terminal on
+   the session redraws fully next frame, as after a nested app), resume capture, resume input (`Activate`:
+   raw or VT mode, bracketed paste, and mouse reporting if any running app holds a capture). Step 3 runs in a
+   `finally`, so an action that throws still resumes.
+4. Send `ResumeEvent` to `OnEvent`, check the size (the terminal may have been resized meanwhile) and draw
+   a full frame.
+
+- Keys decoded but not yet handled before the suspend stay queued and are handled after it. An Esc the decoder
+  is holding resolves when the source is paused.
+- Ticks keep queueing during the action, at most one at a time as usual; nothing is drawn until it returns.
+- .NET reapplies its own terminal settings after a child started with `Process.Start` exits, possibly after
+  step 3. The 250 ms mode check (§2.5) puts raw mode back, as it already does.
+- With a `TestBackend` and a scripted source, `Suspend` does the same steps on them: the backend is left and
+  entered again, and scripted input isn't read during the action. That's what the tests check.
+
+### 5.5 Ctrl+Z
+
+- **With `WithSuspendKey()`,** Ctrl+Z (0x1A) suspends only if nothing else handled it. It goes through `OnKey`
+  and the §9.4 routing as usual; if no component or binding handles it (and no overlay is open, since overlays
+  swallow keys), the app calls `SuspendProcess`. In render-callback apps, the step comes after `OnKey`. A
+  component or binding for `ctrl+z` (undo, for instance) still gets it first. Without `WithSuspendKey()`, an
+  unhandled Ctrl+Z is dropped, as in 1.1; an app can also bind any key to `SuspendProcess` itself.
+- **Stopping** (`SuspendProcess`), when `ProcessControl.CanStop`: `Suspend(ProcessControl.Stop)`. `Stop` sends SIGTSTP to the
+  process itself; the default action stops it and the shell reports it as stopped. On `fg`, SIGCONT continues
+  it, `kill` returns, and `Suspend` re-enters and redraws.
+- MiniTui registers a SIGTSTP handler (see "SIGTSTP from outside", below). While a suspend is in progress, the handler doesn't cancel
+  the signal, so the default action stops the process. If the runtime turns out not to stop on an uncancelled
+  SIGTSTP, `Stop` sends SIGSTOP instead (the shell then says "Stopped (signal)"); implementation step 1 checks
+  this on Linux and macOS.
+- **`bg` instead of `fg`:** the process continues in the background, and re-entering raw mode from a background
+  process group raises SIGTTOU, which stops it again until `fg`. That's standard job-control behavior; MiniTui
+  doesn't fight it.
+- **SIGTSTP from outside** (`kill -TSTP`, a debugger, an IDE's terminal): the handler cancels the default action
+  and raises `TerminalSession.StopRequested`; the running app posts `SuspendProcess` to its UI thread, whether or
+  not it called `WithSuspendKey`, since the stop was asked for either way. With no app running (a bare `Terminal`), the handler doesn't cancel and the process
+  stops as before.
+- **SIGCONT the app didn't cause** (resumed after `kill -STOP`): the shell may have drawn over the alternate
+  screen, so the app sends `ResumeEvent` and redraws fully. The mode check restores raw mode.
+- **Windows,** `MINITUI_INPUT=console`, custom backends and sources: Ctrl+Z is an ordinary key even with
+  `WithSuspendKey()`, and `SuspendProcess` returns false.
+- Ctrl+Z inside a running `Suspend` action reaches the child (the terminal is cooked), and stops the whole
+  process group, MiniTui included; `fg` resumes both, and the action carries on.
+
+### 5.6 Nested apps
+
+- `Suspend` from an inner app suspends the whole session: the outer app's frame is gone too, and both redraw
+  after (the outer one when it next draws). Input is paused for the shared source, so the outer app doesn't read
+  either.
+- Running another MiniTui app inside a `Suspend` action isn't supported: it throws `InvalidOperationException`
+  rather than drawing on the shell's screen.
+
+### 5.7 Configuration
+
+| Setting | Effect |
+|---|---|
+| `app.WithSuspendKey()` | An unhandled Ctrl+Z suspends the process to the shell (Linux and macOS). Off by default. |
+
+No environment variables.
+
+### 5.8 Example
+
+- The Example's Input demo gets an `e` key that opens `$VISUAL`, `$EDITOR`, or `vi` (`notepad` on Windows) on a
+  temporary file through `app.Suspend`, then shows the saved text in a `MessageDialog`. The README shows the
+  same pattern:
+
+```csharp
+app.Keys.Add("e", "Edit notes", () => app.Suspend(() =>
+{
+    var editor = Environment.GetEnvironmentVariable("VISUAL") ?? Environment.GetEnvironmentVariable("EDITOR") ?? "vi";
+    using var process = Process.Start(new ProcessStartInfo(editor) { ArgumentList = { path } })!;
+    process.WaitForExit();
+}));
+```
+
+- The Example calls `WithSuspendKey()`, and the menu's footer mentions Ctrl+Z on Linux and macOS.
+
+### 5.9 Tests and acceptance
+
+Automated (all platforms unless noted):
+- **Suspend** (`ComponentHarness`/`TestBackend`): the action runs with the backend left and `Console.Out` the
+  original writer; afterwards the backend is entered again, a full redraw follows, and `OnEvent` gets one
+  `ResumeEvent`; scripted keys queued during the action are handled after it, in order, and keys queued before
+  it stay ahead of them; an action that throws resumes and the exception reaches `OnError`; `Suspend` off the
+  UI thread or when not running throws; a nested `Suspend` runs its action directly; `Suspend` from a nested
+  app leaves and re-enters once and the outer app redraws fully; starting an app inside the action throws.
+- **Input pause:** while paused, the pump doesn't call `TryReadItem`; `Pause` waits for a read in progress;
+  pauses nest.
+- **Ctrl+Z** (with `ProcessControl.Stop` replaced): without `WithSuspendKey`, Ctrl+Z never calls `Stop`; with it,
+  an unhandled Ctrl+Z calls `Stop` inside a suspend, once; `SuspendProcess` returns false and does nothing when
+  `CanStop` is false; a
+  component or app binding for `ctrl+z` gets it and `Stop` isn't called; with an overlay open, or
+  `CanStop` false, nothing happens; render-callback apps suspend after `OnKey`.
+- **Signals** (with the handlers' logic called directly): an outside SIGTSTP with an app running posts a stop
+  and cancels; with no app it doesn't cancel; SIGCONT posts a `ResumeEvent` and full redraw.
+- **Pseudo-terminal** (Linux and macOS CI): during the action the pty's termios is the saved (cooked) mode and
+  `?1006l ?1000l ?2004l` and `?1049l` were written; after it, raw mode is back with `?1049h ?2004h ?1000h ?1006h`;
+  the mode restored at exit is the original one even if the action changed the termios.
+- Existing tests pass unchanged.
+
+Manual QA (results in the PR):
+- **Linux (bash and zsh), tmux, SSH (`tools/ssh-test`) and macOS if available:** Ctrl+Z from a screen, a text
+  field and the Input demo returns to a working shell (echo, line editing, no stray mouse or paste sequences);
+  `jobs` lists it as stopped; `fg` restores the screen exactly, with keys, paste and mouse working; repeat
+  several times; resize while stopped, then `fg`; `bg` then `fg`; `kill -TSTP` and `kill -CONT` from another
+  terminal; Ctrl+Z inside an open dialog does nothing; an app without `WithSuspendKey` ignores Ctrl+Z.
+- **The editor demo** with `vi`, `nano` and `$EDITOR` unset: the editor gets every key, paste and the mouse
+  (where it supports them); after it exits the app redraws and shows the text; Ctrl+C in the editor doesn't quit
+  the app; Ctrl+Z in vi stops everything and `fg` returns to vi.
+- **Windows Terminal and conhost:** the editor demo with `notepad` and with a console editor (`edit` or `vim` if
+  installed); Ctrl+Z still does nothing; quick edit and the cursor are back during the action.
+
+### 5.10 Migration impact
+
+- New public API (§5.2) in `PublicAPI.Unshipped.txt`. Nothing changes incompatibly.
+- No behavior change for apps that don't call the new API: Ctrl+Z still does nothing unless bound. The one
+  exception (CHANGELOG "Changed"): a SIGTSTP sent from outside now restores the terminal before stopping, and
+  redraws on resume, instead of stopping with the terminal in raw mode.
+
+### 5.11 Implementation order
+
+One PR, shipping in 1.2.0:
+1. A spike on Linux and macOS: confirm an uncancelled SIGTSTP through `PosixSignalRegistration` stops the
+   process, and what .NET does to the termios on SIGCONT and after a child exits. Pick SIGTSTP or SIGSTOP for
+   `Stop` (§5.5).
+2. `InputPump.Pause`, keeping the saved mode across re-entry in `UnixTerminal` and `WindowsConsoleInput`, with
+   the pause and pty tests.
+3. `TerminalSession.Suspend`, `ConsoleCapture.Pause`, `App.Suspend`, `ResumeEvent`, with the suspend tests.
+4. `ProcessControl`, `SuspendProcess`, the Ctrl+Z step, `WithSuspendKey`, the SIGTSTP and SIGCONT handlers, with the Ctrl+Z and
+   signal tests.
+5. The Example's editor demo, README, CHANGELOG, manual QA.
+
+### 5.12 Out of scope
+
+- Ctrl+Z on Windows (no job control), and a "minimize" or other stand-in.
+- `SuspendAsync`, or keeping the event loop running while the action does: the action blocks the UI thread,
+  as a child editor blocks the user.
+- Running a MiniTui app inside a `Suspend` action (§5.6); nested apps already cover showing another app.
+- Capturing a child's output into the app (use `Process` with redirection; no suspend needed).
+- Saving and restoring the shell screen's scrollback beyond what the alternate screen already does.
+
+### 5.13 Decisions taken
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Ctrl+Z suspends by default (ncurses, vim, less) or opt-in (Bubble Tea, crossterm, prompt_toolkit, tview)? | **Opt-in**, `WithSuspendKey()` (§5.1). |
+| 2 | With it on, Ctrl+Z suspends only when nothing handled it (app bindings and components win), or always, before routing, as Ctrl+C quits? | **Only when unhandled** (§5.5): `ctrl+z` stays free for undo. |
+| 3 | During a `Suspend` action, ignore Ctrl+C in MiniTui so it only stops the child, as `system(3)`? Otherwise Ctrl+C in `ping` would quit the app too. | **Ignore** (§5.4). |
+| 4 | Handle SIGTSTP sent from outside (`kill -TSTP`) like `SuspendProcess`, restoring the terminal, even without `WithSuspendKey`, or leave the 1.1 behavior (stops with the terminal still in raw mode)? | **Like `SuspendProcess`** (§5.5). |
+| 5 | Send a `ResumeEvent` so apps can refresh data after a long stop? | **Yes** (§5.2), as Bubble Tea's `ResumeMsg`. |
