@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-30
+
+MiniTui 1.3: a multi-line text area, popup menus and dropdown selects.
+
 ### Added
 - `Widget.TextArea()` and `TextAreaState`: multi-line text input. The text field's editing keys work across lines, plus Enter (new line), ↑ ↓ by wrapped row with a remembered column, PgUp/PgDn, Home/End by row then by line, and Ctrl+Home/End. Lines wrap at words by default (`Wrap(WrapMode.Char)` or `WrapMode.None` to scroll sideways), and the view scrolls to keep the cursor visible. `Paste` keeps line breaks, tabs become spaces, and `HandleMouse` places the cursor on a click and scrolls with the wheel. `TextPosition` is the cursor type.
 - `PopupMenu` and `MenuItem`: a menu overlay placed below an anchor (or above it, when there's more room), with right-aligned hints, separators and disabled items. ↑ ↓ (wrapping), PgUp/PgDn, Home/End and type-ahead move the selection; Enter or a click chooses; Esc, Tab or a click outside dismisses. `app.Overlays.ShowMenuAsync(items, anchor)` answers the chosen index, or null.
