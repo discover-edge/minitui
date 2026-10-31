@@ -17,7 +17,7 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Raw input parser (`TerminalInputSource`): Unix raw mode in 1.1, Windows VT input in Phase 10a
 - [x] Mouse support - clicking to focus, scrolling (`App.WithMouse`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §4
 - [x] Bracketed paste (`?2004`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §3
-- [ ] Popup menu - context menus, dropdowns (PopupMenu/Select)
+- [x] Popup menu - context menus, dropdowns (`PopupMenu`, `Select`, `SelectState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §7
 - [x] Multi-line text input widget (`TextArea`, `TextAreaState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §6
 - [ ] Canvas (braille 2×4), line Chart and BarChart
 - [ ] Debug mode - visualize focus, layout boundaries and frame time

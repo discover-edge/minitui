@@ -87,11 +87,12 @@ internal sealed class ProgressScreen : Screen
     }
 }
 
-/// <summary>Text fields and a checkbox in one focus scope: Tab moves between them.</summary>
+/// <summary>Text fields, a select and a checkbox in one focus scope: Tab moves between them.</summary>
 internal sealed class FormScreen : Screen
 {
     private readonly TextInput _name;
     private readonly TextInput _email;
+    private readonly SelectInput _plan;
     private readonly NotesInput _notes;
     private readonly Toggle _subscribe;
 
@@ -101,9 +102,10 @@ internal sealed class FormScreen : Screen
     {
         _name = AddChild(new TextInput("Name", "Your name"));
         _email = AddChild(new TextInput("Email", "you@example.com"));
+        _plan = AddChild(new SelectInput("Plan", "Choose a plan", ["Free", "Pro", "Team", "Enterprise"]));
         _notes = AddChild(new NotesInput("Notes", "Anything else? Enter starts a new line."));
         _subscribe = AddChild(new Toggle("Subscribe to newsletter"));
-        Focus.Add(_name).Add(_email).Add(_notes).Add(_subscribe);
+        Focus.Add(_name).Add(_email).Add(_plan).Add(_notes).Add(_subscribe);
         Keys.Add("ctrl+s", "Submit", Submit);
     }
 
@@ -113,6 +115,7 @@ internal sealed class FormScreen : Screen
         var rows = Layout.Vertical(inner with { Width = Math.Min(inner.Width, 40) })
             .Add("name", Constraint.Length(3))
             .Add("email", Constraint.Length(3))
+            .Add("plan", Constraint.Length(3))
             .Add("notes", Constraint.Length(7))
             .Add("gap", Constraint.Length(1))
             .Add("subscribe", Constraint.Length(1))
@@ -121,6 +124,7 @@ internal sealed class FormScreen : Screen
             .Build();
         ctx.Render(_name, buf, rows["name"]);
         ctx.Render(_email, buf, rows["email"]);
+        ctx.Render(_plan, buf, rows["plan"]);
         ctx.Render(_notes, buf, rows["notes"]);
         ctx.Render(_subscribe, buf, rows["subscribe"]);
         buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S submit", ctx.Theme.TextMuted);
@@ -134,8 +138,9 @@ internal sealed class FormScreen : Screen
             return;
         }
         var newsletter = _subscribe.Checked ? " (subscribed)" : "";
+        var plan = _plan.State.Value is { } p ? $" on {p}" : "";
         var notes = _notes.State.Text.Length == 0 ? "" : $", {_notes.State.Lines.Count} lines of notes";
-        App.Toasts.Push($"Registered {_name.State.Text}{newsletter}{notes}", ToastLevel.Success);
+        App.Toasts.Push($"Registered {_name.State.Text}{plan}{newsletter}{notes}", ToastLevel.Success);
     }
 }
 
@@ -244,17 +249,56 @@ internal sealed class CommandScreen : Screen
             .Build();
 
         Keys.Add(":", "Command", () => App.Overlays.Show(new CommandLineOverlay(_commands)))
-            .Add("x", "Delete selected", DeleteSelected);
+            .Add("x", "Delete selected", DeleteSelected)
+            .Add("shift+f10", "Menu", () => ShowMenu(SelectedRow()));
     }
 
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, _notes.Count);
-    public override bool HandleMouse(MouseEvent mouse) => _selection.HandleMouse(mouse, _notes.Count);
+
+    // A right-click selects the note under the pointer, then opens the menu there
+    public override bool HandleMouse(MouseEvent mouse)
+    {
+        if (mouse is not { Action: MouseAction.Press, Button: MouseButton.Right })
+            return _selection.HandleMouse(mouse, _notes.Count);
+        _selection.HandleMouse(mouse with { Button = MouseButton.Left }, _notes.Count);
+        ShowMenu(new Rect(mouse.X, mouse.Y, 1, 1));
+        return true;
+    }
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
         IReadOnlyList<string> items = _notes.Count > 0 ? _notes : ["No notes yet. Press : and type add Hello world"];
         Widget.List().Title("Notes").Items(items).State(_selection).Focused(ctx.Focused).Draw(buf, area);
     }
+
+    // The selected note's row inside the list's border
+    private Rect SelectedRow() =>
+        new(Area.X + 1, Area.Y + 1 + _selection.Selected - _selection.Offset, Math.Max(0, Area.Width - 2), 1);
+
+    private void ShowMenu(Rect anchor) => App.RunTask(async _ =>
+    {
+        var any = _notes.Count > 0;
+        MenuItem[] items =
+        [
+            new("Delete") { Hint = "x", Enabled = any },
+            new("Delete all") { Enabled = any },
+            MenuItem.Separator,
+            new("Help") { Hint = ":help" },
+        ];
+        switch (await App.Overlays.ShowMenuAsync(items, anchor))
+        {
+            case 0:
+                DeleteSelected();
+                break;
+            case 1:
+                _notes.Clear();
+                App.Toasts.Push("Notes cleared");
+                break;
+            case 3:
+                await App.Overlays.ShowMessageAsync("Commands", string.Join("\n", _commands.GetHelpLines()));
+                break;
+        }
+    });
 
     private void DeleteSelected()
     {

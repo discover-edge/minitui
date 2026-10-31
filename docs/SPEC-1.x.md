@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) done; §7 (Phase 13) specced; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) done; §7 (Phase 13) done; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -1564,7 +1564,7 @@ None.
   the placeholder "Choose a plan". The submit toast includes the plan.
 - **Command Registry demo:** a context menu on the notes list: a right-click on a note (it selects the row
   first), or Shift+F10 on the selected note (anchored to its row), opens Delete (hint `x`), Delete all, a
-  separator, and Help (hint `:help`). Delete all is disabled while the list is empty.
+  separator, and Help (hint `:help`). Delete and Delete all are disabled while the list is empty.
 
 ### 7.9 Tests and acceptance
 

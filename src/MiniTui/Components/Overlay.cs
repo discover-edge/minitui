@@ -9,6 +9,19 @@ public abstract class Overlay : Component
     /// <summary>Whether an unhandled Esc closes the overlay. True by default.</summary>
     public virtual bool CloseOnEscape => true;
 
+    /// <summary>
+    /// Whether the app draws the themed block around the overlay. When false, the app only clears the
+    /// <see cref="Placement"/> rect, and <see cref="Component.Render"/> gets all of it to draw, border included.
+    /// True by default.
+    /// </summary>
+    public virtual bool Framed => true;
+
+    /// <summary>
+    /// Whether a press of any mouse button outside the overlay closes it (1.x spec §7.6). The press goes nowhere
+    /// else. False by default.
+    /// </summary>
+    public virtual bool CloseOnClickOutside => false;
+
     /// <summary>The title in the overlay's border.</summary>
     public virtual string? Title => null;
 

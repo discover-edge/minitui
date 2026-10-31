@@ -10,12 +10,19 @@ internal static class MouseRouter
     internal readonly record struct Hit(Component Component, Rect Rect);
 
     /// <summary>
-    /// Steps 3–5: find the target in the last frame's hits, focus it on a press, then offer the event to it and
-    /// its ancestors. Returns true if one handled it.
+    /// Steps 3–5: close an overlay pressed outside of (§7.6), or find the target in the last frame's hits, focus
+    /// it on a press, then offer the event to it and its ancestors. Returns true if one handled it.
     /// </summary>
     public static bool Route(App app, MouseEvent mouse, List<Hit> hits, Rect frame)
     {
         if (!frame.Contains(mouse.X, mouse.Y)) return false;
+        if (app.Overlays.Top is { CloseOnClickOutside: true } top && mouse.Action == MouseAction.Press
+            && HitRect(hits, top) is { } rect && !rect.Contains(mouse.X, mouse.Y))
+        {
+            app.Overlays.Close(top);
+            return true;
+        }
+
         Component? root = app.Overlays.Top is { } overlay ? overlay : app.Screens.Top;
         if (root is null || Target(hits, root, mouse) is not { } target) return false;
 
@@ -37,6 +44,14 @@ internal static class MouseRouter
             var (component, rect) = hits[i];
             if (rect.Contains(mouse.X, mouse.Y) && component.IsMounted && IsUnder(component, root)) return component;
         }
+        return null;
+    }
+
+    /// <summary>Where <paramref name="component"/> was drawn in the last frame, or null if it wasn't.</summary>
+    private static Rect? HitRect(List<Hit> hits, Component component)
+    {
+        foreach (var hit in hits)
+            if (ReferenceEquals(hit.Component, component)) return hit.Rect;
         return null;
     }
 

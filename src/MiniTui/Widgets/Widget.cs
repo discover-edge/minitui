@@ -30,6 +30,10 @@ public static class Widget
 
     /// <summary>A multi-line text input with wrapping and vertical scrolling (1.x spec §6).</summary>
     public static TextAreaBuilder TextArea() => new();
+
+    /// <summary>A dropdown field that opens a menu of its options (1.x spec §7.5).</summary>
+    public static SelectBuilder Select() => new();
+
     /// <summary>A command input with a prompt and history.</summary>
     public static CommandLineBuilder CommandLine() => new();
     /// <summary>A row of tabs.</summary>

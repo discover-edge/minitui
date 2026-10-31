@@ -381,6 +381,12 @@ public partial class App
         {
             var rect = overlay.Placement(body);
             WidgetText.Clear(buf, rect);
+            if (!overlay.Framed)
+            {
+                RecordHit(overlay, rect, rect);
+                overlay.Render(buf, rect, new RenderContext(this, overlay, focused: ReferenceEquals(overlay, Overlays.Top)));
+                continue;
+            }
             var inner = Widget.Block()
                 .Title(overlay.Title is { } title ? new Line(title) : null)
                 .BorderStyle(theme.ModalBorder)
