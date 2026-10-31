@@ -375,6 +375,18 @@ MiniTui.Margin.Right.get -> int
 MiniTui.Margin.Right.init -> void
 MiniTui.Margin.Top.get -> int
 MiniTui.Margin.Top.init -> void
+MiniTui.MenuItem
+MiniTui.MenuItem.<Clone>$() -> MiniTui.MenuItem!
+MiniTui.MenuItem.Deconstruct(out string! Label) -> void
+MiniTui.MenuItem.Enabled.get -> bool
+MiniTui.MenuItem.Enabled.init -> void
+MiniTui.MenuItem.Equals(MiniTui.MenuItem? other) -> bool
+MiniTui.MenuItem.Hint.get -> string?
+MiniTui.MenuItem.Hint.init -> void
+MiniTui.MenuItem.IsSeparator.get -> bool
+MiniTui.MenuItem.Label.get -> string!
+MiniTui.MenuItem.Label.init -> void
+MiniTui.MenuItem.MenuItem(string! Label) -> void
 MiniTui.MessageDialog
 MiniTui.MessageDialog.Closed.get -> System.Threading.Tasks.Task!
 MiniTui.MessageDialog.MessageDialog(string! title, MiniTui.Text! body) -> void
@@ -423,6 +435,7 @@ MiniTui.OverlayStack.Close(MiniTui.Overlay! overlay) -> void
 MiniTui.OverlayStack.ConfirmAsync(string! message, string! yes = "Yes", string! no = "No") -> System.Threading.Tasks.Task<bool>!
 MiniTui.OverlayStack.Show(MiniTui.Overlay! overlay) -> void
 MiniTui.OverlayStack.ShowHelp() -> void
+MiniTui.OverlayStack.ShowMenuAsync(System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items, MiniTui.Rect anchor, int selected = 0) -> System.Threading.Tasks.Task<int?>!
 MiniTui.OverlayStack.ShowMessageAsync(string! title, MiniTui.Text! body) -> System.Threading.Tasks.Task!
 MiniTui.OverlayStack.Top.get -> MiniTui.Overlay?
 MiniTui.Paragraph
@@ -455,6 +468,13 @@ MiniTui.PasteEvent.Equals(MiniTui.PasteEvent? other) -> bool
 MiniTui.PasteEvent.PasteEvent(string! Text) -> void
 MiniTui.PasteEvent.Text.get -> string!
 MiniTui.PasteEvent.Text.init -> void
+MiniTui.PopupMenu
+MiniTui.PopupMenu.MaxRows.get -> int
+MiniTui.PopupMenu.MaxRows.init -> void
+MiniTui.PopupMenu.MinWidth.get -> int
+MiniTui.PopupMenu.MinWidth.init -> void
+MiniTui.PopupMenu.PopupMenu(System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items, MiniTui.Rect anchor, int selected = 0) -> void
+MiniTui.PopupMenu.Result.get -> System.Threading.Tasks.Task<int?>!
 MiniTui.Rect
 MiniTui.Rect.Bottom.get -> int
 MiniTui.Rect.Center.get -> MiniTui.Vec2
@@ -545,6 +565,26 @@ MiniTui.ScrollbarBuilder.Position(int offset) -> MiniTui.ScrollbarBuilder!
 MiniTui.ScrollbarBuilder.ScrollbarBuilder() -> void
 MiniTui.ScrollbarBuilder.Vertical() -> MiniTui.ScrollbarBuilder!
 MiniTui.ScrollbarBuilder.ViewportLength(int length) -> MiniTui.ScrollbarBuilder!
+MiniTui.SelectBuilder
+MiniTui.SelectBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.SelectBuilder!
+MiniTui.SelectBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.SelectBuilder.Focused(bool focused = true) -> MiniTui.SelectBuilder!
+MiniTui.SelectBuilder.Placeholder(string? placeholder) -> MiniTui.SelectBuilder!
+MiniTui.SelectBuilder.SelectBuilder() -> void
+MiniTui.SelectBuilder.State(MiniTui.SelectState! state) -> MiniTui.SelectBuilder!
+MiniTui.SelectBuilder.Style(MiniTui.Style style) -> MiniTui.SelectBuilder!
+MiniTui.SelectState
+MiniTui.SelectState.Changed -> System.EventHandler?
+MiniTui.SelectState.HandleKey(System.ConsoleKeyInfo key, MiniTui.App! app) -> bool
+MiniTui.SelectState.HandleMouse(MiniTui.MouseEvent! mouse, MiniTui.App! app) -> bool
+MiniTui.SelectState.IsOpen.get -> bool
+MiniTui.SelectState.Open(MiniTui.App! app) -> void
+MiniTui.SelectState.Options.get -> System.Collections.Generic.IReadOnlyList<string!>!
+MiniTui.SelectState.Options.set -> void
+MiniTui.SelectState.SelectState(System.Collections.Generic.IReadOnlyList<string!>? options = null, int? selected = null) -> void
+MiniTui.SelectState.Selected.get -> int?
+MiniTui.SelectState.Selected.set -> void
+MiniTui.SelectState.Value.get -> string?
 MiniTui.SelectionState
 MiniTui.SelectionState.First() -> void
 MiniTui.SelectionState.HandleKey(System.ConsoleKeyInfo key, int count) -> bool
@@ -703,6 +743,27 @@ MiniTui.Text.Lines.get -> System.Collections.Generic.IReadOnlyList<MiniTui.Line!
 MiniTui.Text.Lines.init -> void
 MiniTui.Text.Text(System.Collections.Generic.IReadOnlyList<MiniTui.Line!>! Lines) -> void
 MiniTui.Text.Width.get -> int
+MiniTui.TextAreaBuilder
+MiniTui.TextAreaBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.TextAreaBuilder.Focused(bool focused = true) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaBuilder.Placeholder(string? placeholder) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaBuilder.State(MiniTui.TextAreaState! state) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaBuilder.Style(MiniTui.Style style) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaBuilder.TextAreaBuilder() -> void
+MiniTui.TextAreaBuilder.Wrap(MiniTui.WrapMode wrap) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaState
+MiniTui.TextAreaState.Clear() -> void
+MiniTui.TextAreaState.Cursor.get -> MiniTui.TextPosition
+MiniTui.TextAreaState.Cursor.set -> void
+MiniTui.TextAreaState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.TextAreaState.Insert(string! text) -> void
+MiniTui.TextAreaState.Lines.get -> System.Collections.Generic.IReadOnlyList<string!>!
+MiniTui.TextAreaState.Paste(string! text) -> bool
+MiniTui.TextAreaState.ScrollOffset.get -> int
+MiniTui.TextAreaState.Text.get -> string!
+MiniTui.TextAreaState.Text.set -> void
+MiniTui.TextAreaState.TextAreaState(string! text = "") -> void
 MiniTui.TextFieldBuilder
 MiniTui.TextFieldBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.TextFieldBuilder!
 MiniTui.TextFieldBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
@@ -721,6 +782,15 @@ MiniTui.TextFieldState.ScrollOffset.get -> int
 MiniTui.TextFieldState.Text.get -> string!
 MiniTui.TextFieldState.Text.set -> void
 MiniTui.TextFieldState.TextFieldState(string! text = "") -> void
+MiniTui.TextPosition
+MiniTui.TextPosition.Deconstruct(out int Line, out int Index) -> void
+MiniTui.TextPosition.Equals(MiniTui.TextPosition other) -> bool
+MiniTui.TextPosition.Index.get -> int
+MiniTui.TextPosition.Index.init -> void
+MiniTui.TextPosition.Line.get -> int
+MiniTui.TextPosition.Line.init -> void
+MiniTui.TextPosition.TextPosition() -> void
+MiniTui.TextPosition.TextPosition(int Line, int Index) -> void
 MiniTui.Theme
 MiniTui.Theme.<Clone>$() -> MiniTui.Theme!
 MiniTui.Theme.Border.get -> MiniTui.Style
@@ -876,6 +946,9 @@ override MiniTui.LogEntry.Equals(object? obj) -> bool
 override MiniTui.LogEntry.GetHashCode() -> int
 override MiniTui.LogEntry.ToString() -> string!
 override MiniTui.Margin.GetHashCode() -> int
+override MiniTui.MenuItem.Equals(object? obj) -> bool
+override MiniTui.MenuItem.GetHashCode() -> int
+override MiniTui.MenuItem.ToString() -> string!
 override MiniTui.MessageDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.MessageDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.MessageDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
@@ -893,6 +966,13 @@ override MiniTui.PasteEvent.<Clone>$() -> MiniTui.PasteEvent!
 override MiniTui.PasteEvent.Equals(object? obj) -> bool
 override MiniTui.PasteEvent.GetHashCode() -> int
 override MiniTui.PasteEvent.ToString() -> string!
+override MiniTui.PopupMenu.CloseOnClickOutside.get -> bool
+override MiniTui.PopupMenu.Framed.get -> bool
+override MiniTui.PopupMenu.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.PopupMenu.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+override MiniTui.PopupMenu.KeysGroup.get -> string!
+override MiniTui.PopupMenu.Placement(MiniTui.Rect screen) -> MiniTui.Rect
+override MiniTui.PopupMenu.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.Rect.GetHashCode() -> int
 override MiniTui.ResizeEvent.<Clone>$() -> MiniTui.ResizeEvent!
 override MiniTui.ResizeEvent.Equals(object? obj) -> bool
@@ -908,6 +988,7 @@ override MiniTui.Style.GetHashCode() -> int
 override MiniTui.Text.Equals(object? obj) -> bool
 override MiniTui.Text.GetHashCode() -> int
 override MiniTui.Text.ToString() -> string!
+override MiniTui.TextPosition.GetHashCode() -> int
 override MiniTui.Theme.Equals(object? obj) -> bool
 override MiniTui.Theme.GetHashCode() -> int
 override MiniTui.Theme.ToString() -> string!
@@ -986,6 +1067,9 @@ static MiniTui.LogEntry.operator !=(MiniTui.LogEntry? left, MiniTui.LogEntry? ri
 static MiniTui.LogEntry.operator ==(MiniTui.LogEntry? left, MiniTui.LogEntry? right) -> bool
 static MiniTui.Margin.operator !=(MiniTui.Margin left, MiniTui.Margin right) -> bool
 static MiniTui.Margin.operator ==(MiniTui.Margin left, MiniTui.Margin right) -> bool
+static MiniTui.MenuItem.Separator.get -> MiniTui.MenuItem!
+static MiniTui.MenuItem.operator !=(MiniTui.MenuItem? left, MiniTui.MenuItem? right) -> bool
+static MiniTui.MenuItem.operator ==(MiniTui.MenuItem? left, MiniTui.MenuItem? right) -> bool
 static MiniTui.MouseEvent.operator !=(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
 static MiniTui.MouseEvent.operator ==(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
 static MiniTui.Overlay.Centered(MiniTui.Rect screen, int width, int height) -> MiniTui.Rect
@@ -1013,6 +1097,8 @@ static MiniTui.Text.implicit operator MiniTui.Text!(MiniTui.Line! line) -> MiniT
 static MiniTui.Text.implicit operator MiniTui.Text!(string! s) -> MiniTui.Text!
 static MiniTui.Text.operator !=(MiniTui.Text? left, MiniTui.Text? right) -> bool
 static MiniTui.Text.operator ==(MiniTui.Text? left, MiniTui.Text? right) -> bool
+static MiniTui.TextPosition.operator !=(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
+static MiniTui.TextPosition.operator ==(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
 static MiniTui.Theme.Current.get -> MiniTui.Theme!
 static MiniTui.Theme.Default.get -> MiniTui.Theme!
 static MiniTui.Theme.Monochrome.get -> MiniTui.Theme!
@@ -1043,11 +1129,13 @@ static MiniTui.Widget.Gauge() -> MiniTui.GaugeBuilder!
 static MiniTui.Widget.List() -> MiniTui.ListBuilder!
 static MiniTui.Widget.Paragraph() -> MiniTui.ParagraphBuilder!
 static MiniTui.Widget.Scrollbar() -> MiniTui.ScrollbarBuilder!
+static MiniTui.Widget.Select() -> MiniTui.SelectBuilder!
 static MiniTui.Widget.Sparkline() -> MiniTui.SparklineBuilder!
 static MiniTui.Widget.Spinner() -> MiniTui.SpinnerBuilder!
 static MiniTui.Widget.StatusBar() -> MiniTui.StatusBarBuilder!
 static MiniTui.Widget.TabBar() -> MiniTui.TabBarBuilder!
 static MiniTui.Widget.Table() -> MiniTui.TableBuilder!
+static MiniTui.Widget.TextArea() -> MiniTui.TextAreaBuilder!
 static MiniTui.Widget.TextField() -> MiniTui.TextFieldBuilder!
 static MiniTui.Widget.Toasts() -> MiniTui.ToastsBuilder!
 virtual MiniTui.CommandResult.<Clone>$() -> MiniTui.CommandResult!
@@ -1069,7 +1157,9 @@ virtual MiniTui.Constraint.PrintMembers(System.Text.StringBuilder! builder) -> b
 virtual MiniTui.Event.EqualityContract.get -> System.Type!
 virtual MiniTui.Event.Equals(MiniTui.Event? other) -> bool
 virtual MiniTui.Event.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual MiniTui.Overlay.CloseOnClickOutside.get -> bool
 virtual MiniTui.Overlay.CloseOnEscape.get -> bool
+virtual MiniTui.Overlay.Framed.get -> bool
 virtual MiniTui.Overlay.Placement(MiniTui.Rect screen) -> MiniTui.Rect
 virtual MiniTui.Overlay.Title.get -> string?
 virtual MiniTui.ParsedCommand.<Clone>$() -> MiniTui.ParsedCommand!
@@ -1078,6 +1168,7 @@ virtual MiniTui.ParsedCommand.Equals(MiniTui.ParsedCommand? other) -> bool
 virtual MiniTui.ParsedCommand.PrintMembers(System.Text.StringBuilder! builder) -> bool
 virtual MiniTui.Screen.PopOnEscape.get -> bool
 virtual MiniTui.Screen.Title.get -> string!
+virtual MiniTui.TextAreaState.HandleKey(System.ConsoleKeyInfo key) -> bool
 virtual MiniTui.TextFieldState.HandleKey(System.ConsoleKeyInfo key) -> bool
 ~override MiniTui.Cell.Equals(object obj) -> bool
 ~override MiniTui.Cell.ToString() -> string
@@ -1093,6 +1184,8 @@ virtual MiniTui.TextFieldState.HandleKey(System.ConsoleKeyInfo key) -> bool
 ~override MiniTui.Span.ToString() -> string
 ~override MiniTui.Style.Equals(object obj) -> bool
 ~override MiniTui.Style.ToString() -> string
+~override MiniTui.TextPosition.Equals(object obj) -> bool
+~override MiniTui.TextPosition.ToString() -> string
 ~override MiniTui.TimedMessage.Equals(object obj) -> bool
 ~override MiniTui.TimedMessage.ToString() -> string
 ~override MiniTui.Vec2.Equals(object obj) -> bool
