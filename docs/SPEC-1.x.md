@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) done; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) done; §7 (Phase 13) done; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -35,7 +35,7 @@ or add to them:
 | **10. Mouse and Windows input** | Windows reads `ReadConsoleInput` records directly. Paste events on Windows: bracketed paste in Windows Terminal (VT input), and a decision for conhost, which has none and delivers Ctrl+V as a key (found in Phase 9 QA). Mouse on both platforms (SGR 1006 on Unix, `MOUSE_EVENT` records on Windows): `MouseEvent`, click to focus, wheel scrolling in lists, tables and paragraphs, clicking buttons, checkboxes and tabs. | 8, 9 | §4 | 1.2.0 |
 | **11. Suspend and resume** | Ctrl+Z suspends the app (SIGTSTP), restoring the terminal; resuming (SIGCONT) re-enters it and redraws. Also `app.Suspend(Action)` for running a child process such as `$EDITOR` in the real terminal. | 8 | §5 | 1.2.0 |
 | **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | §6 | 1.3.0 |
-| **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | To be specced | 1.3.0 |
+| **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | §7 | 1.3.0 |
 | **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | To be specced | 1.4.0 |
 | **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | To be specced | 1.4.0 |
 | **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | To be specced | Later |
@@ -1374,3 +1374,251 @@ One PR, in 1.3.0 with Phase 13:
 | 3 | ↑ / ↓ by wrapped row (editors, Textual) or by line (Bubbles)? | **By wrapped row.** |
 | 4 | Tabs in pasted or set text: spaces to the next multiple of 4, or keep `\t` and draw it as spaces? | **Spaces** (§6.4): the text and the cursor stay simple. |
 | 5 | Mouse click to place the cursor in this phase (§4.14 deferred it here)? | **Yes** (§6.6). |
+
+---
+
+## 7. PopupMenu and Select (Phase 13)
+
+### 7.1 Purpose
+
+Apps that want a context menu or a dropdown field today have to build one from an `Overlay`, and the overlay
+frame (a centered, padded, titled block) doesn't fit either. Phase 13 adds a `PopupMenu` overlay placed next to
+an anchor (a cell, a list row, a field) that the user moves through with the arrow keys, type-ahead or the mouse, and that
+answers with the chosen item; and `SelectState` and `Widget.Select()`, a form field that shows one choice and
+opens a `PopupMenu` of its options. Two small `Overlay` additions make this possible: an overlay can draw its own
+frame, and can close when the user clicks outside it (deferred here by §4.14).
+
+### 7.2 Public API
+
+```csharp
+/// An item in a PopupMenu.
+public sealed record MenuItem(string Label)
+{
+    /// Display-only text drawn right-aligned and muted, such as a key: "Ctrl+S", "x".
+    public string? Hint { get; init; }
+
+    /// A disabled item is drawn muted, skipped by the keys and not chosen by a click.
+    public bool Enabled { get; init; } = true;
+
+    /// A divider line. It is never selected or chosen.
+    public static MenuItem Separator { get; }
+    public bool IsSeparator { get; }
+}
+
+/// A menu overlay next to an anchor (§7.4). Enter or a click chooses an item; Esc, Tab or a click outside
+/// dismisses it.
+public sealed class PopupMenu : Overlay
+{
+    /// anchor is in screen cells: a 1×1 rect for a point (a right-click), or the rect of a row or field.
+    /// selected is the item selected at first; a separator or disabled item moves it to the next enabled one.
+    public PopupMenu(IReadOnlyList<MenuItem> items, Rect anchor, int selected = 0);
+
+    /// The chosen item's index into items, or null when the menu was dismissed or closed any other way.
+    public Task<int?> Result { get; }
+
+    /// The menu is at least this wide, border included (a Select passes its field's width). Default 0.
+    public int MinWidth { get; init; }
+
+    /// At most this many item rows are shown; more scroll. Default 12.
+    public int MaxRows { get; init; }
+}
+
+public sealed class OverlayStack
+{
+    /// Show a PopupMenu and await the chosen index (null if dismissed). With no items it shows nothing and
+    /// answers null.
+    public Task<int?> ShowMenuAsync(IReadOnlyList<MenuItem> items, Rect anchor, int selected = 0);
+}
+
+public abstract class Overlay
+{
+    /// False: the app only clears the Placement rect and the overlay draws everything in it, border included
+    /// (Render gets the whole rect). True by default: the themed block as in 1.0 (§9.3).
+    public virtual bool Framed => true;
+
+    /// True: a press of any button outside the overlay closes it, and the press goes nowhere else (§7.6).
+    /// False by default.
+    public virtual bool CloseOnClickOutside => false;
+}
+
+/// The options and choice of a dropdown field.
+public sealed class SelectState
+{
+    public SelectState(IReadOnlyList<string>? options = null, int? selected = null);
+
+    /// The options. Setting them keeps Selected if it's still in range, otherwise clears it.
+    public IReadOnlyList<string> Options { get; set; }
+
+    /// The chosen option's index, or null for none (the placeholder shows). Clamped to Options when set.
+    public int? Selected { get; set; }
+
+    /// The chosen option, or null.
+    public string? Value { get; }
+
+    /// True while its menu is open.
+    public bool IsOpen { get; }
+
+    /// Raised on the UI thread when the user's choice changes Selected (not when code sets it).
+    public event EventHandler? Changed;
+
+    /// Show the options in a PopupMenu below the field from the last draw, with the current choice selected.
+    public void Open(App app);
+
+    /// Enter, Space, ↑, ↓, Alt+↓ and F4 open the menu (§7.5). Returns true if it opened.
+    public bool HandleKey(ConsoleKeyInfo key, App app);
+
+    /// A left press on the field opens the menu. Returns true if it opened.
+    public bool HandleMouse(MouseEvent mouse, App app);
+}
+
+public static class Widget
+{
+    public static SelectBuilder Select();
+}
+
+/// A dropdown field: the chosen option and a ▼ at the right edge.
+public sealed class SelectBuilder
+{
+    public SelectBuilder State(SelectState state);
+    public SelectBuilder Placeholder(string? placeholder);  // muted, while nothing is chosen
+    public SelectBuilder Focused(bool focused = true);
+    public SelectBuilder Block(BlockBuilder block);
+    public SelectBuilder Style(Style style);                 // patched over the theme's input style
+    public void Draw(Buffer buf, Rect area);
+}
+```
+
+- A component that hosts a select passes its `App`: `HandleKey(key) => State.HandleKey(key, App)`. The state
+  needs it to open the overlay; the closed field has no text capture, so it doesn't set `CapturesText`.
+- No theme changes: the menu uses `ModalBorder`, `Text`, `Selection` and `TextMuted`; the field uses `Input`,
+  `InputFocused` and `TextMuted`.
+
+### 7.3 PopupMenu keys
+
+| Key | Effect |
+|---|---|
+| ↑ / ↓ | Previous or next enabled item, wrapping around at the ends. |
+| PgUp / PgDn | Up or down by the visible rows, stopping at the first or last enabled item. |
+| Home / End | First or last enabled item. |
+| Enter | Choose the selected item (nothing happens when no item is enabled). |
+| Esc, Tab, Shift+Tab | Dismiss (`Result` is null). Focus doesn't move. |
+| A printable character | Type-ahead (below). |
+
+- **Type-ahead:** characters typed without Ctrl or Alt build a search string, cleared 1 s after the last one
+  (the app's `TimeProvider`, so tests use fake time). The selection moves to the first enabled item, starting
+  at the selected one, whose label starts with the string (ordinal, ignoring case). Typing the same character
+  again (`b`, `b`) moves to the next item starting with it, as in Windows menus and list boxes. No match leaves
+  the selection where it is. Type-ahead never chooses an item.
+- The menu handles every key (it's an overlay, §9.4), so nothing leaks to the screen behind it.
+
+### 7.4 Placement and drawing
+
+- **Rows:** a border on all sides (`ModalBorder`), one row per item, no title, no padding. Each item row is
+  ` Label` on the left and `Hint ` on the right, at least two spaces apart. A separator is a `─` line across
+  the inner width. The selected row gets `Theme.Selection` across the whole inner width; disabled items and
+  hints are `TextMuted` (on the selected row, the selection style wins).
+- **Width:** the widest label plus the widest hint plus the gaps and border, at least `MinWidth`, at most the
+  screen width. Labels that don't fit are truncated with `…`.
+- **Height:** the item count, at most `MaxRows`, plus the border. More items scroll like a list, keeping the
+  selection visible, with a scrollbar on the right border.
+- **Where:** below the anchor (top-left corner at the anchor's bottom-left). If the full height doesn't fit
+  below but does above, above (its bottom at the anchor's top). If it fits on neither side, on the side with
+  more room, shortened to fit. Then it shifts left as far as needed to stay on screen. The screen is the area
+  above the status bar, as for every overlay.
+- **Resize** while open: the menu keeps its anchor and is placed again, clamped to the screen.
+- `PopupMenu.Framed` is false and `CloseOnClickOutside` is true. It counts as waiting for the user while open,
+  as the dialogs do.
+
+### 7.5 Select
+
+- **Drawing:** the chosen option (or the placeholder in `TextMuted`), truncated with `…`, and `▼` in the last
+  column, in `Input` / `InputFocused`, inside the optional block. `▼` is in WGL4, so conhost draws it.
+- **Keys, closed:** Enter, Space, ↑, ↓, Alt+↓ and F4 open the menu. Other keys return false, so Tab moves focus
+  and letters reach the bindings.
+- **Open:** a `PopupMenu` of the options anchored to the field's area (the block, when there is one) with
+  `MinWidth` set to its width, so it drops down below the field, as wide as it. Choosing an option sets
+  `Selected` and raises `Changed` if it's a different option; dismissing changes nothing. `IsOpen` is true until
+  the menu closes. With no options, opening does nothing.
+- **Mouse:** a left press on the field opens it (click to focus runs first, §4.7). The wheel over a closed
+  field does nothing, so scrolling a page never changes a choice.
+
+### 7.6 Mouse
+
+- **In the menu:** a left press on an enabled item chooses it. Presses on a separator, a disabled item or the
+  border do nothing. The wheel moves the selection by one item. Releases are ignored, so the release of the
+  right-click that opened a context menu doesn't choose anything.
+- **Outside an overlay with `CloseOnClickOutside`:** a press of any button closes the top overlay and is
+  consumed, not routed to the screen below, as in Windows and macOS menus. The wheel outside does nothing.
+  Step 3 of §4.7 gains this case; overlays without the flag keep the 1.0 behavior (the press is dropped).
+- **Context menus** are opened by the app: a component's `HandleMouse` answers a right press with
+  `App.Overlays.ShowMenuAsync(items, new Rect(mouse.X, mouse.Y, 1, 1))`. Shift+F10, the Windows context menu
+  key, is a binding the app adds; the Menu key isn't sent by most terminals.
+
+### 7.7 Configuration
+
+None.
+
+### 7.8 Example
+
+- **Form demo:** a **Plan** select (Free, Pro, Team, Enterprise) between Email and Notes, in the Tab order, with
+  the placeholder "Choose a plan". The submit toast includes the plan.
+- **Command Registry demo:** a context menu on the notes list: a right-click on a note (it selects the row
+  first), or Shift+F10 on the selected note (anchored to its row), opens Delete (hint `x`), Delete all, a
+  separator, and Help (hint `:help`). Delete and Delete all are disabled while the list is empty.
+
+### 7.9 Tests and acceptance
+
+Automated (all platforms):
+- **Menu keys:** ↑ ↓ wrap and skip separators and disabled items; PgUp/PgDn/Home/End; Enter answers the index;
+  Esc and Tab answer null; the first selection skips a disabled item; Enter with nothing enabled.
+- **Type-ahead** with fake time: prefix matching, the same letter cycling, the 1 s reset, no match, case.
+- **Placement:** below, above, the larger side when neither fits (shortened, scrolling), shifted left at the right
+  edge, `MinWidth`, `MaxRows`, truncation, placed again after a resize.
+- **Snapshots:** hints right-aligned, separators, disabled items, the selection, the scrollbar; the Select
+  closed with the placeholder and with a value, focused and unfocused.
+- **Mouse:** click an item, a disabled item, a separator, the border; wheel; a press outside closes and isn't
+  routed to the screen; a release is ignored; `CloseOnClickOutside` false keeps the old behavior.
+- **Overlay framing:** `Framed = false` gives `Render` the whole placement rect and draws no block.
+- **Select:** every opening key, through `ComponentHarness`; choosing raises `Changed` once and sets `Selected`;
+  choosing the same option and dismissing don't raise it; the menu sits under the field at its width;
+  `Options` set with `Selected` out of range clears it; no options.
+- **ShowMenuAsync** with no items answers null without showing anything.
+
+Manual QA (results in the PR): both demos on Linux (tmux and Windows Terminal through WSL) and Windows (Windows
+Terminal and conhost): open the Select with each key and the mouse, choose and dismiss; the menu near the bottom
+of a short window opens above; right-click and Shift+F10 context menus; click outside to close; type-ahead.
+
+### 7.10 Migration impact
+
+- New public API (§7.2) in `PublicAPI.Unshipped.txt`. The two `Overlay` members default to the 1.0 behavior, so
+  existing overlays don't change.
+- README: `Select()` in the widget table, `SelectState` in the state table, a PopupMenu and context-menu
+  snippet, and the overlay members in the overlays section.
+
+### 7.11 Implementation order
+
+One PR, in 1.3.0 with Phase 12:
+1. `Overlay.Framed` and `CloseOnClickOutside`, in the frame drawing and the mouse router, with tests.
+2. `MenuItem` and `PopupMenu`: keys, type-ahead, placement, drawing, mouse; `ShowMenuAsync`.
+3. `SelectState` and `SelectBuilder`.
+4. The Example, README, CHANGELOG, manual QA.
+
+### 7.12 Out of scope
+
+- Submenus, checkable and radio items, icons, and mnemonics (an underlined letter that chooses at once).
+- A menu bar.
+- Hover highlighting and drag-to-choose (no motion reports, §4.14).
+- A filterable or editable select (a combo box you type into), and multi-select.
+- Options other than strings (`SelectState<T>`); the app maps the index.
+- Key hints in the status bar for the open menu.
+- Detecting the Menu key.
+
+### 7.13 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Select as a state plus builder, with the `App` passed to `HandleKey` (the pattern of every other widget), or a ready-made `Select` component that apps add as a child? | **State plus builder** (§7.2). |
+| 2 | ↑ / ↓ on a closed Select: open the menu (Textual, macOS), or change the choice without opening it (Windows combo boxes)? | **Open the menu** (§7.5): a choice never changes without the list in view. |
+| 3 | A press outside a menu: close it and consume the press, or close it and also deliver the press to what's below? | **Consume** (§7.6), as Windows and macOS menus do. |
+| 4 | ↑ / ↓ at the ends of a menu: wrap around, or stop? | **Wrap** (§7.3), as Windows menus do. |
+| 5 | Type-ahead: a prefix with a 1 s reset and same-letter cycling, or first letter only? | **Prefix with reset and cycling** (§7.3). |

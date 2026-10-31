@@ -78,6 +78,20 @@ public sealed class OverlayStack
         return dialog.Result;
     }
 
+    /// <summary>
+    /// Show a <see cref="PopupMenu"/> next to <paramref name="anchor"/> (1.x spec §7). The task answers the chosen
+    /// item's index, or null if the menu was dismissed. With no items it shows nothing and answers null. Awaited on
+    /// the UI thread, the continuation runs there.
+    /// </summary>
+    public Task<int?> ShowMenuAsync(IReadOnlyList<MenuItem> items, Rect anchor, int selected = 0)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        if (items.Count == 0) return Task.FromResult<int?>(null);
+        var menu = new PopupMenu(items, anchor, selected);
+        Show(menu);
+        return menu.Result;
+    }
+
     /// <summary>Show a scrollable message. The task completes when it's closed (Enter or Esc).</summary>
     public Task ShowMessageAsync(string title, Text body)
     {

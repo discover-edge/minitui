@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `Widget.TextArea()` and `TextAreaState`: multi-line text input. The text field's editing keys work across lines, plus Enter (new line), ↑ ↓ by wrapped row with a remembered column, PgUp/PgDn, Home/End by row then by line, and Ctrl+Home/End. Lines wrap at words by default (`Wrap(WrapMode.Char)` or `WrapMode.None` to scroll sideways), and the view scrolls to keep the cursor visible. `Paste` keeps line breaks, tabs become spaces, and `HandleMouse` places the cursor on a click and scrolls with the wheel. `TextPosition` is the cursor type.
-- Example: the Form demo has a Notes text area.
-- `docs/SPEC-1.x.md` §6: the TextArea spec.
+- `PopupMenu` and `MenuItem`: a menu overlay placed below an anchor (or above it, when there's more room), with right-aligned hints, separators and disabled items. ↑ ↓ (wrapping), PgUp/PgDn, Home/End and type-ahead move the selection; Enter or a click chooses; Esc, Tab or a click outside dismisses. `app.Overlays.ShowMenuAsync(items, anchor)` answers the chosen index, or null.
+- `Widget.Select()` and `SelectState`: a dropdown field that opens a `PopupMenu` of its options below the field, as wide as it. Enter, Space, ↑ ↓, Alt+↓, F4 or a click opens it; `Changed` fires when the user picks a different option.
+- `Overlay.Framed` (false: the overlay draws its own border) and `Overlay.CloseOnClickOutside` (true: a press outside closes it and goes nowhere else). Both default to the old behavior.
+- Example: the Form demo has a Notes text area and a Plan select; the Command Registry demo has a context menu on its notes (right-click or Shift+F10).
+- `docs/SPEC-1.x.md` §6 and §7: the TextArea, PopupMenu and Select specs.
 
 ## [1.2.0] - 2026-10-30
 

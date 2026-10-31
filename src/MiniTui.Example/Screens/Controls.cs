@@ -37,6 +37,22 @@ internal sealed class NotesInput(string label, string placeholder = "") : Compon
             .Draw(buf, area);
 }
 
+/// <summary>A dropdown field in a titled block (1.x spec §7.5). Enter, Space, the arrows or a click open its menu.</summary>
+internal sealed class SelectInput(string label, string placeholder, IReadOnlyList<string> options) : Component
+{
+    public SelectState State { get; } = new(options);
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key, App);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse, App);
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.Select()
+            .State(State)
+            .Placeholder(placeholder)
+            .Block(Widget.Block().Title($" {label} "))
+            .Focused(ctx.Focused)
+            .Draw(buf, area);
+}
+
 /// <summary>A checkbox toggled with Space, Enter or a click.</summary>
 internal sealed class Toggle(string label) : Component
 {

@@ -199,8 +199,26 @@ sealed class FilesScreen : Screen
   `App.Keys`; finally an unhandled Esc pops the screen. An unhandled Tab cycles the innermost focus scope.
 - **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and
   the screen titles. Turn it off with `WithChrome(statusBar: false)`.
-- **Overlays:** `app.Overlays.ConfirmAsync(message)`, `ShowMessageAsync(title, text)`, `ShowHelp()`, or
-  `Show(new CommandLineOverlay(registry))` and your own `Overlay` subclasses.
+- **Overlays:** `app.Overlays.ConfirmAsync(message)`, `ShowMessageAsync(title, text)`,
+  `ShowMenuAsync(items, anchor)`, `ShowHelp()`, or `Show(new CommandLineOverlay(registry))` and your own
+  `Overlay` subclasses. An overlay with `Framed => false` draws its own border; one with
+  `CloseOnClickOutside => true` closes when the user clicks elsewhere.
+- **Menus:** `ShowMenuAsync` opens a `PopupMenu` below the anchor (above it when there's more room there) and
+  answers the chosen index, or null when dismissed. ↑ ↓ PgUp PgDn Home End and type-ahead move; Enter or a
+  click chooses; Esc, Tab or a click outside closes. A right-click makes a context menu:
+
+  ```csharp
+  public override bool HandleMouse(MouseEvent mouse)
+  {
+      if (mouse is not { Action: MouseAction.Press, Button: MouseButton.Right }) return false;
+      MenuItem[] items = [new("Rename") { Hint = "F2" }, MenuItem.Separator, new("Delete") { Enabled = canDelete }];
+      App.RunTask(async _ =>
+      {
+          if (await App.Overlays.ShowMenuAsync(items, new Rect(mouse.X, mouse.Y, 1, 1)) is { } choice) Run(choice);
+      });
+      return true;
+  }
+  ```
 
 ## Layout
 
@@ -263,6 +281,7 @@ Widget.Table()
 | `StatusBar()` | `Left` and `Right` text; the right side wins when both don't fit. |
 | `TextField()`, `CommandLine()` | Single-line input from `TextFieldState` / `CommandLineState`, scrolled by display width, with the terminal cursor shown. |
 | `TextArea()` | Multi-line input from `TextAreaState`: `Wrap(WrapMode.Word/Char/None)` (word by default; `None` scrolls sideways), `Placeholder`, `Block`. Scrolls to keep the cursor visible. |
+| `Select()` | A dropdown field from `SelectState`: the chosen option (or a muted `Placeholder`) and a ▼. Opening it shows a `PopupMenu` of the options below the field. |
 | `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
 | `Button()`, `Checkbox()` | Themed controls. |
 
@@ -299,6 +318,7 @@ size, scroll offset) back into it while drawing.
 | `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end) | TextField |
 | `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
 | `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls | TextArea |
+| `SelectState` | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the `App`: `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option | Select |
 | `TabBarState` | ← → h l | TabBar |
 
 `KeyMap` binds keys to actions and produces hints and help text from the same list:
@@ -328,6 +348,19 @@ sealed class Notes : Component
     public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.TextArea().State(State).Placeholder("Notes").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
+}
+```
+
+A dropdown is a component around a `SelectState`. The state opens a menu overlay, so it takes the `App`:
+
+```csharp
+sealed class PlanField : Component
+{
+    public SelectState State { get; } = new(["Free", "Pro", "Team"]);
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key, App);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse, App);
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.Select().State(State).Placeholder("Choose a plan").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
 
