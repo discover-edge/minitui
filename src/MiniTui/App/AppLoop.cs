@@ -87,9 +87,11 @@ public partial class App
             var backend = _backend ?? Terminal.CreateDefaultBackend(_colorMode);
             run.Terminal = new Terminal(backend);
             _terminal = run.Terminal;
-            _noColor = ColorModeOf(backend) == ColorMode.None;
+            _activeColorMode = ColorModeOf(backend);
+            _noColor = _activeColorMode == ColorMode.None;
             _activeTheme = ResolveTheme(_theme);
             _basicGlyphs = Glyphs.DetectBasic(backend);
+            StartDebug();
             if (_captureConsole) run.Capture = ConsoleCapture.Start(Log);
 
             run.Subscription = InputPump.Subscribe(input, keys => _queue.Writer.TryWrite(new KeyBatch(keys)));
@@ -190,7 +192,18 @@ public partial class App
         if (dirty)
         {
             _frameTickRequest = null;
-            Guard(() => terminal.Draw(buf => RenderFrame(buf, new Rect(0, 0, buf.Width, buf.Height))));
+            Guard(() =>
+            {
+                var start = _time.GetTimestamp();
+                var rendered = start;
+                var render = TimeSpan.Zero;
+                terminal.Draw(buf =>
+                {
+                    render = RenderFrame(buf, new Rect(0, 0, buf.Width, buf.Height));
+                    rendered = _time.GetTimestamp();
+                });
+                RecordFrame(terminal, render, _time.GetElapsedTime(rendered));
+            });
             UpdateTicker();
         }
         run.FirstFrame = false;
@@ -300,6 +313,7 @@ public partial class App
     // §4.7 of the 1.x spec: OnEvent, OnMouse, then the component under the pointer. Unhandled events are dropped.
     private void HandleMouse(MouseEvent mouse)
     {
+        _pointer = (mouse.X, mouse.Y);
         _onEvent?.Invoke(mouse);
         if (_onMouse?.Invoke(mouse) == true) return;
         if (_onRender is not null) return;
@@ -325,6 +339,7 @@ public partial class App
     {
         _onEvent?.Invoke(new KeyEvent(key));
         if (_onKey?.Invoke(key) == true) return;
+        if (HandleDebugKey(key)) return;
 
         // Ctrl+C always quits unless OnKey took it
         if (KeyInput.IsCtrlC(key))
@@ -343,12 +358,17 @@ public partial class App
     /// Draw a frame: the <see cref="Render"/> callback, or the top screen and the chrome (§9.3); then overlays,
     /// bottom to top, and toasts.
     /// </summary>
-    private void RenderFrame(Buffer buf, Rect area)
+    /// <returns>The time taken, without the debug overlay.</returns>
+    private TimeSpan RenderFrame(Buffer buf, Rect area)
     {
         _hits.Clear();
         try
         {
+            var start = _time.GetTimestamp();
             RenderLayers(buf, area);
+            var render = _time.GetElapsedTime(start);
+            if (_showDebug) DrawDebug(buf, area, render);
+            return render;
         }
         finally
         {

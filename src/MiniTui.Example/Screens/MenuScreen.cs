@@ -59,6 +59,9 @@ internal sealed class MenuScreen : Screen
             .Wrap(WrapMode.Word)
             .Draw(buf, columns["about"] with { Y = columns["about"].Y + 1 });
 
+        if (inner.Height > Demos.Length + 5)
+            buf.SetString(inner.X, inner.Bottom - 2, "F12 toggles the debug overlay.", ctx.Theme.TextMuted);
+
         // Job control is Unix only (1.x spec §5.5)
         if (!OperatingSystem.IsWindows() && inner.Height > Demos.Length + 4)
             buf.SetString(inner.X, inner.Bottom - 1, "Ctrl+Z suspends to the shell; fg brings the demos back.", ctx.Theme.TextMuted);

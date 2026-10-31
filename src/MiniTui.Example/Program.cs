@@ -7,7 +7,7 @@ using MiniTui.Example;
 // The mouse works too: click to focus, select and toggle, and scroll lists with the wheel.
 // On Linux and macOS, Ctrl+Z suspends to the shell, and fg brings the demos back.
 
-var app = App.Create().WithTheme(Theme.Default).WithMouse().WithSuspendKey();
+var app = App.Create().WithTheme(Theme.Default).WithMouse().WithSuspendKey().WithDebugKey();
 app.Keys.Add("q", "Back", () => app.Screens.Pop());   // popping the menu quits
 app.Screens.Push(new MenuScreen());
 app.Run();

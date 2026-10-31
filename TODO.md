@@ -20,6 +20,6 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Popup menu - context menus, dropdowns (`PopupMenu`, `Select`, `SelectState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §7
 - [x] Multi-line text input widget (`TextArea`, `TextAreaState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §6
 - [x] Canvas (braille 2×4), line Chart and BarChart (`Canvas`, `Chart`, `BarChart`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §8
-- [ ] Debug mode - visualize focus, layout boundaries and frame time
+- [x] Debug mode - visualize focus, layout boundaries and frame time (`App.WithDebugKey`, `ShowDebug`, `LastFrame`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §9
 - [ ] Text selection, copy/cut and the system clipboard (after the other phases)
 - [x] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT; `App.Suspend`, `App.WithSuspendKey`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §5

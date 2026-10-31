@@ -538,6 +538,19 @@ unhandled Ctrl+Z do that. It's off by default, as in most TUI libraries; a compo
 way. After any resume, `OnEvent` gets a `ResumeEvent`. Windows has no job control, so there Ctrl+Z is
 always a key and `SuspendProcess` returns false.
 
+### Debugging
+
+`app.WithDebugKey()` makes F12 (or the key you pass) toggle a debug overlay; `app.ShowDebug = true` shows it
+from code, and `MINITUI_DEBUG=1` turns on both without changing the app. The overlay outlines every component
+rendered with `ctx.Render` (the focus chain in magenta, the focused component in yellow) and shows a panel with
+the frame number, render and flush times, cells and bytes sent, the terminal's size and capabilities, the
+focus chain and the component under the pointer. It takes no input, and clicks go through it.
+
+```csharp
+var frame = app.LastFrame;   // FrameStats: Frame, RenderTime, FlushTime, CellsChanged, BytesWritten, FullRedraw
+app.Log.Add($"frame {frame.Frame}: {frame.RenderTime.TotalMilliseconds:0.0} ms, {frame.CellsChanged} cells");
+```
+
 ### Backends
 
 `Terminal` draws through an `ITerminalBackend`:

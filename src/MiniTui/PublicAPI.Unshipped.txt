@@ -1,4 +1,8 @@
 #nullable enable
+MiniTui.App.LastFrame.get -> MiniTui.FrameStats
+MiniTui.App.ShowDebug.get -> bool
+MiniTui.App.ShowDebug.set -> void
+MiniTui.App.WithDebugKey(string? key = "f12") -> MiniTui.App!
 MiniTui.Axis
 MiniTui.Axis.<Clone>$() -> MiniTui.Axis!
 MiniTui.Axis.Axis() -> void
@@ -81,6 +85,23 @@ MiniTui.Dataset.Style.get -> MiniTui.Style?
 MiniTui.Dataset.Style.init -> void
 MiniTui.Dataset.Type.get -> MiniTui.GraphType
 MiniTui.Dataset.Type.init -> void
+MiniTui.FrameStats
+MiniTui.FrameStats.BytesWritten.get -> long?
+MiniTui.FrameStats.BytesWritten.init -> void
+MiniTui.FrameStats.CellsChanged.get -> int
+MiniTui.FrameStats.CellsChanged.init -> void
+MiniTui.FrameStats.Deconstruct(out long Frame, out System.TimeSpan RenderTime, out System.TimeSpan FlushTime, out int CellsChanged, out long? BytesWritten, out bool FullRedraw) -> void
+MiniTui.FrameStats.Equals(MiniTui.FrameStats other) -> bool
+MiniTui.FrameStats.FlushTime.get -> System.TimeSpan
+MiniTui.FrameStats.FlushTime.init -> void
+MiniTui.FrameStats.Frame.get -> long
+MiniTui.FrameStats.Frame.init -> void
+MiniTui.FrameStats.FrameStats() -> void
+MiniTui.FrameStats.FrameStats(long Frame, System.TimeSpan RenderTime, System.TimeSpan FlushTime, int CellsChanged, long? BytesWritten, bool FullRedraw) -> void
+MiniTui.FrameStats.FullRedraw.get -> bool
+MiniTui.FrameStats.FullRedraw.init -> void
+MiniTui.FrameStats.RenderTime.get -> System.TimeSpan
+MiniTui.FrameStats.RenderTime.init -> void
 MiniTui.GraphType
 MiniTui.GraphType.Line = 0 -> MiniTui.GraphType
 MiniTui.GraphType.Scatter = 1 -> MiniTui.GraphType
@@ -106,12 +127,17 @@ override MiniTui.Bar.ToString() -> string!
 override MiniTui.Dataset.Equals(object? obj) -> bool
 override MiniTui.Dataset.GetHashCode() -> int
 override MiniTui.Dataset.ToString() -> string!
+override MiniTui.FrameStats.GetHashCode() -> int
 static MiniTui.Axis.operator !=(MiniTui.Axis? left, MiniTui.Axis? right) -> bool
 static MiniTui.Axis.operator ==(MiniTui.Axis? left, MiniTui.Axis? right) -> bool
 static MiniTui.Bar.operator !=(MiniTui.Bar? left, MiniTui.Bar? right) -> bool
 static MiniTui.Bar.operator ==(MiniTui.Bar? left, MiniTui.Bar? right) -> bool
 static MiniTui.Dataset.operator !=(MiniTui.Dataset? left, MiniTui.Dataset? right) -> bool
 static MiniTui.Dataset.operator ==(MiniTui.Dataset? left, MiniTui.Dataset? right) -> bool
+static MiniTui.FrameStats.operator !=(MiniTui.FrameStats left, MiniTui.FrameStats right) -> bool
+static MiniTui.FrameStats.operator ==(MiniTui.FrameStats left, MiniTui.FrameStats right) -> bool
 static MiniTui.Widget.BarChart() -> MiniTui.BarChartBuilder!
 static MiniTui.Widget.Canvas() -> MiniTui.CanvasBuilder!
 static MiniTui.Widget.Chart() -> MiniTui.ChartBuilder!
+~override MiniTui.FrameStats.Equals(object obj) -> bool
+~override MiniTui.FrameStats.ToString() -> string

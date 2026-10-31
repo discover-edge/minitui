@@ -37,7 +37,7 @@ or add to them:
 | **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | §6 | 1.3.0 |
 | **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | §7 | 1.3.0 |
 | **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | §8 | 1.4.0 |
-| **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | To be specced | 1.4.0 |
+| **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | §9 | 1.4.0 |
 | **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | To be specced | Later |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
@@ -1877,3 +1877,147 @@ One PR, in 1.4.0:
 | 4 | Braille on conhost: fall back to half blocks, or draw `?`? | **Half blocks** (§8.3), as other widgets avoid non-WGL4 glyphs. |
 | 5 | A shared cell with two colors: the later shape wins, or Ratatui-style layers? | **Later shape wins** (§8.3); layers are out of scope. |
 | 6 | `BarChart` value text: inside the bar's bottom row (Ratatui) or above the bar? | **Inside** (§8.5), so values don't need a spare row. |
+
+---
+
+## 9. Debug overlay (Phase 15)
+
+### 9.1 Purpose
+
+When a layout is off by a cell, focus goes somewhere unexpected or a screen feels slow, the app author has
+nothing to look at but the result. Phase 15 adds a debug overlay that the app draws on top of every frame: an
+outline of each component's area, with the focus chain picked out, and a panel with the frame time, the cells and
+bytes sent, the focus chain by name, the component under the pointer and the terminal's capabilities. It is off
+until the app opts in to a toggle key (or sets an environment variable), it takes no input, and it costs nothing
+when hidden beyond two timestamps per frame. The frame numbers are also public as `App.LastFrame`, for apps that
+want them in their own status line or log.
+
+### 9.2 Public API
+
+```csharp
+public partial class App
+{
+    /// Make key (default F12) toggle the debug overlay (§9.3). Off by default. The key is checked right after
+    /// OnKey, before Ctrl+C, overlays and the focus chain, so it works while a dialog is open or a text field has
+    /// focus. Null turns the key off again.
+    public App WithDebugKey(string? key = "f12");
+
+    /// True while the debug overlay is drawn. Set it from code, or with the debug key. Redraws on change.
+    public bool ShowDebug { get; set; }
+
+    /// Numbers about the last frame drawn (default before the first one).
+    public FrameStats LastFrame { get; }
+}
+
+/// One frame's numbers (§9.4).
+public readonly record struct FrameStats(
+    long Frame,              // 1 for the first frame drawn by this run
+    TimeSpan RenderTime,     // the Render callback or screen, overlays and toasts, without the debug overlay
+    TimeSpan FlushTime,      // comparing the buffers and the backend writing the changes
+    int CellsChanged,        // cells sent to the backend (every cell on a full redraw)
+    long? BytesWritten,      // bytes written to the terminal; null on backends that don't write bytes (conhost, TestBackend)
+    bool FullRedraw);
+```
+
+- `key` uses the `KeyMap` syntax (`"f12"`, `"ctrl+shift+d"`); an invalid key throws `FormatException`, as
+  `KeyBinding.Parse` does.
+- **Environment:** `MINITUI_DEBUG=1` at startup turns on the F12 key (unless the app chose another key) and sets
+  `ShowDebug`, so an app can be inspected without changing it. Any other value is ignored.
+- No theme changes: the overlay uses fixed colors (§9.3), so it looks the same whatever the app's theme.
+
+### 9.3 What the overlay draws
+
+Drawn by the app loop after the toasts, on the frame buffer, and recorded nowhere (it takes no input; clicks go
+through it to what's underneath).
+
+- **Outlines:** every rect the frame recorded for hit testing (§4.7): the top screen, each child rendered with
+  `ctx.Render`, and each overlay, in render order. An outline patches the background of the rect's edge cells,
+  keeping their symbols, so text stays readable: dark blue for most, dark magenta for the components on the
+  focus chain, and yellow for the focused component (the last on the chain). A 1-row or 1-column rect is patched
+  whole. With the monochrome theme (`NO_COLOR`), outlines are underlined and the focused one reversed.
+- **Panel:** a bordered box, `Theme`-independent (white on dark gray), in the top-right corner of the screen, at
+  most 44 columns wide and as tall as its lines; if the pointer is over it, it moves to the bottom-left so it
+  doesn't hide what's being inspected. Lines, each truncated with `…`:
+  1. `frame 1234  render 1.2 ms  flush 0.3 ms` (this frame's render time; the previous frame's flush time,
+     since this frame's isn't known until it's drawn)
+  2. `avg 1.0 ms  max 4.1 ms  fps 12` (render time over the last 60 frames; frames drawn in the last second)
+  3. `cells 57  bytes 1.2 KB` (the previous frame; `bytes –` when unknown; `full` appended after a full redraw)
+  4. `120×40  truecolor  braille  mouse` (size, `ColorMode`, `braille` or `basic` glyphs, and `mouse` when on)
+  5. `focus: MenuScreen › FormScreen › TextInput` (type names of the focus chain from the top screen, or the
+     top overlay when one is open; truncated from the left)
+  6. `under pointer: TextInput (2, 5, 40×3)` (the topmost recorded rect under the last mouse position; omitted
+     without mouse support)
+  7. `screens 2  overlays 1  toasts 0`
+- Debug drawing happens after `RenderTime` is measured, so it doesn't count toward it.
+
+### 9.4 Measuring
+
+- `RenderTime` and `FlushTime` use `App.Time` (the `TimeProvider`), so tests with fake time see exact values.
+  Two timestamps per frame are taken whether or not the overlay is shown.
+- `CellsChanged` is the count of updates passed to the backend. `BytesWritten` is the length of the escape
+  sequences the ANSI backend wrote for the frame (cursor moves, styles, text and cursor show/hide).
+- `LastFrame` is updated after the flush; the overlay drawn in frame N therefore shows frame N's render time and
+  frame N − 1's flush numbers, which line 1 and 3 say.
+- Showing the overlay changes cells every frame it's drawn (the numbers change), but it never asks for a frame:
+  frames still happen only when something else makes the app dirty.
+
+### 9.5 Configuration
+
+`MINITUI_DEBUG=1` (§9.2).
+
+### 9.6 Example
+
+`WithDebugKey()` in the example app, and "F12 toggles the debug overlay" in the menu's footer.
+
+### 9.7 Tests and acceptance
+
+Automated (all platforms), through `AppHarness` and `TestBackend` with fake time:
+- **Key:** F12 toggles `ShowDebug` and redraws; works with a dialog open and with a text field focused (the field
+  doesn't get the key); a custom key; null turns it off; without `WithDebugKey`, F12 reaches the focus chain.
+- **Environment:** `MINITUI_DEBUG=1` turns on the key and shows the overlay; other values don't (through an
+  injected environment lookup, as `Glyphs.DetectBasic` does).
+- **Stats:** `Frame` counts up; `RenderTime` and `FlushTime` with fake time advanced inside the render callback
+  and the backend; `CellsChanged`, `FullRedraw`; `BytesWritten` from the ANSI backend on a fake console and null
+  on `TestBackend`.
+- **Outlines:** a screen with two children: edge cells' backgrounds patched with the three colors, symbols
+  unchanged; 1-row rects; monochrome modifiers; overlays outlined.
+- **Panel:** each line's text; truncation at narrow widths; moving to the bottom-left when the pointer is over
+  it; nothing drawn on a terminal too small for the box (no throw at any size).
+- **No input:** a click on the panel reaches the component below; the overlay never schedules a frame.
+
+Manual QA (results in the PR): the example on Linux (tmux and Windows Terminal through WSL) and Windows (Windows
+Terminal and conhost): F12 on several demos, with a dialog and a popup menu open, and with the mouse over
+different components; the numbers move while the dashboard animates.
+
+### 9.8 Migration impact
+
+- New public API (§9.2) in `PublicAPI.Unshipped.txt`.
+- README: a "Debugging" subsection under "The terminal" (the key, the environment variable, `LastFrame`).
+
+### 9.9 Implementation order
+
+One PR, in 1.4.0 with Phase 14:
+1. Frame measuring in the loop and the terminal, `FrameStats`, `LastFrame`; bytes from the ANSI backend.
+2. `ShowDebug`, `WithDebugKey`, `MINITUI_DEBUG`.
+3. Outlines and the panel.
+4. The Example, README, CHANGELOG, manual QA.
+
+### 9.10 Out of scope
+
+- Inspecting widgets drawn without a component (builders called directly in a `Render` method have no recorded
+  rect); apps that want them outlined wrap them in a component.
+- Clicking in the overlay to select a component, a tree view, or editing anything.
+- Logging stats to a file, a frame-time graph, and memory or GC numbers.
+- Showing the key event log (the Input demo already does).
+- A debug overlay for apps that use the `Render` callback only (they have no components; the panel is still
+  shown, with an empty focus chain).
+
+### 9.11 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | The toggle key: opt-in with `WithDebugKey` (like `WithSuspendKey`), or F12 on by default? | **Opt-in** (§9.2): F12 stays free for apps. |
+| 2 | `MINITUI_DEBUG=1` turns the overlay on without code changes? | **Yes** (§9.2). |
+| 3 | Outlines: patch the edge cells' background (content stays readable), or draw box lines over them? | **Background** (§9.3). |
+| 4 | Panel corner: top-right, moving away from the pointer, or a key to cycle corners? | **Top-right, moving to the bottom-left under the pointer** (§9.3). |
+| 5 | Frame stats public (`App.LastFrame`) or internal to the overlay? | **Public** (§9.2), for apps' own status lines and logs. |
