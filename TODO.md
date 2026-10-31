@@ -21,4 +21,5 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Multi-line text input widget (`TextArea`, `TextAreaState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §6
 - [ ] Canvas (braille 2×4), line Chart and BarChart
 - [ ] Debug mode - visualize focus, layout boundaries and frame time
+- [ ] Text selection, copy/cut and the system clipboard (after the other phases)
 - [x] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT; `App.Suspend`, `App.WithSuspendKey`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §5
