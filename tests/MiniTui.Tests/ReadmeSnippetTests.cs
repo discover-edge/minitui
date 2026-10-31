@@ -154,4 +154,38 @@ public class MigrationSnippetTests
         Assert.Equal("Ann q", harness.Lines[0].TrimEnd());
         Assert.StartsWith("[✓] Subscribe", harness.Lines[1], StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ChartAndCanvas()
+    {
+        var buf = new Buffer(40, 12);
+        var area = buf.Area;
+        var now = 100.0;
+        var angle = 0.5;
+        List<(double X, double Y)> cpu = [(40, 10), (70, 55), (100, 30)];
+        List<(double X, double Y)> latency = [(50, 20), (90, 80)];
+
+        Widget.Chart()
+            .Datasets(
+                new Dataset("cpu", cpu),                                   // (double X, double Y) points
+                new Dataset("p99", latency) { Type = GraphType.Scatter, Marker = Marker.Dot })
+            .XAxis(new Axis { Title = "s", Min = now - 60, Max = now, LabelFormat = "0" })
+            .YAxis(new Axis { Title = "%" })                               // bounds from the data
+            .Block(Widget.Block().Title(" Load "))
+            .Draw(buf, area);
+
+        Assert.Contains(buf.ToLines(), l => l.Contains("80│"));
+
+        Widget.Canvas()
+            .XBounds(-1, 1).YBounds(-1, 1)
+            .Paint(p =>
+            {
+                p.Circle(0, 0, 0.8, Theme.Current.Info);
+                p.Line(0, 0, Math.Cos(angle), Math.Sin(angle));
+                p.Print(-1, 1, "angle");
+            })
+            .Draw(buf, area);
+
+        Assert.StartsWith("angle", buf.ToLines()[0]);
+    }
 }

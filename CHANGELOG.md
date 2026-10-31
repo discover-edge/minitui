@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Widget.Canvas()`, `CanvasPainter` and `Marker`: draw points, lines, rectangles, circles and text in app coordinates (y grows upward) at up to 2×4 dots per cell with braille, or with half blocks, blocks or dots. Lines are clipped at the edges; where two shapes share a cell, the later one's style wins.
+- `Widget.Chart()`, `Dataset`, `Axis`, `GraphType` and `LegendPosition`: line and scatter plots of one or more datasets, with axes, labels, axis titles and a legend in a corner. Axis bounds come from the data unless set, and small areas drop the titles, then the labels, then the axes.
+- `Widget.BarChart()` and `Bar`: labelled bars in eighths of a cell, vertical or horizontal, with each bar's value in or after it.
+- `Theme.ChartSeries`: the styles of datasets without their own (cyan, yellow, magenta, green, blue, red; one plain style in `Theme.Monochrome`).
+- In conhost, canvases and charts draw braille as half blocks.
+- Example: a Charts demo with a live line chart (`m` cycles the marker, `s` toggles scatter), a bar chart (`d` toggles the direction) and an animated canvas.
+- `docs/SPEC-1.x.md` §8: the Canvas and charts spec.
+
 ## [1.3.0] - 2026-10-30
 
 MiniTui 1.3: a multi-line text area, popup menus and dropdown selects.

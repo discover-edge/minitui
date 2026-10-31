@@ -19,7 +19,7 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Bracketed paste (`?2004`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §3
 - [x] Popup menu - context menus, dropdowns (`PopupMenu`, `Select`, `SelectState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §7
 - [x] Multi-line text input widget (`TextArea`, `TextAreaState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §6
-- [ ] Canvas (braille 2×4), line Chart and BarChart
+- [x] Canvas (braille 2×4), line Chart and BarChart (`Canvas`, `Chart`, `BarChart`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §8
 - [ ] Debug mode - visualize focus, layout boundaries and frame time
 - [ ] Text selection, copy/cut and the system clipboard (after the other phases)
 - [x] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT; `App.Suspend`, `App.WithSuspendKey`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §5
