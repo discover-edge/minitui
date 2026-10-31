@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) done; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -34,7 +34,7 @@ or add to them:
 | **9. Bracketed paste** | `?2004`: a paste arrives as one `PasteEvent` instead of thousands of keys; text fields insert it in one step. | 8 | §3 | 1.1.0 |
 | **10. Mouse and Windows input** | Windows reads `ReadConsoleInput` records directly. Paste events on Windows: bracketed paste in Windows Terminal (VT input), and a decision for conhost, which has none and delivers Ctrl+V as a key (found in Phase 9 QA). Mouse on both platforms (SGR 1006 on Unix, `MOUSE_EVENT` records on Windows): `MouseEvent`, click to focus, wheel scrolling in lists, tables and paragraphs, clicking buttons, checkboxes and tabs. | 8, 9 | §4 | 1.2.0 |
 | **11. Suspend and resume** | Ctrl+Z suspends the app (SIGTSTP), restoring the terminal; resuming (SIGCONT) re-enters it and redraws. Also `app.Suspend(Action)` for running a child process such as `$EDITOR` in the real terminal. | 8 | §5 | 1.2.0 |
-| **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | To be specced | 1.3.0 |
+| **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | §6 | 1.3.0 |
 | **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | To be specced | 1.3.0 |
 | **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | To be specced | 1.4.0 |
 | **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | To be specced | 1.4.0 |
@@ -1160,3 +1160,216 @@ One PR, shipping in 1.2.0:
 | 3 | During a `Suspend` action, ignore Ctrl+C in MiniTui so it only stops the child, as `system(3)`? Otherwise Ctrl+C in `ping` would quit the app too. | **Ignore** (§5.4). |
 | 4 | Handle SIGTSTP sent from outside (`kill -TSTP`) like `SuspendProcess`, restoring the terminal, even without `WithSuspendKey`, or leave the 1.1 behavior (stops with the terminal still in raw mode)? | **Like `SuspendProcess`** (§5.5). |
 | 5 | Send a `ResumeEvent` so apps can refresh data after a long stop? | **Yes** (§5.2), as Bubble Tea's `ResumeMsg`. |
+
+---
+
+## 6. TextArea (Phase 12)
+
+### 6.1 Purpose
+
+`TextField` edits one line. Apps also need multi-line input: notes, descriptions, commit messages, a message
+to send. Today they'd have to build it from scratch. Phase 12 adds `TextAreaState` and `Widget.TextArea()`: the
+same editing rules as a text field (§8.4: grapheme-safe cursor, word moves and deletes), plus line breaks,
+soft wrapping, moving between rows, vertical scrolling, multi-line paste (Phase 9) and placing the cursor with
+the mouse (Phase 10). There's no selection, clipboard or undo (§6.12).
+
+### 6.2 Public API
+
+```csharp
+/// A position in a TextAreaState: a line, and a UTF-16 index into that line on a grapheme cluster boundary.
+public readonly record struct TextPosition(int Line, int Index);
+
+public class TextAreaState
+{
+    /// Create a state with optional initial text. The cursor starts at the end.
+    public TextAreaState(string text = "");
+
+    /// The text, lines joined by "\n". Setting it normalizes "\r\n" and "\r" to "\n", turns tabs into spaces
+    /// (§6.4), removes other control characters, and moves the cursor to the end.
+    public string Text { get; set; }
+
+    /// The lines, without line breaks. Never empty: empty text is one empty line.
+    public IReadOnlyList<string> Lines { get; }
+
+    /// The cursor. Set values are clamped to the text and snap to the next cluster boundary.
+    public TextPosition Cursor { get; set; }
+
+    /// The first visible row (a wrapped row, not a line). Written by the widget while drawing, and by the wheel.
+    public int ScrollOffset { get; }
+
+    /// Clear the text.
+    public void Clear();
+
+    /// Insert text at the cursor and move the cursor past it. Line breaks in the text start new lines.
+    public void Insert(string text);
+
+    /// Insert pasted text at the cursor, keeping its line breaks (tabs and control characters as for Text).
+    /// Returns true, so a component can write HandlePaste(text) => State.Paste(text).
+    public bool Paste(string text);
+
+    /// Handle an editing or movement key (§6.3). Returns true if it was one.
+    public virtual bool HandleKey(ConsoleKeyInfo key);
+
+    /// A left press inside the text moves the cursor there; the wheel scrolls by three rows (§6.6). Uses the
+    /// area from the last draw. Returns true if it did either.
+    public bool HandleMouse(MouseEvent mouse);
+}
+
+public static class Widget
+{
+    public static TextAreaBuilder TextArea();
+}
+
+/// A multi-line text input. Long lines wrap; the view scrolls vertically to keep the cursor visible, and when
+/// focused shows the terminal cursor at the insertion point.
+public sealed class TextAreaBuilder
+{
+    public TextAreaBuilder State(TextAreaState state);
+    public TextAreaBuilder Placeholder(string? placeholder);  // muted text while empty, on the first row
+    public TextAreaBuilder Focused(bool focused = true);
+    public TextAreaBuilder Block(BlockBuilder block);
+    public TextAreaBuilder Style(Style style);                 // patched over the theme's input style
+    public TextAreaBuilder Wrap(WrapMode wrap);                // Word (the default), Char, or None (§6.5)
+    public void Draw(Buffer buf, Rect area);
+}
+```
+
+- It draws with the existing `Theme.Input`, `Theme.InputFocused` and `Theme.Cursor` styles; no theme changes.
+- A component that hosts a text area overrides `CapturesText => true` (§9.4), as for a text field, so plain-key
+  bindings don't fire while typing.
+
+### 6.3 Keys
+
+The §8.4 rules apply within a line: any non-control `KeyChar` is typed, surrogate pairs are joined, the cursor
+moves and deletes by grapheme cluster. Across lines:
+
+| Key | Effect |
+|---|---|
+| Enter | Split the line at the cursor; the cursor goes to the start of the new line. |
+| ← / → | Move by cluster; at the start or end of a line, to the end of the previous or start of the next line. |
+| Ctrl+← / → | Move by word, across line breaks (a line break counts as whitespace). |
+| ↑ / ↓ | Move to the previous or next **row** (wrapped row, not line), to the column nearest the *goal column*. On the first row, ↑ moves to the start of the text; on the last row, ↓ to the end. |
+| PgUp / PgDn | Move up or down by the visible height (from the last draw), keeping the goal column. |
+| Home / End | Start or end of the current row. Pressed again at the start of a wrapped row, Home goes to the start of the line (End likewise). |
+| Ctrl+Home / Ctrl+End | Start or end of the text. |
+| Backspace / Delete | Delete a cluster; at the start (end) of a line, join it with the previous (next) line. |
+| Ctrl+Backspace, Ctrl+W | Delete the previous word, across a line break. |
+| Ctrl+U | Delete to the start of the line; at the start, join with the previous line. |
+| Ctrl+K | Delete to the end of the line; at the end, join with the next line (as in Emacs). |
+
+- **The goal column** is the display column the cursor had after the last horizontal move, edit or click, so
+  moving ↓ through a short line and on to a long one returns to the same column. Vertical moves keep it.
+- **Not handled** (they return false, so they reach the component and the bindings): Tab and Shift+Tab (focus
+  moves, §6.12), Esc, and keys with Ctrl or Alt that aren't in the table, such as Ctrl+S or Alt+Enter, which an
+  app can bind to submit. Ctrl+Enter can't be told from Enter in most terminals (§4.1), so it isn't used.
+- Every key in the table returns true even when it can't move (↑ at the very start), so it never leaks to a
+  binding.
+
+### 6.4 Text model
+
+- Stored as a list of lines (`string`), so an edit costs one line, not the whole text.
+- **Tabs** become spaces up to the next multiple of 4 display columns, when typed, inserted or pasted, so the
+  text never holds a `\t` and the cursor never sits inside one. Other control characters are removed, as in
+  `TextFieldState.Paste`. `Text` uses `\n` only.
+- **Paste** keeps line breaks (normalized by Phase 9 to `\n`), unlike `TextFieldState.Paste`. A 10,000-line
+  paste is one `Insert`.
+- `Cursor.Index` is a UTF-16 index, like `TextFieldState.Cursor`; it's always on a cluster boundary.
+
+### 6.5 Layout and drawing
+
+- **Wrapping** (`WrapMode.Word`, the default): each line is split into rows no wider than the area, breaking
+  after whitespace, as `Paragraph` does; a word wider than the area breaks anywhere. Unlike `Paragraph`, the
+  spaces at a wrap point stay at the end of their row, so every index has a place for the cursor and the text
+  isn't changed. A wide character is never split across rows. `WrapMode.Char` breaks anywhere.
+- **`WrapMode.None`:** one row per line, and the whole view scrolls horizontally by display width to keep the
+  cursor visible, as a text field does.
+- **The cursor at a wrap point** shows at the start of the next row; at the end of a line, after the last
+  character. A row that's full to the edge with the cursor at its end shows the cursor on the next row's first
+  cell (a row that exists only for the cursor), so the cursor is always drawn inside the area.
+- **Vertical scrolling:** after an edit, move or click, the view scrolls just enough to show the cursor's row.
+  The wheel scrolls without moving the cursor, and the view stays where the wheel left it until the cursor
+  moves again. `ScrollOffset` is clamped so the last row can reach the bottom but not above it.
+- The layout is computed per draw from the lines; the rows above the view are measured but not drawn. That's
+  linear in the text, fine for the notes and messages this is for (§6.12).
+- Empty text with a placeholder shows the placeholder in `TextMuted` on the first row, with the cursor at its
+  start.
+- When focused, the cursor cell gets `Theme.Cursor` and the terminal cursor is placed there, as in a text
+  field.
+
+### 6.6 Mouse
+
+- `HandleMouse`: a left press inside the area (from the last draw, as with `SelectionState`) moves the cursor
+  to the nearest cluster boundary at that cell: the clicked character's start, or the row's end if the click is
+  past it. It sets the goal column. Presses on the block's border, and other buttons, aren't handled.
+- The wheel scrolls by three rows (decision 5 of §4.15), without moving the cursor.
+- Click to focus (§4.7) runs first, so a click in an unfocused text area focuses it and places the cursor.
+
+### 6.7 Configuration
+
+None.
+
+### 6.8 Example
+
+- The Form demo gets a **Notes** text area below the existing fields, in the Tab order, with a placeholder. The
+  toast shown on submit includes the line count. Submit stays on Ctrl+S (Enter in the notes is a line break).
+
+### 6.9 Tests and acceptance
+
+Automated (all platforms):
+- **Editing:** typing, Enter splitting a line (at start, middle, end), Backspace and Delete joining lines,
+  Ctrl+W across a line break, Ctrl+U and Ctrl+K at line ends, surrogate pairs and combining marks (never split),
+  tabs to spaces at the right column, control characters removed, `Text` round trip with `\r\n`.
+- **Movement:** ← → across lines; Ctrl+← → across lines; ↑ ↓ by wrapped row with the goal column, through short
+  and wide-character lines; ↑ on the first row and ↓ on the last; Home/End by row then by line; Ctrl+Home/End;
+  PgUp/PgDn by the drawn height.
+- **Layout:** word and char wrap with the spaces kept at the wrap point; a wide character at the edge moves to the
+  next row; the full-row cursor row; `WrapMode.None` horizontal scrolling; scroll follows the cursor, the wheel
+  scrolls without moving it, and the clamp at the bottom.
+- **Snapshots** (`TestBackend`): empty with placeholder, focused and unfocused, wrapped and scrolled text, a block.
+- **Paste:** multi-line paste inserts lines at the cursor and the cursor ends after it; a large paste (10,000
+  lines) completes quickly.
+- **Mouse:** a click on a character, past a row's end, on a wrapped row, below the last row (end of text) and on
+  the border; wheel scrolling; click to focus then place, through `ComponentHarness.Click`.
+- **Routing:** Tab and Ctrl+S aren't handled; Enter in a text area doesn't fire an Enter binding.
+
+Manual QA (results in the PR): in the Form demo on Linux (tmux and Windows Terminal through WSL) and Windows
+(Windows Terminal and conhost): type several paragraphs, resize narrower and wider, move with every key in §6.3,
+paste a few hundred lines, click to place the cursor and scroll with the wheel; emoji and CJK text.
+
+### 6.10 Migration impact
+
+- New public API (§6.2) in `PublicAPI.Unshipped.txt`. Nothing changes for existing code.
+- README: `TextArea()` in the widget table, `TextAreaState` in the state table, and a short example.
+
+### 6.11 Implementation order
+
+One PR, in 1.3.0 with Phase 13:
+1. `TextAreaState`: the line model, editing, Paste, ←→ and word moves, with their tests.
+2. The row layout (wrapping into rows of indexes) shared by drawing, ↑↓, PgUp/PgDn, Home/End and the mouse, with
+   the layout tests.
+3. `TextAreaBuilder`: drawing, the cursor, vertical (and `None` horizontal) scrolling, with snapshots.
+4. `HandleMouse`.
+5. The Example, README, CHANGELOG, manual QA.
+
+### 6.12 Out of scope
+
+- Selection, copy/cut, and the system clipboard (paste comes from the terminal's paste).
+- Undo and redo.
+- Indenting: Tab moves focus, as everywhere else in MiniTui, and there's no indent key; indentation is typed as
+  spaces, and pasted tabs become spaces. An opt-in Tab-to-indent mode (as Textual's `tab_behavior`) and
+  auto-indent on Enter were considered and left for later.
+- Line numbers, syntax highlighting, search, and a scrollbar (an app can draw `Widget.Scrollbar()` beside it
+  from `ScrollOffset`).
+- Large documents: the layout is linear in the text per frame (§6.5).
+- A maximum length or line count, and validation.
+- Dragging with the mouse (no motion reports, §4.14).
+
+### 6.13 Decisions taken
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Undo and redo (Ctrl+Z / Ctrl+Y) in this phase, as Textual's `TextArea` has, or leave them out, as Bubbles' `textarea` does? Undo would also take Ctrl+Z from `WithSuspendKey` while a text area is focused. | **Leave out** (§6.12); a later phase can add it. |
+| 2 | Tab: move focus (consistent with forms), or insert spaces (as editors do)? An opt-in indent mode, or auto-indent on Enter? | **Move focus; no indent mode or auto-indent for now** (§6.12). |
+| 3 | ↑ / ↓ by wrapped row (editors, Textual) or by line (Bubbles)? | **By wrapped row.** |
+| 4 | Tabs in pasted or set text: spaces to the next multiple of 4, or keep `\t` and draw it as spaces? | **Spaces** (§6.4): the text and the cursor stay simple. |
+| 5 | Mouse click to place the cursor in this phase (§4.14 deferred it here)? | **Yes** (§6.6). |

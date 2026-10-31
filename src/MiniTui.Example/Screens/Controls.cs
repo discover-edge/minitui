@@ -19,6 +19,24 @@ internal sealed class TextInput(string label, string placeholder = "") : Compone
             .Draw(buf, area);
 }
 
+/// <summary>A multi-line text area in a titled block (1.x spec §6). Enter is a line break; a click places the cursor.</summary>
+internal sealed class NotesInput(string label, string placeholder = "") : Component
+{
+    public TextAreaState State { get; } = new();
+    public override bool CapturesText => true;
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
+    public override bool HandlePaste(string text) => State.Paste(text);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.TextArea()
+            .State(State)
+            .Placeholder(placeholder)
+            .Block(Widget.Block().Title($" {label} "))
+            .Focused(ctx.Focused)
+            .Draw(buf, area);
+}
+
 /// <summary>A checkbox toggled with Space, Enter or a click.</summary>
 internal sealed class Toggle(string label) : Component
 {

@@ -262,6 +262,7 @@ Widget.Table()
 | `Toasts()` | `Queue(toastQueue)`: up to 3 pop-ups in the top-right corner that expire on their own. |
 | `StatusBar()` | `Left` and `Right` text; the right side wins when both don't fit. |
 | `TextField()`, `CommandLine()` | Single-line input from `TextFieldState` / `CommandLineState`, scrolled by display width, with the terminal cursor shown. |
+| `TextArea()` | Multi-line input from `TextAreaState`: `Wrap(WrapMode.Word/Char/None)` (word by default; `None` scrolls sideways), `Placeholder`, `Block`. Scrolls to keep the cursor visible. |
 | `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
 | `Button()`, `Checkbox()` | Themed controls. |
 
@@ -297,6 +298,7 @@ size, scroll offset) back into it while drawing.
 | `ScrollState` | ↑ ↓ j k PgUp PgDn Home End | Paragraph, MessageDialog |
 | `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end) | TextField |
 | `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
+| `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls | TextArea |
 | `TabBarState` | ← → h l | TabBar |
 
 `KeyMap` binds keys to actions and produces hints and help text from the same list:
@@ -311,6 +313,22 @@ var keys = new KeyMap()
 app.OnKey(keys.Handle);                                    // first match wins
 Widget.StatusBar().Left(keys.Hints(40)).Draw(buf, status); // "r Refresh  j Down  ctrl+s Save  q Quit"
 _ = app.Overlays.ShowMessageAsync("Keys", string.Join("\n", keys.HelpLines()));
+```
+
+A multi-line field is a component around a `TextAreaState`. Enter is a line break and Tab moves focus, so
+submit with a binding such as Ctrl+S; tabs in pasted text become spaces:
+
+```csharp
+sealed class Notes : Component
+{
+    public TextAreaState State { get; } = new();
+    public override bool CapturesText => true;
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
+    public override bool HandlePaste(string text) => State.Paste(text);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.TextArea().State(State).Placeholder("Notes").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
+}
 ```
 
 A binding is `(ctrl|alt|shift "+")* name`, where `name` is a printable character or one of `enter esc

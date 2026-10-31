@@ -27,6 +27,9 @@ public static class Widget
     public static StatusBarBuilder StatusBar() => new();
     /// <summary>A single-line text input.</summary>
     public static TextFieldBuilder TextField() => new();
+
+    /// <summary>A multi-line text input with wrapping and vertical scrolling (1.x spec §6).</summary>
+    public static TextAreaBuilder TextArea() => new();
     /// <summary>A command input with a prompt and history.</summary>
     public static CommandLineBuilder CommandLine() => new();
     /// <summary>A row of tabs.</summary>

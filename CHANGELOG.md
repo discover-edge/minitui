@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Widget.TextArea()` and `TextAreaState`: multi-line text input. The text field's editing keys work across lines, plus Enter (new line), ↑ ↓ by wrapped row with a remembered column, PgUp/PgDn, Home/End by row then by line, and Ctrl+Home/End. Lines wrap at words by default (`Wrap(WrapMode.Char)` or `WrapMode.None` to scroll sideways), and the view scrolls to keep the cursor visible. `Paste` keeps line breaks, tabs become spaces, and `HandleMouse` places the cursor on a click and scrolls with the wheel. `TextPosition` is the cursor type.
+- Example: the Form demo has a Notes text area.
+- `docs/SPEC-1.x.md` §6: the TextArea spec.
+
 ## [1.2.0] - 2026-10-30
 
 MiniTui 1.2: Windows reads input the way Linux and macOS do (with bracketed paste), opt-in mouse support everywhere, and suspend and resume.
