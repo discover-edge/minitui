@@ -18,7 +18,7 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Mouse support - clicking to focus, scrolling (`App.WithMouse`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §4
 - [x] Bracketed paste (`?2004`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §3
 - [ ] Popup menu - context menus, dropdowns (PopupMenu/Select)
-- [ ] Multi-line text input widget (TextArea)
+- [x] Multi-line text input widget (`TextArea`, `TextAreaState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §6
 - [ ] Canvas (braille 2×4), line Chart and BarChart
 - [ ] Debug mode - visualize focus, layout boundaries and frame time
 - [x] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT; `App.Suspend`, `App.WithSuspendKey`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §5

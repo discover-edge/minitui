@@ -92,6 +92,7 @@ internal sealed class FormScreen : Screen
 {
     private readonly TextInput _name;
     private readonly TextInput _email;
+    private readonly NotesInput _notes;
     private readonly Toggle _subscribe;
 
     public override string Title => "Form";
@@ -100,8 +101,9 @@ internal sealed class FormScreen : Screen
     {
         _name = AddChild(new TextInput("Name", "Your name"));
         _email = AddChild(new TextInput("Email", "you@example.com"));
+        _notes = AddChild(new NotesInput("Notes", "Anything else? Enter starts a new line."));
         _subscribe = AddChild(new Toggle("Subscribe to newsletter"));
-        Focus.Add(_name).Add(_email).Add(_subscribe);
+        Focus.Add(_name).Add(_email).Add(_notes).Add(_subscribe);
         Keys.Add("ctrl+s", "Submit", Submit);
     }
 
@@ -111,6 +113,7 @@ internal sealed class FormScreen : Screen
         var rows = Layout.Vertical(inner with { Width = Math.Min(inner.Width, 40) })
             .Add("name", Constraint.Length(3))
             .Add("email", Constraint.Length(3))
+            .Add("notes", Constraint.Length(7))
             .Add("gap", Constraint.Length(1))
             .Add("subscribe", Constraint.Length(1))
             .Add("gap2", Constraint.Length(1))
@@ -118,6 +121,7 @@ internal sealed class FormScreen : Screen
             .Build();
         ctx.Render(_name, buf, rows["name"]);
         ctx.Render(_email, buf, rows["email"]);
+        ctx.Render(_notes, buf, rows["notes"]);
         ctx.Render(_subscribe, buf, rows["subscribe"]);
         buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S submit", ctx.Theme.TextMuted);
     }
@@ -130,7 +134,8 @@ internal sealed class FormScreen : Screen
             return;
         }
         var newsletter = _subscribe.Checked ? " (subscribed)" : "";
-        App.Toasts.Push($"Registered {_name.State.Text}{newsletter}", ToastLevel.Success);
+        var notes = _notes.State.Text.Length == 0 ? "" : $", {_notes.State.Lines.Count} lines of notes";
+        App.Toasts.Push($"Registered {_name.State.Text}{newsletter}{notes}", ToastLevel.Success);
     }
 }
 

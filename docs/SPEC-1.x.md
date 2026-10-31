@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) specced; the other roadmap items are to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) done; the other roadmap items are to be specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -1311,9 +1311,7 @@ None.
 ### 6.8 Example
 
 - The Form demo gets a **Notes** text area below the existing fields, in the Tab order, with a placeholder. The
-  summary shown on submit includes the line count. Submit stays on the Submit button (Enter in the notes is a
-  line break).
-- The Widgets screen's gallery gets a small text area with some wrapped text.
+  toast shown on submit includes the line count. Submit stays on Ctrl+S (Enter in the notes is a line break).
 
 ### 6.9 Tests and acceptance
 
