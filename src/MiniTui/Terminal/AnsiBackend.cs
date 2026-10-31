@@ -111,6 +111,7 @@ public sealed class AnsiBackend : ITerminalBackend, IConsoleDevice
         lock (_lock)
         {
             // Never draw over the user's screen after Leave (e.g. a signal arrived mid-run)
+            LastFrameBytes = 0;
             if (!_entered) return;
             if (!fullRedraw && updates.Count == 0 && cursor == _lastCursor) return;
 
@@ -123,9 +124,13 @@ public sealed class AnsiBackend : ITerminalBackend, IConsoleDevice
             }
             _encoder.EndFrame(cursor);
             _lastCursor = cursor;
+            LastFrameBytes = _encoder.Written.Length;
             WriteOut();
         }
     }
+
+    /// <summary>The bytes the last <see cref="Draw"/> wrote, for <see cref="FrameStats.BytesWritten"/>.</summary>
+    internal long LastFrameBytes { get; private set; }
 
     /// <inheritdoc />
     public void Dispose()

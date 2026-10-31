@@ -1919,7 +1919,8 @@ public readonly record struct FrameStats(
     bool FullRedraw);
 ```
 
-- `key` uses the `KeyMap` syntax (`"f12"`, `"ctrl+shift+d"`); an invalid key throws `ArgumentException`.
+- `key` uses the `KeyMap` syntax (`"f12"`, `"ctrl+shift+d"`); an invalid key throws `FormatException`, as
+  `KeyBinding.Parse` does.
 - **Environment:** `MINITUI_DEBUG=1` at startup turns on the F12 key (unless the app chose another key) and sets
   `ShowDebug`, so an app can be inspected without changing it. Any other value is ignored.
 - No theme changes: the overlay uses fixed colors (§9.3), so it looks the same whatever the app's theme.

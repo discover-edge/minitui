@@ -95,9 +95,20 @@ public class Terminal : IDisposable
         }
 
         _backend.Draw(_updates, _current.CursorRequest, _fullRedraw);
+        LastCellsChanged = _updates.Count;
+        LastFullRedraw = _fullRedraw;
         _fullRedraw = false;
         (_current, _previous) = (_previous, _current);
     }
+
+    /// <summary>The cells the last frame sent to the backend.</summary>
+    internal int LastCellsChanged { get; private set; }
+
+    /// <summary>True if the last frame was a full redraw.</summary>
+    internal bool LastFullRedraw { get; private set; }
+
+    /// <summary>The bytes the last frame wrote, or null if the backend doesn't write bytes.</summary>
+    internal long? LastBytesWritten => _backend is AnsiBackend ansi ? ansi.LastFrameBytes : null;
 
     /// <summary>The backend that entered the terminal for this terminal's session.</summary>
     internal ITerminalBackend Backend => _backend;

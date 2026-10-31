@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In conhost, canvases and charts draw braille as half blocks.
 - Example: a Charts demo with a live line chart (`m` cycles the marker, `s` toggles scatter), a bar chart (`d` toggles the direction) and an animated canvas.
 - `docs/SPEC-1.x.md` §8: the Canvas and charts spec.
+- A debug overlay: `App.WithDebugKey()` (F12 by default, off unless asked for), `App.ShowDebug`, and `MINITUI_DEBUG=1` to turn both on without code changes. It outlines each component's area (the focus chain and the focused component in their own colors) and shows a panel with the frame time, cells and bytes per frame, the terminal's size and capabilities, the focus chain and the component under the pointer.
+- `App.LastFrame` and `FrameStats`: the last frame's number, render and flush times, cells changed, bytes written and whether it was a full redraw.
+- Example: F12 toggles the debug overlay.
+- `docs/SPEC-1.x.md` §9: the debug overlay spec.
 
 ## [1.3.0] - 2026-10-30
 
