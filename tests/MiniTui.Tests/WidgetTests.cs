@@ -23,6 +23,18 @@ public class WidgetSweepTests
         ["ScrollbarH"] = (b, r) => Widget.Scrollbar().Horizontal().ContentLength(100).Position(99).ViewportLength(3).Draw(b, r),
         ["Gauge"] = (b, r) => Widget.Gauge().Ratio(0.57).Block(Widget.Block()).Draw(b, r),
         ["Sparkline"] = (b, r) => Widget.Sparkline().Data([1, 5, double.NaN, -2, 8, 3]).Draw(b, r),
+        ["Canvas"] = (b, r) => Widget.Canvas().XBounds(-1, 1).YBounds(-1, 1).Block(Widget.Block()).Paint(p =>
+        {
+            p.Line(-2, -2, 2, 2);
+            p.Circle(0, 0, 0.8);
+            p.Rectangle(-0.5, -0.5, 1, 1);
+            p.Print(-1, 0, "label \x1b[31m日本");
+        }).Draw(b, r),
+        ["Chart"] = (b, r) => Widget.Chart().Datasets(new Dataset("sin \x1b", [(0, 0), (1, 1), (2, 0)]),
+                new Dataset("pts", [(0.5, 0.5), (1.5, double.NaN)]) { Type = GraphType.Scatter, Marker = Marker.Dot })
+            .XAxis(new Axis { Title = "x 日本" }).YAxis(new Axis { Title = "y", Labels = ["lo", "\x1bhi"] }).Block(Widget.Block()).Draw(b, r),
+        ["BarChart"] = (b, r) => Widget.BarChart().Bars(new Bar("日本", 3), new Bar("b\x1b", 1), new Bar("c", -1)).Block(Widget.Block()).Draw(b, r),
+        ["BarChartH"] = (b, r) => Widget.BarChart().Direction(Direction.Horizontal).Bars(new Bar("日本語", 3) { ValueText = "\x1b3" }, new Bar("b", 1.5)).Draw(b, r),
         ["Spinner"] = (b, r) => Widget.Spinner().Label("Loading").Draw(b, r),
         ["Toasts"] = (b, r) =>
         {

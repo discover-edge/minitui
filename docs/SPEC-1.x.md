@@ -1761,8 +1761,9 @@ public sealed record Theme
   `xMax`/`yMin` the bottom-right one. Points outside the bounds aren't drawn; NaN and infinite values are
   skipped. Bounds with `max <= min` draw nothing.
 - **Shapes:** `Line` is Bresenham over dots, clipped to the grid, so a line that leaves the canvas draws the
-  part inside. `Rectangle` is four lines. `Circle` is the midpoint algorithm in dots, with the radius measured in
-  x units (a circle looks round only when the bounds match the area's aspect; the app chooses them).
+  part inside. `Rectangle` is four lines. `Circle` is joined segments about a dot long, with the radius in
+  coordinate units on both axes (a circle looks round only when the bounds match the area's aspect; the app
+  chooses them).
 - **Cells:** a cell shows the union of its dots (`⠁`…`⣿` from U+2800, `▀ ▄ █`, `█`, `•`), with the style of the
   last shape that set a dot in it; a cell has one foreground color, so where two colors share a cell the later
   shape wins. Cells with no dots keep the canvas style. `Print` text is drawn after all dots, on top, clipped to
@@ -1785,9 +1786,9 @@ Layout of the inner area, from the outside in:
 - **Bounds:** an axis without `Min`/`Max` uses the extent of all datasets' finite values on that axis; if the
   extent is a single value v, it becomes v − 1 .. v + 1; with no data, 0 .. 1.
 - **Legend:** a bordered box (`Theme.Border`) in the chosen corner of the plot, one row per dataset: a marker
-  sample (`⣿`, or `█` in basic glyphs or for Block, `•` for Dot) in the dataset's style, then its name. It's
-  omitted when it would cover more than a quarter of the plot's width or height, or with `LegendPosition.None`,
-  or when no dataset has a name.
+  sample (`⣿`, or `█` in basic glyphs or for Block and HalfBlock, `•` for Dot) in the dataset's style, then its
+  name. It's omitted when it would cover more than half the plot's width or height (Ratatui's quarter hides a
+  two-dataset legend on a 15-row plot), or with `LegendPosition.None`, or when no dataset has a name.
 - **Small areas:** the axes, labels and titles are dropped (titles first, then labels, then axis lines) until the
   plot is at least 1×1; an area too small for that draws nothing.
 

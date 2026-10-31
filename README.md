@@ -276,6 +276,9 @@ Widget.Table()
 | `Scrollbar()` | `Vertical`/`Horizontal`, `ContentLength`, `Position`, `ViewportLength`. Hidden when the content fits. |
 | `Gauge()` | `Ratio(0..1)` with eighth-cell precision and a percentage (or custom) `Label`. |
 | `Sparkline()` | `Data(values)` as `▁▂▃▄▅▆▇█`, newest at the right; optional `Max`. |
+| `Canvas()` | Points, lines, rectangles, circles and `Print`ed text in your own coordinates (`XBounds`, `YBounds`; y grows up), drawn in `Paint(p => ...)` with a `Marker`: braille (2×4 dots per cell), half blocks, blocks or dots. |
+| `Chart()` | A line or scatter plot of `Dataset`s with an `XAxis`/`YAxis` (`Axis`: bounds from the data unless `Min`/`Max` are set, `Labels` or `LabelFormat`, `Title`) and a `Legend` corner. Datasets without a style take `Theme.ChartSeries` in order. |
+| `BarChart()` | `Bars(new Bar(label, value), ...)`, vertical (`BarWidth`, `BarGap`) or `Direction(Direction.Horizontal)`, in eighths of a cell, with the value in or after each bar; optional `Max`, `ValueFormat`. |
 | `Spinner()` | `Frames(SpinnerFrames.Braille/Line/Dots)` and a `Label`. Animates from the app's clock. |
 | `Toasts()` | `Queue(toastQueue)`: up to 3 pop-ups in the top-right corner that expire on their own. |
 | `StatusBar()` | `Left` and `Right` text; the right side wins when both don't fit. |
@@ -285,8 +288,30 @@ Widget.Table()
 | `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
 | `Button()`, `Checkbox()` | Themed controls. |
 
+```csharp
+Widget.Chart()
+    .Datasets(
+        new Dataset("cpu", cpu),                                   // (double X, double Y) points
+        new Dataset("p99", latency) { Type = GraphType.Scatter, Marker = Marker.Dot })
+    .XAxis(new Axis { Title = "s", Min = now - 60, Max = now, LabelFormat = "0" })
+    .YAxis(new Axis { Title = "%" })                               // bounds from the data
+    .Block(Widget.Block().Title(" Load "))
+    .Draw(buf, area);
+
+Widget.Canvas()
+    .XBounds(-1, 1).YBounds(-1, 1)
+    .Paint(p =>
+    {
+        p.Circle(0, 0, 0.8, Theme.Current.Info);
+        p.Line(0, 0, Math.Cos(angle), Math.Sin(angle));
+        p.Print(-1, 1, "angle");
+    })
+    .Draw(buf, area);
+```
+
 In conhost (the classic Windows console), whose fonts lack eighth blocks, braille and rounded corners,
-widgets switch to half and full blocks, the line spinner and single borders. Windows Terminal is unaffected.
+widgets switch to half and full blocks, the line spinner and single borders; canvases and charts draw braille
+as half blocks. Windows Terminal is unaffected.
 
 Spinners and visible toasts make the app tick (every 100 ms and 250 ms) even with `WithTickRate(null)`,
 and only while they're drawn. `toasts.Push(text, ToastLevel.Error)` is thread-safe; each toast shows
@@ -302,6 +327,9 @@ even if you chose `Theme.Default` explicitly, so the selection stays visible; cu
 ```csharp
 app.WithTheme(Theme.Default with { Selection = new Style(Color.Black, Color.Yellow) });
 ```
+
+`Theme.ChartSeries` lists the styles of chart datasets that don't set their own (cyan, yellow, magenta,
+green, blue, red; Monochrome has one plain style, so datasets differ by marker).
 
 `Theme.Current` is the running app's theme on its UI thread. `WithTheme` can be called while running.
 Builders take `.Style(...)` (and `HighlightStyle`, `BorderStyle`, …) overrides, patched over the theme.

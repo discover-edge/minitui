@@ -1,1 +1,117 @@
 #nullable enable
+MiniTui.Axis
+MiniTui.Axis.<Clone>$() -> MiniTui.Axis!
+MiniTui.Axis.Axis() -> void
+MiniTui.Axis.Equals(MiniTui.Axis? other) -> bool
+MiniTui.Axis.LabelFormat.get -> string!
+MiniTui.Axis.LabelFormat.init -> void
+MiniTui.Axis.Labels.get -> System.Collections.Generic.IReadOnlyList<string!>?
+MiniTui.Axis.Labels.init -> void
+MiniTui.Axis.Max.get -> double?
+MiniTui.Axis.Max.init -> void
+MiniTui.Axis.Min.get -> double?
+MiniTui.Axis.Min.init -> void
+MiniTui.Axis.Title.get -> string?
+MiniTui.Axis.Title.init -> void
+MiniTui.Bar
+MiniTui.Bar.<Clone>$() -> MiniTui.Bar!
+MiniTui.Bar.Bar(string! Label, double Value) -> void
+MiniTui.Bar.Deconstruct(out string! Label, out double Value) -> void
+MiniTui.Bar.Equals(MiniTui.Bar? other) -> bool
+MiniTui.Bar.Label.get -> string!
+MiniTui.Bar.Label.init -> void
+MiniTui.Bar.Style.get -> MiniTui.Style?
+MiniTui.Bar.Style.init -> void
+MiniTui.Bar.Value.get -> double
+MiniTui.Bar.Value.init -> void
+MiniTui.Bar.ValueText.get -> string?
+MiniTui.Bar.ValueText.init -> void
+MiniTui.BarChartBuilder
+MiniTui.BarChartBuilder.BarChartBuilder() -> void
+MiniTui.BarChartBuilder.BarGap(int gap) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.BarWidth(int width) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Bars(System.Collections.Generic.IReadOnlyList<MiniTui.Bar!>! bars) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Bars(params MiniTui.Bar![]! bars) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Direction(MiniTui.Direction direction) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.BarChartBuilder.Max(double? max) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Style(MiniTui.Style style) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.ValueFormat(string! format) -> MiniTui.BarChartBuilder!
+MiniTui.CanvasBuilder
+MiniTui.CanvasBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.CanvasBuilder!
+MiniTui.CanvasBuilder.CanvasBuilder() -> void
+MiniTui.CanvasBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.CanvasBuilder.Marker(MiniTui.Marker marker) -> MiniTui.CanvasBuilder!
+MiniTui.CanvasBuilder.Paint(System.Action<MiniTui.CanvasPainter!>! paint) -> MiniTui.CanvasBuilder!
+MiniTui.CanvasBuilder.Style(MiniTui.Style style) -> MiniTui.CanvasBuilder!
+MiniTui.CanvasBuilder.XBounds(double min, double max) -> MiniTui.CanvasBuilder!
+MiniTui.CanvasBuilder.YBounds(double min, double max) -> MiniTui.CanvasBuilder!
+MiniTui.CanvasPainter
+MiniTui.CanvasPainter.Circle(double x, double y, double radius, MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CanvasPainter.DotHeight.get -> int
+MiniTui.CanvasPainter.DotWidth.get -> int
+MiniTui.CanvasPainter.Line(double x1, double y1, double x2, double y2, MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CanvasPainter.Point(double x, double y, MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CanvasPainter.Points(System.Collections.Generic.IEnumerable<(double X, double Y)>! points, MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CanvasPainter.Print(double x, double y, MiniTui.Line! text) -> void
+MiniTui.CanvasPainter.Rectangle(double x, double y, double width, double height, MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.ChartBuilder
+MiniTui.ChartBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.ChartBuilder!
+MiniTui.ChartBuilder.ChartBuilder() -> void
+MiniTui.ChartBuilder.Datasets(System.Collections.Generic.IReadOnlyList<MiniTui.Dataset!>! datasets) -> MiniTui.ChartBuilder!
+MiniTui.ChartBuilder.Datasets(params MiniTui.Dataset![]! datasets) -> MiniTui.ChartBuilder!
+MiniTui.ChartBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.ChartBuilder.Legend(MiniTui.LegendPosition position) -> MiniTui.ChartBuilder!
+MiniTui.ChartBuilder.Style(MiniTui.Style style) -> MiniTui.ChartBuilder!
+MiniTui.ChartBuilder.XAxis(MiniTui.Axis! axis) -> MiniTui.ChartBuilder!
+MiniTui.ChartBuilder.YAxis(MiniTui.Axis! axis) -> MiniTui.ChartBuilder!
+MiniTui.Dataset
+MiniTui.Dataset.<Clone>$() -> MiniTui.Dataset!
+MiniTui.Dataset.Data.get -> System.Collections.Generic.IReadOnlyList<(double X, double Y)>!
+MiniTui.Dataset.Data.init -> void
+MiniTui.Dataset.Dataset(string! Name, System.Collections.Generic.IReadOnlyList<(double X, double Y)>! Data) -> void
+MiniTui.Dataset.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<(double X, double Y)>! Data) -> void
+MiniTui.Dataset.Equals(MiniTui.Dataset? other) -> bool
+MiniTui.Dataset.Marker.get -> MiniTui.Marker
+MiniTui.Dataset.Marker.init -> void
+MiniTui.Dataset.Name.get -> string!
+MiniTui.Dataset.Name.init -> void
+MiniTui.Dataset.Style.get -> MiniTui.Style?
+MiniTui.Dataset.Style.init -> void
+MiniTui.Dataset.Type.get -> MiniTui.GraphType
+MiniTui.Dataset.Type.init -> void
+MiniTui.GraphType
+MiniTui.GraphType.Line = 0 -> MiniTui.GraphType
+MiniTui.GraphType.Scatter = 1 -> MiniTui.GraphType
+MiniTui.LegendPosition
+MiniTui.LegendPosition.BottomLeft = 3 -> MiniTui.LegendPosition
+MiniTui.LegendPosition.BottomRight = 2 -> MiniTui.LegendPosition
+MiniTui.LegendPosition.None = 4 -> MiniTui.LegendPosition
+MiniTui.LegendPosition.TopLeft = 1 -> MiniTui.LegendPosition
+MiniTui.LegendPosition.TopRight = 0 -> MiniTui.LegendPosition
+MiniTui.Marker
+MiniTui.Marker.Block = 2 -> MiniTui.Marker
+MiniTui.Marker.Braille = 0 -> MiniTui.Marker
+MiniTui.Marker.Dot = 3 -> MiniTui.Marker
+MiniTui.Marker.HalfBlock = 1 -> MiniTui.Marker
+MiniTui.Theme.ChartSeries.get -> System.Collections.Generic.IReadOnlyList<MiniTui.Style>!
+MiniTui.Theme.ChartSeries.init -> void
+override MiniTui.Axis.Equals(object? obj) -> bool
+override MiniTui.Axis.GetHashCode() -> int
+override MiniTui.Axis.ToString() -> string!
+override MiniTui.Bar.Equals(object? obj) -> bool
+override MiniTui.Bar.GetHashCode() -> int
+override MiniTui.Bar.ToString() -> string!
+override MiniTui.Dataset.Equals(object? obj) -> bool
+override MiniTui.Dataset.GetHashCode() -> int
+override MiniTui.Dataset.ToString() -> string!
+static MiniTui.Axis.operator !=(MiniTui.Axis? left, MiniTui.Axis? right) -> bool
+static MiniTui.Axis.operator ==(MiniTui.Axis? left, MiniTui.Axis? right) -> bool
+static MiniTui.Bar.operator !=(MiniTui.Bar? left, MiniTui.Bar? right) -> bool
+static MiniTui.Bar.operator ==(MiniTui.Bar? left, MiniTui.Bar? right) -> bool
+static MiniTui.Dataset.operator !=(MiniTui.Dataset? left, MiniTui.Dataset? right) -> bool
+static MiniTui.Dataset.operator ==(MiniTui.Dataset? left, MiniTui.Dataset? right) -> bool
+static MiniTui.Widget.BarChart() -> MiniTui.BarChartBuilder!
+static MiniTui.Widget.Canvas() -> MiniTui.CanvasBuilder!
+static MiniTui.Widget.Chart() -> MiniTui.ChartBuilder!

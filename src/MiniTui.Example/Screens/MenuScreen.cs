@@ -12,6 +12,7 @@ internal sealed class MenuScreen : Screen
         ("Progress Bars", "Gauges animated from an async loop", () => new ProgressScreen()),
         ("Form", "Text fields, a select and a checkbox; Tab moves focus", () => new FormScreen()),
         ("Dashboard", "Layout, live logs, gauges and a sparkline", () => new DashboardScreen()),
+        ("Charts", "Line chart, bar charts and a canvas", () => new ChartsScreen()),
         ("Command Registry", "A : command line and a right-click menu over notes", () => new CommandScreen()),
         ("Tabs", "A tab bar and a list in one focus scope", () => new TabsScreen()),
         ("Services (async)", "Loading, refresh, detail screens and confirm dialogs over a fake HTTP API", () => new ServicesScreen()),
