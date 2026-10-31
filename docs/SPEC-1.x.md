@@ -36,7 +36,7 @@ or add to them:
 | **11. Suspend and resume** | Ctrl+Z suspends the app (SIGTSTP), restoring the terminal; resuming (SIGCONT) re-enters it and redraws. Also `app.Suspend(Action)` for running a child process such as `$EDITOR` in the real terminal. | 8 | §5 | 1.2.0 |
 | **12. TextArea** | Multi-line text editing widget and `TextAreaState`: wrapping, vertical scrolling, selection-free editing with the §8.4 keys, paste of multi-line text. | 9 | §6 | 1.3.0 |
 | **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | §7 | 1.3.0 |
-| **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | To be specced | 1.4.0 |
+| **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | §8 | 1.4.0 |
 | **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | To be specced | 1.4.0 |
 | **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | To be specced | Later |
 
@@ -1622,3 +1622,258 @@ One PR, in 1.3.0 with Phase 12:
 | 3 | A press outside a menu: close it and consume the press, or close it and also deliver the press to what's below? | **Consume** (§7.6), as Windows and macOS menus do. |
 | 4 | ↑ / ↓ at the ends of a menu: wrap around, or stop? | **Wrap** (§7.3), as Windows menus do. |
 | 5 | Type-ahead: a prefix with a 1 s reset and same-letter cycling, or first letter only? | **Prefix with reset and cycling** (§7.3). |
+
+---
+
+## 8. Canvas and charts (Phase 14)
+
+### 8.1 Purpose
+
+`Sparkline` and `Gauge` are the only data widgets in 1.0, and neither can plot one value against another.
+Phase 14 adds three widgets: `Canvas`, which draws points, lines, rectangles, circles and text in a
+coordinate space of the app's choosing, at up to 2×4 dots per cell with braille; `Chart`, a line or scatter plot
+of one or more datasets with axes, labels and a legend, drawn on a canvas; and `BarChart`, labelled bars,
+vertical or horizontal, at eighth-cell resolution. All three are plain builders, like `Sparkline`: they hold no
+state and handle no input.
+
+### 8.2 Public API
+
+```csharp
+/// How a canvas turns dots into cells.
+public enum Marker
+{
+    Braille,    // ⣿: 2×4 dots per cell (the default)
+    HalfBlock,  // ▀ ▄ █: 1×2 dots per cell
+    Block,      // █: one dot per cell
+    Dot,        // •: one dot per cell
+}
+
+public static class Widget
+{
+    public static CanvasBuilder Canvas();
+    public static ChartBuilder Chart();
+    public static BarChartBuilder BarChart();
+}
+
+/// A drawing surface in app coordinates: x grows to the right, y grows upward (§8.3).
+public sealed class CanvasBuilder
+{
+    public CanvasBuilder XBounds(double min, double max);   // default 0..1
+    public CanvasBuilder YBounds(double min, double max);   // default 0..1
+    public CanvasBuilder Marker(Marker marker);              // default Braille
+    public CanvasBuilder Paint(Action<CanvasPainter> paint);
+    public CanvasBuilder Block(BlockBuilder block);
+    public CanvasBuilder Style(Style style);                 // patched over Theme.Text: the background, and dots with no style
+    public void Draw(Buffer buf, Rect area);
+}
+
+/// Passed to CanvasBuilder.Paint. Shapes are drawn in call order.
+public sealed class CanvasPainter
+{
+    public void Point(double x, double y, Style style = default);
+    public void Points(IEnumerable<(double X, double Y)> points, Style style = default);
+    public void Line(double x1, double y1, double x2, double y2, Style style = default);
+    public void Rectangle(double x, double y, double width, double height, Style style = default);  // outline; (x, y) is the bottom-left
+    public void Circle(double x, double y, double radius, Style style = default);                   // outline
+    public void Print(double x, double y, Line text);    // text with its left end at the cell holding (x, y), above the dots
+
+    /// The size of the dot grid: the inner area times the marker's dots per cell.
+    public int DotWidth { get; }
+    public int DotHeight { get; }
+}
+
+/// How a dataset is drawn.
+public enum GraphType { Line, Scatter }
+
+/// A series of (x, y) values for a Chart.
+public sealed record Dataset(string Name, IReadOnlyList<(double X, double Y)> Data)
+{
+    public GraphType Type { get; init; } = GraphType.Line;
+    public Marker Marker { get; init; } = Marker.Braille;
+    public Style? Style { get; init; }    // null: Theme.ChartSeries[index of the dataset, wrapping around]
+}
+
+/// One axis of a Chart.
+public sealed record Axis
+{
+    public string? Title { get; init; }
+    public double? Min { get; init; }                  // null: the smallest value in the data
+    public double? Max { get; init; }                  // null: the largest
+    public IReadOnlyList<string>? Labels { get; init; } // null: three labels, Min, middle and Max, formatted with LabelFormat
+    public string LabelFormat { get; init; } = "0.##"; // a .NET numeric format, invariant culture
+}
+
+/// Where a Chart draws its legend.
+public enum LegendPosition { TopRight, TopLeft, BottomRight, BottomLeft, None }
+
+/// A line or scatter plot of one or more datasets with axes (§8.4).
+public sealed class ChartBuilder
+{
+    public ChartBuilder Datasets(IReadOnlyList<Dataset> datasets);
+    public ChartBuilder Datasets(params Dataset[] datasets);
+    public ChartBuilder XAxis(Axis axis);
+    public ChartBuilder YAxis(Axis axis);
+    public ChartBuilder Legend(LegendPosition position);   // default TopRight
+    public ChartBuilder Block(BlockBuilder block);
+    public ChartBuilder Style(Style style);                // patched over Theme.Text
+    public void Draw(Buffer buf, Rect area);
+}
+
+/// A bar in a BarChart.
+public sealed record Bar(string Label, double Value)
+{
+    public Style? Style { get; init; }    // null: Theme.GaugeFilled
+    public string? ValueText { get; init; } // null: Value formatted with the chart's ValueFormat; "" hides it
+}
+
+/// Labelled bars, vertical (growing up) or horizontal (growing right) (§8.5).
+public sealed class BarChartBuilder
+{
+    public BarChartBuilder Bars(IReadOnlyList<Bar> bars);
+    public BarChartBuilder Bars(params Bar[] bars);
+    public BarChartBuilder Direction(Direction direction);   // default Vertical
+    public BarChartBuilder BarWidth(int width);              // default 3; vertical only
+    public BarChartBuilder BarGap(int gap);                  // default 1
+    public BarChartBuilder Max(double? max);                 // the value of a full bar; default the largest value
+    public BarChartBuilder ValueFormat(string format);       // default "0.##"
+    public BarChartBuilder Block(BlockBuilder block);
+    public BarChartBuilder Style(Style style);               // patched over Theme.Text, for labels and values
+    public void Draw(Buffer buf, Rect area);
+}
+
+public sealed record Theme
+{
+    /// The styles of chart datasets without their own, in order. Default: Cyan, Yellow, Magenta, Green, Blue, Red;
+    /// Monochrome: plain text for all, so datasets differ by marker.
+    public IReadOnlyList<Style> ChartSeries { get; init; }
+}
+```
+
+- `Direction` is the existing layout enum. Axis lines use `Theme.Border`, axis labels `Theme.TextMuted`, axis
+  titles and the legend `Theme.Text`.
+- `Paint` runs during `Draw`, on the UI thread, every frame; the painter is only valid inside it.
+
+### 8.3 Canvas
+
+- **Dot grid:** the inner area times the marker's dots per cell (Braille 2×4, HalfBlock 1×2, Block and Dot 1×1).
+  A point maps to dot column `round((x − xMin) / (xMax − xMin) × (DotWidth − 1))` and dot row
+  `round((yMax − y) / (yMax − yMin) × (DotHeight − 1))`, so `xMin`/`yMax` is the top-left dot and
+  `xMax`/`yMin` the bottom-right one. Points outside the bounds aren't drawn; NaN and infinite values are
+  skipped. Bounds with `max <= min` draw nothing.
+- **Shapes:** `Line` is Bresenham over dots, clipped to the grid, so a line that leaves the canvas draws the
+  part inside. `Rectangle` is four lines. `Circle` is joined segments about a dot long, with the radius in
+  coordinate units on both axes (a circle looks round only when the bounds match the area's aspect; the app
+  chooses them).
+- **Cells:** a cell shows the union of its dots (`⠁`…`⣿` from U+2800, `▀ ▄ █`, `█`, `•`), with the style of the
+  last shape that set a dot in it; a cell has one foreground color, so where two colors share a cell the later
+  shape wins. Cells with no dots keep the canvas style. `Print` text is drawn after all dots, on top, clipped to
+  the inner area.
+- **Basic glyphs** (conhost and other unknown Windows hosts, where widgets avoid non-WGL4 characters): braille
+  isn't in WGL4, so `Marker.Braille` draws as `HalfBlock`. `▀ ▄ █ •` are in WGL4.
+
+### 8.4 Chart
+
+Layout of the inner area, from the outside in:
+- **Y axis:** the labels, right-aligned in a column as wide as the widest, then `│`. Labels are spread evenly from
+  the bottom row (the first) to the top row (the last). The Y title, if any, goes on the row above the plot,
+  left-aligned over the axis.
+- **X axis:** a `─` row with `└` at the corner, and a row of labels under it, spread evenly from the axis start
+  (the first, left-aligned) to the right edge (the last, right-aligned), the others centered. The X title, if
+  any, goes right-aligned on the row above the X axis, at the right end of the plot.
+- **Plot:** the remaining area is a canvas with the axes' bounds. Each dataset is drawn in order, with its own
+  marker and style: `Line` joins consecutive points, `Scatter` draws the points only. Points are taken in data
+  order; the app sorts them if it wants a function plot.
+- **Bounds:** an axis without `Min`/`Max` uses the extent of all datasets' finite values on that axis; if the
+  extent is a single value v, it becomes v − 1 .. v + 1; with no data, 0 .. 1.
+- **Legend:** a bordered box (`Theme.Border`) in the chosen corner of the plot, one row per dataset: a marker
+  sample (`⣿`, or `█` in basic glyphs or for Block and HalfBlock, `•` for Dot) in the dataset's style, then its
+  name. It's omitted when it would cover more than half the plot's width or height (Ratatui's quarter hides a
+  two-dataset legend on a 15-row plot), or with `LegendPosition.None`, or when no dataset has a name.
+- **Small areas:** the axes, labels and titles are dropped (titles first, then labels, then axis lines) until the
+  plot is at least 1×1; an area too small for that draws nothing.
+
+### 8.5 BarChart
+
+- **Vertical:** bars `BarWidth` cells wide with `BarGap` between them, from the left. The bottom row holds the
+  labels, centered under each bar and truncated with `…` to its width; the bars fill the rows above it, growing
+  up in eighths (`▁▂▃▄▅▆▇█`; basic glyphs round to empty, `▄` or `█`, as `Sparkline` does). The value text is
+  centered in the bar's bottom row, in the bar's color reversed, when it fits in `BarWidth`; otherwise it's
+  omitted. Bars that don't fit across the area are not drawn (the first ones are kept).
+- **Horizontal:** one row per bar with `BarGap` empty rows between; labels left-aligned in a column as wide as
+  the widest, at most a third of the area, truncated with `…`; then a space and the bar growing right in eighths
+  (`▏▎▍▌▋▊▉█`; basic: empty, `▌` or `█`), then a space and the value text when it fits. Bars that don't fit
+  down the area are not drawn.
+- **Values:** `Max` (or the largest value) is a full bar; values are clamped to 0 .. Max, and negative and NaN
+  values draw as empty bars with their labels.
+
+### 8.6 Configuration
+
+None.
+
+### 8.7 Example
+
+A new **Charts** screen in the menu ("Line chart, bar charts and a canvas"), animated from an `Animation.Every`
+loop like the dashboard:
+- **Line chart** (top half): two live datasets, sin and cos of time with noise, over a sliding 10 s window, with
+  axis titles, auto Y bounds and a legend; `m` cycles the marker (Braille, HalfBlock, Dot) for both datasets, and
+  `s` toggles Line and Scatter.
+- **Bar chart** (bottom left): requests per service as vertical bars, values changing; `d` toggles vertical and
+  horizontal.
+- **Canvas** (bottom right): a rotating line in a circle inside a rectangle, a few points, and a `Print` label.
+
+### 8.8 Tests and acceptance
+
+Automated (all platforms), mostly buffer snapshots:
+- **Canvas mapping:** corners map to the corner dots; out-of-bounds, NaN and infinite points are skipped;
+  `max <= min` draws nothing; each marker's dots per cell and glyphs; braille bit order (dot 1–8 to U+2800 bits);
+  basic glyphs turn Braille into HalfBlock.
+- **Shapes:** horizontal, vertical, diagonal and steep lines; a line clipped at each edge; rectangle; circle;
+  the later shape's style wins in a shared cell; `Print` on top and clipped.
+- **Chart:** auto bounds (several datasets, a single value, no data); explicit and default labels and their
+  spreading; titles; Line and Scatter; the legend in each corner, omitted when too big and with None; series
+  styles from the theme, wrapping; small areas drop parts in order and never throw.
+- **BarChart:** vertical and horizontal eighths; basic-glyph rounding; labels truncated; value text shown and
+  hidden (fit, `""`, custom); `Max`; negative and NaN; bars that don't fit are dropped; gap and width.
+- **Theme:** `ChartSeries` in Default and Monochrome.
+- No widget throws for any area size from 0×0 up, with or without a block (a property-style loop, as for the 1.0
+  widgets).
+
+Manual QA (results in the PR): the Charts screen on Linux (tmux and Windows Terminal through WSL) and Windows
+(Windows Terminal, braille; conhost, the half-block fallback), each key, and a resize down to a small window.
+
+### 8.9 Migration impact
+
+- New public API (§8.2) in `PublicAPI.Unshipped.txt`. `Theme.ChartSeries` is a new init member with a default,
+  so themes built with `with { … }` keep working; a theme built from `new Theme { … }` without it gets the
+  default list.
+- README: the three widgets in the widget table, a chart snippet and a canvas snippet; `ChartSeries` in the
+  theme section.
+
+### 8.10 Implementation order
+
+One PR, in 1.4.0:
+1. The dot grid and `CanvasBuilder`/`CanvasPainter`: mapping, markers, shapes, `Print`, basic glyphs.
+2. `Theme.ChartSeries`, `Dataset`, `Axis` and `ChartBuilder` on the canvas: layout, bounds, labels, legend.
+3. `Bar` and `BarChartBuilder`, both directions.
+4. The Example, README, CHANGELOG, manual QA.
+
+### 8.11 Out of scope
+
+- Filled shapes, polygons, arcs, and the Ratatui world map.
+- Canvas layers with per-layer blending, and dots of different colors in one cell.
+- Bar charts with groups, stacked bars, negative bars below a baseline, and bar charts on a canvas.
+- Logarithmic, time and category axes, tick marks, grid lines, and axis label formatting beyond `LabelFormat`.
+- Chart interaction: zoom, pan, hover, a cursor, mouse input of any kind.
+- Area charts and the Ratatui `Bar` graph type in `Chart`.
+- Caching between frames: `Paint` and the chart layout run on every draw.
+
+### 8.12 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Dataset colors: a new `Theme.ChartSeries` list, or a fixed palette in the widget (no theme change), or always the dataset's own style? | **`Theme.ChartSeries`** (§8.2): Monochrome can turn colors off, as it does everywhere else. |
+| 2 | Axis bounds: required (Ratatui), or optional with auto bounds from the data? | **Optional** (§8.4): live data needs no bookkeeping in the app. |
+| 3 | Canvas y direction: up (math and Ratatui) or down (screen)? | **Up** (§8.3). |
+| 4 | Braille on conhost: fall back to half blocks, or draw `?`? | **Half blocks** (§8.3), as other widgets avoid non-WGL4 glyphs. |
+| 5 | A shared cell with two colors: the later shape wins, or Ratatui-style layers? | **Later shape wins** (§8.3); layers are out of scope. |
+| 6 | `BarChart` value text: inside the bar's bottom row (Ratatui) or above the bar? | **Inside** (§8.5), so values don't need a spare row. |

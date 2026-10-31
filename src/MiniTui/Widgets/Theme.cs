@@ -11,6 +11,12 @@ public sealed record Theme
 {
     [ThreadStatic] private static Theme? t_current;
 
+    private static readonly IReadOnlyList<Style> DefaultChartSeries =
+    [
+        new Style(Color.Cyan), new Style(Color.Yellow), new Style(Color.Magenta),
+        new Style(Color.Green), new Style(Color.Blue), new Style(Color.Red),
+    ];
+
     /// <summary>Plain text.</summary>
     public Style Text { get; init; }
     /// <summary>Secondary text, such as placeholders and footers.</summary>
@@ -69,6 +75,11 @@ public sealed record Theme
     public Style Error { get; init; }
     /// <summary>Informational messages.</summary>
     public Style Info { get; init; }
+    /// <summary>
+    /// The styles of chart datasets without their own, in order, wrapping around (1.x spec §8.2). Default: cyan,
+    /// yellow, magenta, green, blue, red.
+    /// </summary>
+    public IReadOnlyList<Style> ChartSeries { get; init; } = DefaultChartSeries;
 
     /// <summary>The default colors.</summary>
     public static Theme Default { get; } = new()
@@ -136,6 +147,7 @@ public sealed record Theme
         Warning = Style.Default.Bold(),
         Error = Style.Default.Bold().Underlined(),
         Info = Style.Default,
+        ChartSeries = [Style.Default],
     };
 
     /// <summary>

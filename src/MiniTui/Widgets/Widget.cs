@@ -19,6 +19,12 @@ public static class Widget
     public static GaugeBuilder Gauge() => new();
     /// <summary>A bar chart of recent values.</summary>
     public static SparklineBuilder Sparkline() => new();
+    /// <summary>A drawing surface with braille dots (1.x spec §8.3).</summary>
+    public static CanvasBuilder Canvas() => new();
+    /// <summary>A line or scatter plot with axes (1.x spec §8.4).</summary>
+    public static ChartBuilder Chart() => new();
+    /// <summary>Labelled bars, vertical or horizontal (1.x spec §8.5).</summary>
+    public static BarChartBuilder BarChart() => new();
     /// <summary>An activity indicator.</summary>
     public static SpinnerBuilder Spinner() => new();
     /// <summary>Pop-up messages from a <see cref="ToastQueue"/>.</summary>
