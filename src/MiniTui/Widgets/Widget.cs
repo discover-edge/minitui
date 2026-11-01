@@ -13,6 +13,8 @@ public static class Widget
     public static ListBuilder List() => new();
     /// <summary>A table with constraint-sized columns.</summary>
     public static TableBuilder Table() => new();
+    /// <summary>A bordered, scrollable tree over <paramref name="state"/>'s nodes.</summary>
+    public static TreeBuilder<T> Tree<T>(TreeState<T> state) where T : class => new(state);
     /// <summary>A scrollbar.</summary>
     public static ScrollbarBuilder Scrollbar() => new();
     /// <summary>A progress bar.</summary>

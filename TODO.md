@@ -23,3 +23,4 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Debug mode - visualize focus, layout boundaries and frame time (`App.WithDebugKey`, `ShowDebug`, `LastFrame`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §9
 - [x] Text selection, copy/cut and the system clipboard (`Clipboard`, `Select`, `Undo`, `MouseAction.Drag`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §10
 - [x] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT; `App.Suspend`, `App.WithSuspendKey`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §5
+- [x] Tree view (`Widget.Tree`, `TreeState<T>`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §11

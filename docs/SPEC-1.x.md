@@ -2443,7 +2443,8 @@ public class TreeBuilder<T> where T : class
   match. It searches the rows (the expanded part of the tree) and never expands anything. No match leaves the
   selection where it is, and the key is still handled.
 - So, unlike `SelectionState`, `j` and `k` don't move: they're type-ahead, as in file manager trees and Windows'
-  tree view. Space, Tab, Esc and keys with Ctrl or Alt aren't handled, so they reach the screen's bindings and
+  tree view. Since a focused component gets keys before bindings (§9.4), plain-letter bindings (`q` for back)
+  don't fire while a tree has focus; the example and README bind tree commands with Alt. Space, Tab, Esc and keys with Ctrl or Alt aren't handled, so they reach the screen's bindings and
   focus.
 - Each user move raises `SelectionChanged` once; moving to the row already selected (↑ on the first row)
   doesn't.
@@ -2478,15 +2479,15 @@ public class TreeBuilder<T> where T : class
   - The expander is `▾` (expanded) or `▸` (collapsed) for a node with children and a space for a leaf, so labels
     at one depth line up. In basic glyph mode (conhost and similar, `Glyphs.Basic`) they're `-` and `+`.
   - Without guides, the indentation is `Depth × Indent` spaces.
-  - With `Guides()`, each ancestor level draws `│ ` if that ancestor has siblings below it, or two spaces if it
-    doesn't, and the row's own level draws `├─` or `└─` (last child). Roots draw no connector. So it reads like
-    the `tree` command:
+  - With `Guides()`, a row at depth d draws, for each level from 1 to d − 1, `│ ` if a later row continues that
+    level (the ancestor at that depth has a sibling below it) or two spaces, then `├─`, or `└─` for a last child.
+    Roots draw no connector, so a parent's children hang from its expander. It reads like the `tree` command:
     ```
     ▾ src
-    │ ├─▾ MiniTui
-    │ │ ├─  App.cs
-    │ │ └─▸ Widgets
-    │ └─▸ MiniTui.Example
+    ├─▾ MiniTui
+    │ ├─  App.cs
+    │ └─▸ Widgets
+    └─▸ MiniTui.Example
     ▸ tests
     ```
     The exact column layout is settled by the snapshot tests. Box-drawing characters are used in every glyph
@@ -2523,8 +2524,8 @@ A "Tree" demo after "Tabs" in the menu: the file system from the current directo
 - Directories expand lazily, with `HasChildren` true for any directory and the children read on `Expanded`.
   Unreadable directories show one "(access denied)" leaf.
 - A detail pane on the right shows the selected path, its size and its modified time.
-- Enter on a file shows a toast with its path (`Activated`). `g` toggles guides, `e` and `c` expand and collapse
-  everything under the selected node (`ExpandAll`/`CollapseAll` are whole-tree, so the demo walks the subtree
+- Enter on a file shows a toast with its path (`Activated`). Alt+G toggles guides, Alt+E and Alt+C expand and
+  collapse everything under the selected node (`ExpandAll`/`CollapseAll` are whole-tree, so the demo walks the subtree
   itself), and the footer lists the keys.
 
 ### 11.9 Tests and acceptance
