@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-31
+
+MiniTui 1.4: canvas drawing, line and bar charts, and a debug overlay.
+
 ### Added
 - `Widget.Canvas()`, `CanvasPainter` and `Marker`: draw points, lines, rectangles, circles and text in app coordinates (y grows upward) at up to 2×4 dots per cell with braille, or with half blocks, blocks or dots. Lines are clipped at the edges; where two shapes share a cell, the later one's style wins.
 - `Widget.Chart()`, `Dataset`, `Axis`, `GraphType` and `LegendPosition`: line and scatter plots of one or more datasets, with axes, labels, axis titles and a legend in a corner. Axis bounds come from the data unless set, and small areas drop the titles, then the labels, then the axes.
