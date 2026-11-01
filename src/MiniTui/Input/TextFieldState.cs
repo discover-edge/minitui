@@ -68,6 +68,12 @@ public class TextFieldState
     /// <summary>The first visible display column. Written by the widget while drawing.</summary>
     public int ScrollOffset { get; internal set; }
 
+    /// <summary>The row the widget last drew the text in, for the mouse.</summary>
+    internal Rect ViewArea { get; set; }
+
+    // True between a left press in the text and its release, while drags extend the selection
+    private bool _dragging;
+
     /// <summary>Clear the text.</summary>
     public void Clear() => Text = "";
 
@@ -152,6 +158,37 @@ public class TextFieldState
         if (!_history.Redo(Current(), out var snapshot)) return false;
         Restore(snapshot);
         return true;
+    }
+
+    /// <summary>
+    /// A left press in the text moves the cursor there (Shift+press extends the selection to there), and a drag after
+    /// it extends the selection, scrolling a column at a time past either edge (1.x spec §10.7). Uses the area from
+    /// the last draw.
+    /// </summary>
+    /// <returns>True if the event did any of these.</returns>
+    public bool HandleMouse(MouseEvent mouse)
+    {
+        ArgumentNullException.ThrowIfNull(mouse);
+        var area = ViewArea;
+        switch (mouse.Action)
+        {
+            case MouseAction.Press when mouse.Button == MouseButton.Left:
+                _dragging = area.Contains(mouse.X, mouse.Y);
+                if (!_dragging) return false;
+                MoveTo(IndexAtColumn(ScrollOffset + mouse.X - area.X), (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
+                return true;
+            case MouseAction.Drag when mouse.Button == MouseButton.Left && _dragging:
+                var column = mouse.X < area.X ? ScrollOffset - 1
+                    : mouse.X >= area.Right ? ScrollOffset + area.Width
+                    : ScrollOffset + mouse.X - area.X;
+                MoveTo(IndexAtColumn(column), extend: true);
+                return true;
+            case MouseAction.Release:
+                _dragging = false;
+                return false;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -301,6 +338,22 @@ public class TextFieldState
         _text = _text.Remove(start, end - start);
         _cursor = SnapToBoundary(_text, start);
         _anchor = null;
+    }
+
+    // The start of the cluster at a display column; the end of the text past it
+    private int IndexAtColumn(int column)
+    {
+        if (column <= 0) return 0;
+        var x = 0;
+        for (var i = 0; i < _text.Length;)
+        {
+            var next = NextBoundary(_text, i);
+            var width = UnicodeWidth.Of(Sanitizer.SingleLine(_text.AsSpan(i, next - i)));
+            if (x + width > column) return i;
+            x += width;
+            i = next;
+        }
+        return _text.Length;
     }
 
     private Snapshot Current() => new(_text, _cursor, _anchor);

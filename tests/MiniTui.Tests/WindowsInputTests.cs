@@ -206,13 +206,30 @@ public class WindowsInputTests
     }
 
     [Fact]
-    public void MouseRecords_AreWindowRelative_WithModifiers_AndMovesAreDropped()
+    public void MouseRecords_AreWindowRelative_WithModifiers_AndMovesWithAButtonAreDrags()
     {
         var events = Decode(Translator(new Vec2(0, 100)),
-            InputRecord.Mouse(5, 101, buttons: 0x1, flags: 0x1), // a move with the button down: dropped
+            InputRecord.Mouse(5, 101, buttons: 0x1, flags: 0x1), // a move with the button down: a drag
+            InputRecord.Mouse(6, 101, buttons: 0, flags: 0x1),   // a move without one: dropped
             InputRecord.Mouse(5, 102, buttons: 0x4, controlKeyState: 0x10 | 0x8));
 
-        Assert.Equal([new MouseEvent(MouseAction.Press, MouseButton.Middle, 5, 2, ConsoleModifiers.Shift | ConsoleModifiers.Control)], events);
+        Assert.Equal(
+            [
+                new MouseEvent(MouseAction.Drag, MouseButton.Left, 5, 1),
+                new MouseEvent(MouseAction.Press, MouseButton.Middle, 5, 2, ConsoleModifiers.Shift | ConsoleModifiers.Control),
+            ],
+            events);
+    }
+
+    [Theory]
+    [InlineData(0x1, MouseButton.Left)]
+    [InlineData(0x2 | 0x4, MouseButton.Middle)]
+    [InlineData(0x2, MouseButton.Right)]
+    public void MoveRecords_DragTheLowestHeldButton_ClampedToTheWindow(uint buttons, MouseButton expected)
+    {
+        var events = Decode(Translator(new Vec2(10, 100)), InputRecord.Mouse(3, 90, buttons: buttons, flags: 0x1));
+
+        Assert.Equal([new MouseEvent(MouseAction.Drag, expected, 0, 0)], events);
     }
 
     [Fact]

@@ -206,13 +206,13 @@ public class TerminalInputSourceTests
         // Reference counted: only the first take and the last release write
         capture.SetMouseCapture(true);
         capture.SetMouseCapture(true);
-        Assert.Equal("\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        Assert.Equal("\x1b[?1002h\x1b[?1006h", pty.ReadEcho());
         capture.SetMouseCapture(false);
         capture.SetMouseCapture(false);
-        Assert.Equal("\x1b[?1006l\x1b[?1000l", pty.ReadEcho());
+        Assert.Equal("\x1b[?1006l\x1b[?1002l", pty.ReadEcho());
 
         capture.SetMouseCapture(true);
-        Assert.Equal("\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        Assert.Equal("\x1b[?1002h\x1b[?1006h", pty.ReadEcho());
         pty.Write("\x1b[<0;5;6M");
         var items = new List<MouseEvent>();
         var clock = Stopwatch.StartNew();
@@ -225,7 +225,7 @@ public class TerminalInputSourceTests
         Assert.Equal([new MouseEvent(MouseAction.Press, MouseButton.Left, 4, 5)], items);
 
         ((IInputLifecycle)source).Deactivate();
-        Assert.Equal("\x1b[?1006l\x1b[?1000l\x1b[?2004l", pty.ReadEcho());
+        Assert.Equal("\x1b[?1006l\x1b[?1002l\x1b[?2004l", pty.ReadEcho());
         capture.SetMouseCapture(false);
     }
 
@@ -239,9 +239,9 @@ public class TerminalInputSourceTests
         ((IMouseCapture)source).SetMouseCapture(true);
         Assert.Equal("", pty.ReadEcho());
         ((IInputLifecycle)source).Activate();
-        Assert.Equal("\x1b[?2004h\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        Assert.Equal("\x1b[?2004h\x1b[?1002h\x1b[?1006h", pty.ReadEcho());
         ((IInputLifecycle)source).Deactivate();
-        Assert.Equal("\x1b[?1006l\x1b[?1000l\x1b[?2004l", pty.ReadEcho());
+        Assert.Equal("\x1b[?1006l\x1b[?1002l\x1b[?2004l", pty.ReadEcho());
     }
 
     [Fact]
@@ -253,20 +253,20 @@ public class TerminalInputSourceTests
         using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
         var subscription = InputPump.Subscribe(source, _ => { });
         ((IMouseCapture)source).SetMouseCapture(true);
-        Assert.Equal("\x1b[?2004h\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        Assert.Equal("\x1b[?2004h\x1b[?1002h\x1b[?1006h", pty.ReadEcho());
         var raw = pty.GetMode();
         Assert.NotEqual(original, raw);
 
         using (InputPump.Pause(source))
         {
             Assert.Equal(original, pty.GetMode());
-            Assert.Equal("\x1b[?1006l\x1b[?1000l\x1b[?2004l", pty.ReadEcho());
+            Assert.Equal("\x1b[?1006l\x1b[?1002l\x1b[?2004l", pty.ReadEcho());
 
             // A child that leaves the terminal in another mode mustn't become the mode restored at exit
             pty.SetMode(raw);
         }
         Assert.Equal(raw, pty.GetMode());
-        Assert.Equal("\x1b[?2004h\x1b[?1000h\x1b[?1006h", pty.ReadEcho());
+        Assert.Equal("\x1b[?2004h\x1b[?1002h\x1b[?1006h", pty.ReadEcho());
 
         ((IMouseCapture)source).SetMouseCapture(false);
         subscription.Dispose();

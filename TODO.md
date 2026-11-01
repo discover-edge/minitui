@@ -21,5 +21,5 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Multi-line text input widget (`TextArea`, `TextAreaState`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §6
 - [x] Canvas (braille 2×4), line Chart and BarChart (`Canvas`, `Chart`, `BarChart`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §8
 - [x] Debug mode - visualize focus, layout boundaries and frame time (`App.WithDebugKey`, `ShowDebug`, `LastFrame`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §9
-- [ ] Text selection, copy/cut and the system clipboard: keys, clipboard and undo in 16a (`Clipboard`, `Select`, `Undo`); mouse drag in 16b — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §10
+- [x] Text selection, copy/cut and the system clipboard (`Clipboard`, `Select`, `Undo`, `MouseAction.Drag`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §10
 - [x] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT; `App.Suspend`, `App.WithSuspendKey`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §5

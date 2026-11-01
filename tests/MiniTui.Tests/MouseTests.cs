@@ -54,8 +54,8 @@ public class MouseTests
     }
 
     [Theory]
-    [InlineData("\x1b[<32;1;1M")]   // motion
     [InlineData("\x1b[<35;1;1M")]   // motion, no button
+    [InlineData("\x1b[<96;1;1M")]   // motion and the wheel
     [InlineData("\x1b[<128;1;1M")]  // extra buttons
     [InlineData("\x1b[<0;0;1M")]    // column 0
     [InlineData("\x1b[<0;1M")]      // no row

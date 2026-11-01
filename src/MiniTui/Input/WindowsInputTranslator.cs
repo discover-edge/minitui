@@ -122,7 +122,7 @@ internal sealed class WindowsInputTranslator(Func<Vec2> windowOrigin)
         _count = 0;
     }
 
-    // A press or release is a button bit that changed since the last record; moves are dropped
+    // A press or release is a button bit that changed since the last record; a move with a button held is a drag
     private void Mouse(in InputRecord record, Vec2 origin, IInputSink sink)
     {
         var x = record.MouseX - origin.X;
@@ -139,9 +139,18 @@ internal sealed class WindowsInputTranslator(Func<Vec2> windowOrigin)
             sink.Mouse(new MouseEvent(wheel > 0 ? MouseAction.ScrollRight : MouseAction.ScrollLeft, MouseButton.None, x, y, modifiers));
             return;
         }
-        if ((record.EventFlags & MouseMoved) != 0) return;
-
         var buttons = record.ButtonState & (LeftButton | RightButton | MiddleButton);
+        if ((record.EventFlags & MouseMoved) != 0)
+        {
+            // 1.x spec §10.7: the lowest held button, and a drag past the window's edge stays at the edge
+            var held = (buttons & LeftButton) != 0 ? MouseButton.Left
+                : (buttons & MiddleButton) != 0 ? MouseButton.Middle
+                : (buttons & RightButton) != 0 ? MouseButton.Right
+                : MouseButton.None;
+            if (held != MouseButton.None) sink.Mouse(new MouseEvent(MouseAction.Drag, held, Math.Max(0, x), Math.Max(0, y), modifiers));
+            return;
+        }
+
         var changed = buttons ^ _buttons;
         _buttons = buttons;
         if (x < 0 || y < 0) return;

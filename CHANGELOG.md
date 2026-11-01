@@ -12,13 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Copy, cut and paste: Ctrl+C (with a selection), Ctrl+X and Ctrl+V, and `Copy()` / `Cut()` on both states. `Clipboard.SetText` and `Clipboard.GetText`: the system clipboard on Windows, OSC 52 on Unix terminals, and an in-app clipboard that always works.
 - Undo and redo: Ctrl+Z and Ctrl+Y, `Undo()`, `Redo()`, `CanUndo` and `CanRedo` on both states. Typing undoes a word at a time; up to 100 steps are kept.
 - `TextPosition` compares (`IComparable<TextPosition>`, `<`, `>`, `<=`, `>=`).
-- Example: the Form demo lists the selection and clipboard keys.
+- `MouseAction.Drag`: with `WithMouse`, the terminal also reports the pointer moving while a button is held (`?1002` instead of `?1000`; `MOUSE_MOVED` records on Windows). Drags go to the component the press hit, even outside it, and are clamped to the screen.
+- `TextFieldState.HandleMouse`: a click places the cursor. In both text states, Shift+click extends the selection and dragging selects, scrolling past the edges.
+- Example: the Form demo lists the selection and clipboard keys, and its fields select with the mouse.
 - `docs/SPEC-1.x.md` §10: the text selection and clipboard spec.
 
 ### Changed
 - Ctrl+C copies when the focused component captures text and its field has a selection; otherwise it still quits.
 - In text fields and text areas, Ctrl+A, Ctrl+X, Ctrl+V, Ctrl+Z and Ctrl+Y are handled by the field and no longer reach key bindings. With `WithSuspendKey`, Ctrl+Z suspends only while focus isn't on a text field or area.
 - `TextFieldState.Insert` and `TextAreaState.Insert` replace the selection, if there is one.
+- With `WithMouse`, `App.OnMouse` and `OnEvent` also see drag events.
 
 ## [1.4.0] - 2026-10-31
 

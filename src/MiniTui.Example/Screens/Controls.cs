@@ -9,6 +9,7 @@ internal sealed class TextInput(string label, string placeholder = "") : Compone
     public override bool CapturesText => true;
     public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
     public override bool HandlePaste(string text) => State.Paste(text);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.TextField()
