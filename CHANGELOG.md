@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-01
+
+MiniTui 1.5: text selection, copy and paste, undo and redo, and selecting with the mouse.
+
 ### Added
 - Text selection in `TextFieldState` and `TextAreaState` (so in `TextField`, `TextArea` and `CommandLine`): Shift with the movement keys, Ctrl+A to select all; typing, pasting and the delete keys replace the selection, and ← / → collapse it. `SelectionAnchor`, `SelectionStart`, `SelectionEnd`, `HasSelection`, `SelectedText`, `Select`, `SelectAll` and `ClearSelection` for code. Selected text is drawn with `Theme.Selection`, or `Theme.SelectionUnfocused` when the widget isn't focused.
 - Copy, cut and paste: Ctrl+C (with a selection), Ctrl+X and Ctrl+V, and `Copy()` / `Cut()` on both states. `Clipboard.SetText` and `Clipboard.GetText`: the system clipboard on Windows, OSC 52 on Unix terminals, and an in-app clipboard that always works.

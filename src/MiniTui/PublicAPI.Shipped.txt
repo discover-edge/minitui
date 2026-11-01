@@ -204,6 +204,7 @@ MiniTui.CheckboxBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.CheckboxBuilder.Focused(bool focused = true) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Label(string! label) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Style(MiniTui.Style style) -> MiniTui.CheckboxBuilder!
+MiniTui.Clipboard
 MiniTui.Color
 MiniTui.Color.Color() -> void
 MiniTui.Color.Equals(MiniTui.Color other) -> bool
@@ -516,6 +517,7 @@ MiniTui.Modifiers.None = 0 -> MiniTui.Modifiers
 MiniTui.Modifiers.Reversed = 16 -> MiniTui.Modifiers
 MiniTui.Modifiers.Underlined = 8 -> MiniTui.Modifiers
 MiniTui.MouseAction
+MiniTui.MouseAction.Drag = 6 -> MiniTui.MouseAction
 MiniTui.MouseAction.Press = 0 -> MiniTui.MouseAction
 MiniTui.MouseAction.Release = 1 -> MiniTui.MouseAction
 MiniTui.MouseAction.ScrollDown = 3 -> MiniTui.MouseAction
@@ -870,17 +872,31 @@ MiniTui.TextAreaBuilder.Style(MiniTui.Style style) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaBuilder.TextAreaBuilder() -> void
 MiniTui.TextAreaBuilder.Wrap(MiniTui.WrapMode wrap) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaState
+MiniTui.TextAreaState.CanRedo.get -> bool
+MiniTui.TextAreaState.CanUndo.get -> bool
 MiniTui.TextAreaState.Clear() -> void
+MiniTui.TextAreaState.ClearSelection() -> void
+MiniTui.TextAreaState.Copy() -> bool
 MiniTui.TextAreaState.Cursor.get -> MiniTui.TextPosition
 MiniTui.TextAreaState.Cursor.set -> void
+MiniTui.TextAreaState.Cut() -> bool
 MiniTui.TextAreaState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.TextAreaState.HasSelection.get -> bool
 MiniTui.TextAreaState.Insert(string! text) -> void
 MiniTui.TextAreaState.Lines.get -> System.Collections.Generic.IReadOnlyList<string!>!
 MiniTui.TextAreaState.Paste(string! text) -> bool
+MiniTui.TextAreaState.Redo() -> bool
 MiniTui.TextAreaState.ScrollOffset.get -> int
+MiniTui.TextAreaState.Select(MiniTui.TextPosition anchor, MiniTui.TextPosition cursor) -> void
+MiniTui.TextAreaState.SelectAll() -> void
+MiniTui.TextAreaState.SelectedText.get -> string!
+MiniTui.TextAreaState.SelectionAnchor.get -> MiniTui.TextPosition?
+MiniTui.TextAreaState.SelectionEnd.get -> MiniTui.TextPosition
+MiniTui.TextAreaState.SelectionStart.get -> MiniTui.TextPosition
 MiniTui.TextAreaState.Text.get -> string!
 MiniTui.TextAreaState.Text.set -> void
 MiniTui.TextAreaState.TextAreaState(string! text = "") -> void
+MiniTui.TextAreaState.Undo() -> bool
 MiniTui.TextFieldBuilder
 MiniTui.TextFieldBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.TextFieldBuilder!
 MiniTui.TextFieldBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
@@ -890,16 +906,32 @@ MiniTui.TextFieldBuilder.State(MiniTui.TextFieldState! state) -> MiniTui.TextFie
 MiniTui.TextFieldBuilder.Style(MiniTui.Style style) -> MiniTui.TextFieldBuilder!
 MiniTui.TextFieldBuilder.TextFieldBuilder() -> void
 MiniTui.TextFieldState
+MiniTui.TextFieldState.CanRedo.get -> bool
+MiniTui.TextFieldState.CanUndo.get -> bool
 MiniTui.TextFieldState.Clear() -> void
+MiniTui.TextFieldState.ClearSelection() -> void
+MiniTui.TextFieldState.Copy() -> bool
 MiniTui.TextFieldState.Cursor.get -> int
 MiniTui.TextFieldState.Cursor.set -> void
+MiniTui.TextFieldState.Cut() -> bool
+MiniTui.TextFieldState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.TextFieldState.HasSelection.get -> bool
 MiniTui.TextFieldState.Insert(string! text) -> void
 MiniTui.TextFieldState.Paste(string! text) -> bool
+MiniTui.TextFieldState.Redo() -> bool
 MiniTui.TextFieldState.ScrollOffset.get -> int
+MiniTui.TextFieldState.Select(int anchor, int cursor) -> void
+MiniTui.TextFieldState.SelectAll() -> void
+MiniTui.TextFieldState.SelectedText.get -> string!
+MiniTui.TextFieldState.SelectionAnchor.get -> int?
+MiniTui.TextFieldState.SelectionEnd.get -> int
+MiniTui.TextFieldState.SelectionStart.get -> int
 MiniTui.TextFieldState.Text.get -> string!
 MiniTui.TextFieldState.Text.set -> void
 MiniTui.TextFieldState.TextFieldState(string! text = "") -> void
+MiniTui.TextFieldState.Undo() -> bool
 MiniTui.TextPosition
+MiniTui.TextPosition.CompareTo(MiniTui.TextPosition other) -> int
 MiniTui.TextPosition.Deconstruct(out int Line, out int Index) -> void
 MiniTui.TextPosition.Equals(MiniTui.TextPosition other) -> bool
 MiniTui.TextPosition.Index.get -> int
@@ -1143,6 +1175,8 @@ static MiniTui.Cell.operator !=(MiniTui.Cell left, MiniTui.Cell right) -> bool
 static MiniTui.Cell.operator ==(MiniTui.Cell left, MiniTui.Cell right) -> bool
 static MiniTui.CellUpdate.operator !=(MiniTui.CellUpdate left, MiniTui.CellUpdate right) -> bool
 static MiniTui.CellUpdate.operator ==(MiniTui.CellUpdate left, MiniTui.CellUpdate right) -> bool
+static MiniTui.Clipboard.GetText() -> string?
+static MiniTui.Clipboard.SetText(string! text) -> void
 static MiniTui.Color.Black.get -> MiniTui.Color
 static MiniTui.Color.Blue.get -> MiniTui.Color
 static MiniTui.Color.Cyan.get -> MiniTui.Color
@@ -1235,7 +1269,11 @@ static MiniTui.Text.implicit operator MiniTui.Text!(string! s) -> MiniTui.Text!
 static MiniTui.Text.operator !=(MiniTui.Text? left, MiniTui.Text? right) -> bool
 static MiniTui.Text.operator ==(MiniTui.Text? left, MiniTui.Text? right) -> bool
 static MiniTui.TextPosition.operator !=(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
+static MiniTui.TextPosition.operator <(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
+static MiniTui.TextPosition.operator <=(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
 static MiniTui.TextPosition.operator ==(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
+static MiniTui.TextPosition.operator >(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
+static MiniTui.TextPosition.operator >=(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
 static MiniTui.Theme.Current.get -> MiniTui.Theme!
 static MiniTui.Theme.Default.get -> MiniTui.Theme!
 static MiniTui.Theme.Monochrome.get -> MiniTui.Theme!
