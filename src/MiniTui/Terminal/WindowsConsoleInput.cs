@@ -24,6 +24,7 @@ internal static unsafe partial class WindowsConsoleInput
     private const uint WaitObject0 = 0;
     private const uint CfUnicodeText = 13;
     private const int ClipboardTries = 3;
+    private const uint GmemMoveable = 0x0002;
 
     private static readonly Lock Gate = new();
     private static nint s_input;
@@ -222,6 +223,50 @@ internal static unsafe partial class WindowsConsoleInput
         }
     }
 
+    /// <summary>Put text on the clipboard as <c>CF_UNICODETEXT</c>, with <c>\r\n</c> line breaks. Failures are ignored.</summary>
+    public static void WriteClipboardText(string text)
+    {
+        var data = text.ReplaceLineEndings("\r\n");
+        try
+        {
+            for (var attempt = 0; attempt < ClipboardTries; attempt++)
+            {
+                if (attempt > 0) Thread.Sleep(10);
+                if (!OpenClipboard(0)) continue;
+                try
+                {
+                    if (!EmptyClipboard()) return;
+                    var bytes = (nuint)((data.Length + 1) * sizeof(char));
+                    var memory = GlobalAlloc(GmemMoveable, bytes);
+                    if (memory == 0) return;
+                    var target = GlobalLock(memory);
+                    if (target == 0)
+                    {
+                        GlobalFree(memory);
+                        return;
+                    }
+                    fixed (char* source = data)
+                        System.Buffer.MemoryCopy(source, (void*)target, (long)bytes, (long)bytes);
+                    GlobalUnlock(memory);
+
+                    // The clipboard owns the memory once SetClipboardData succeeds
+                    if (SetClipboardData(CfUnicodeText, memory) == 0) GlobalFree(memory);
+                    return;
+                }
+                finally
+                {
+                    CloseClipboard();
+                }
+            }
+        }
+        catch (DllNotFoundException)
+        {
+        }
+        catch (EntryPointNotFoundException)
+        {
+        }
+    }
+
     private static bool IsHandle(nint handle) => handle != 0 && handle != -1;
 
     private static void Write(ReadOnlySpan<byte> bytes)
@@ -293,4 +338,17 @@ internal static unsafe partial class WindowsConsoleInput
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseClipboard();
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EmptyClipboard();
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial nint SetClipboardData(uint uFormat, nint hMem);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial nint GlobalAlloc(uint uFlags, nuint dwBytes);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial nint GlobalFree(nint hMem);
 }

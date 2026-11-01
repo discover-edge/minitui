@@ -129,6 +129,22 @@ public sealed class AnsiBackend : ITerminalBackend, IConsoleDevice
         }
     }
 
+    /// <summary>
+    /// Ask the terminal to put text on the system clipboard with OSC 52 (1.x spec §10.5). Written between frames,
+    /// only while the terminal is entered; terminals without OSC 52 ignore it.
+    /// </summary>
+    internal void WriteClipboard(string text)
+    {
+        var payload = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text));
+        var bytes = System.Text.Encoding.ASCII.GetBytes("\e]52;c;" + payload + "\a");
+        lock (_lock)
+        {
+            if (!_entered || _output is null) return;
+            _output.Write(bytes);
+            _output.Flush();
+        }
+    }
+
     /// <summary>The bytes the last <see cref="Draw"/> wrote, for <see cref="FrameStats.BytesWritten"/>.</summary>
     internal long LastFrameBytes { get; private set; }
 

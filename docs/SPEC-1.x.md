@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; Phase 16 is to be specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -38,7 +38,7 @@ or add to them:
 | **13. PopupMenu and Select** | A popup menu overlay (context menus, Enter/Esc, type-ahead) and a `Select` dropdown field built on it. | 6 (overlays) | §7 | 1.3.0 |
 | **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | §8 | 1.4.0 |
 | **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | §9 | 1.4.0 |
-| **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | To be specced | Later |
+| **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | §10 | 1.5.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -2021,3 +2021,290 @@ One PR, in 1.4.0 with Phase 14:
 | 3 | Outlines: patch the edge cells' background (content stays readable), or draw box lines over them? | **Background** (§9.3). |
 | 4 | Panel corner: top-right, moving away from the pointer, or a key to cycle corners? | **Top-right, moving to the bottom-left under the pointer** (§9.3). |
 | 5 | Frame stats public (`App.LastFrame`) or internal to the overlay? | **Public** (§9.2), for apps' own status lines and logs. |
+
+---
+
+## 10. Text selection and clipboard (Phase 16)
+
+### 10.1 Purpose
+
+Text fields and text areas can type, move and delete, but not select: there's no way to replace a word without
+deleting it a character at a time, to copy what was typed into another program, or to take back a mistake.
+Phase 16 adds a selection to `TextFieldState` and `TextAreaState` (Shift with the movement keys, Ctrl+A, and
+dragging with the mouse), copy and cut to the system clipboard (OSC 52 on Unix terminals, the Win32 clipboard on
+Windows, and an in-app clipboard that always works), Ctrl+V pasting from it where the terminal doesn't take that
+key itself, and undo and redo. Every widget built on these states (`TextField`, `TextArea` and `CommandLine`) gets
+them without changes to the app.
+
+### 10.2 Public API
+
+```csharp
+public class TextFieldState
+{
+    /// The other end of the selection, or null for none; the cursor is the end that moves. Setting Text, Cursor or
+    /// typing without Shift clears it.
+    public int? SelectionAnchor { get; }
+
+    /// The selection as an ordered range (Start ≤ End) of UTF-16 indexes on cluster boundaries; empty when there's
+    /// no selection (Start = End = Cursor).
+    public int SelectionStart { get; }
+    public int SelectionEnd { get; }
+    public bool HasSelection { get; }
+    public string SelectedText { get; }
+
+    /// Select from anchor to cursor (both clamped and snapped, as Cursor is). Equal values clear the selection.
+    public void Select(int anchor, int cursor);
+    public void SelectAll();
+    public void ClearSelection();
+
+    /// Copy the selection to the Clipboard (§10.5). Returns false, and does nothing, without a selection.
+    public bool Copy();
+    /// Copy the selection and delete it. Returns false without a selection.
+    public bool Cut();
+
+    /// Undo or redo the last edit group (§10.6). Return false when there's nothing to undo or redo.
+    public bool Undo();
+    public bool Redo();
+    public bool CanUndo { get; }
+    public bool CanRedo { get; }
+
+    /// A left press in the text moves the cursor there; a drag extends the selection; Shift+press extends it
+    /// (§10.7). Uses the area from the last draw. Returns true if it did any of these.
+    public bool HandleMouse(MouseEvent mouse);
+}
+
+public class TextAreaState
+{
+    public TextPosition? SelectionAnchor { get; }
+    public TextPosition SelectionStart { get; }   // ordered: Start ≤ End
+    public TextPosition SelectionEnd { get; }
+    public bool HasSelection { get; }
+    public string SelectedText { get; }           // lines joined by "\n"
+
+    public void Select(TextPosition anchor, TextPosition cursor);
+    public void SelectAll();
+    public void ClearSelection();
+    public bool Copy();
+    public bool Cut();
+    public bool Undo();
+    public bool Redo();
+    public bool CanUndo { get; }
+    public bool CanRedo { get; }
+    // HandleMouse (from Phase 12) also handles drags and Shift+press (§10.7).
+}
+
+/// The clipboard that copy, cut and Ctrl+V use (§10.5).
+public static class Clipboard
+{
+    /// Put text on the system clipboard where the platform and terminal allow it, and on the in-app clipboard.
+    public static void SetText(string text);
+
+    /// The text Ctrl+V pastes: the system clipboard on Windows, otherwise the last text set in this process.
+    /// Null if there's none.
+    public static string? GetText();
+}
+
+public enum MouseAction
+{
+    // Press, Release, ScrollUp, ScrollDown, ScrollLeft, ScrollRight, as in 1.2, then:
+
+    /// The pointer moved with a button held (§10.7). Button is the held button.
+    Drag,
+}
+```
+
+- `TextPosition` gets `IComparable<TextPosition>` and the comparison operators (by line, then index), which
+  ordering a selection needs. That's additive.
+- No theme changes: selected text is drawn with `Theme.Selection` while the widget is focused and
+  `Theme.SelectionUnfocused` while it isn't (§10.8), the slots lists and tables already use.
+
+### 10.3 Keys
+
+Added to the §8.4 (text field) and §6.3 (text area) keys, in both states unless marked:
+
+| Key | Effect |
+|---|---|
+| Shift + ← → Home End, Ctrl+Shift + ← → | Move as without Shift, extending the selection: the first one sets the anchor at the cursor. |
+| Shift + ↑ ↓ PgUp PgDn, Ctrl+Shift + Home End | (Text area.) Likewise. |
+| ← / → with a selection | Collapse it to its start / end, without moving further (as GUIs do). |
+| Any other move without Shift | Clear the selection and move from the cursor. |
+| Ctrl+A | Select all. |
+| Typing, paste, Enter (text area) | Replace the selection. |
+| Backspace, Delete, Ctrl+W, Ctrl+Backspace, Ctrl+U, Ctrl+K | With a selection, delete it (and nothing else); without one, as before. |
+| Ctrl+C | Copy the selection. Without one it isn't handled, so it quits as before (§10.4). |
+| Ctrl+X | Cut the selection. Without one it isn't handled. |
+| Ctrl+V | Paste `Clipboard.GetText()`, replacing the selection. Handled even when the clipboard is empty. |
+| Ctrl+Z / Ctrl+Y | Undo / redo (§10.6). Always handled, even with nothing to undo, so the key never leaks. |
+
+- **Where these keys arrive.** Shift with the arrows, Home and End is decoded since Phase 8 (`CSI 1;2D` and so
+  on). Some terminals keep Shift+PgUp/PgDn (xterm, GNOME Terminal: scrollback) or Ctrl+Shift+arrows (Windows
+  Terminal: scroll) for themselves; those keys then don't reach the app, and the others still work. Windows
+  Terminal and most Linux terminals take Ctrl+Shift+C/V for their own copy and paste, which still work on
+  whatever the terminal shows (with the mouse captured, after Shift+drag in most terminals).
+- **Ctrl+V** reaches the app on most Unix terminals (they paste with Ctrl+Shift+V), so it pastes what the app
+  copied. In Windows Terminal, Ctrl+V is the terminal's paste and arrives as a `PasteEvent`; in conhost, the
+  input source already turns it into a `PasteEvent` from the clipboard (§4.5). Either way the state sees a
+  paste, which replaces the selection the same way.
+- **Ctrl+A** used to be unhandled in a text field and reach the bindings; Ctrl+X, Ctrl+V, Ctrl+Z and Ctrl+Y
+  likewise. That's a "Changed" entry (§0 rule 2).
+
+### 10.4 Ctrl+C
+
+Ctrl+C quits unless `OnKey` takes it (1.0). That stays true, with one addition, between `OnKey` (and the debug
+key) and quitting:
+
+- If the focused component (the last on the focus chain, with an overlay's chain while one is open) has
+  `CapturesText` true, Ctrl+C goes to **its** `HandleKey` only: not to its ancestors and not to any key map. If
+  it returns true (a state with a selection copied it), that's the end of it; otherwise the app quits.
+- So Ctrl+C copies when there's a selection in the focused field, and quits when there isn't, as Ctrl+C in
+  Windows Terminal copies with a selection and interrupts without one. A component that doesn't capture text, or
+  a binding, still can't block quitting.
+- Render-callback apps (no components) are unchanged.
+
+### 10.5 Clipboard
+
+- **`SetText`** always keeps the text as the in-app clipboard (process-wide, shared by nested apps), and then:
+  - **Windows** (any console, Windows Terminal or conhost): writes `CF_UNICODETEXT` with `OpenClipboard`,
+    `EmptyClipboard` and `SetClipboardData`, retrying three times when the clipboard is locked, as
+    `ReadClipboardText` does. Failures are ignored.
+  - **Unix**, while an app is running on the ANSI backend: writes `ESC ] 52 ; c ; <base64 UTF-8> BEL` to the
+    running app's terminal right away, under the backend's lock, so it never lands inside a frame. Terminals that don't support OSC 52 ignore it, as they must ignore any OSC.
+    tmux passes it on only with `set -s set-clipboard on`; screen and some terminals limit its size. None of
+    this can be detected, so the in-app clipboard is the fallback.
+  - With no running app (a state used in a test or by a custom loop): the in-app clipboard only.
+- **`GetText`:** on Windows, `ReadClipboardText()`, falling back to the in-app text if it fails; on Unix, the
+  in-app text (reading the system clipboard through OSC 52 is disabled by most terminals and needs a reply
+  parser; §10.12).
+- Text is set as is (`\n` line breaks from a text area; Windows gets `\r\n`, as other Windows programs expect).
+  Pasting it back goes through the usual paste rules.
+- Tests replace the platform writer and reader through internal hooks, as with `GetEnvironment`.
+
+### 10.6 Undo and redo
+
+- Each state keeps an undo stack of snapshots (text, cursor and selection before the edit) and a redo stack. A
+  text area's snapshot copies its list of lines (the strings are shared), not the text.
+- **Edit groups.** Consecutive typed characters are one group, so Ctrl+Z takes back a word rather than a letter.
+  A new group starts when: the kind of edit changes (typing, deleting backward, deleting forward, or a one-off:
+  paste, cut, Enter, deleting a selection, Ctrl+W/U/K); the cursor moved, or the selection changed, since the
+  last edit; or a typed non-space follows a typed space (so typing a sentence undoes by word).
+- Undo restores the snapshot (text, cursor and selection), pushing the current state on the redo stack; redo
+  does the reverse. A new edit clears the redo stack. Up to 100 groups are kept; the oldest is dropped.
+- Setting `Text` or calling `Clear()` from code clears both stacks: it's a new value, not an edit.
+- **Ctrl+Z and `WithSuspendKey`:** §5.5 already routes Ctrl+Z to the focus chain before suspending. Since a text
+  state now always handles it, Ctrl+Z suspends only while focus isn't in a text field or area. The README says
+  so next to `WithSuspendKey`; an app that wants Ctrl+Z to suspend everywhere can bind undo elsewhere by
+  overriding `HandleKey`.
+
+### 10.7 Mouse
+
+- **Motion reports.** With `WithMouse`, Unix and VT consoles turn on `CSI ?1002h` (button-event tracking:
+  presses, releases, the wheel, and motion while a button is held) instead of `?1000h`, and turn it off with
+  `?1002l`. No `?1003` (all motion): hover is still out of scope. The SGR and X10 decoders turn a report with +32
+  (motion) and button 0–2 into `MouseAction.Drag` with that button; motion with no button (3) is still dropped.
+- **Windows records:** a `MOUSE_MOVED` record with a button held (`dwButtonState`) becomes a `Drag` with the
+  lowest held button, left first; without a button it's still dropped.
+- **Clamped, not dropped:** a drag outside the buffer (the pointer left the window while dragging, where the
+  terminal reports it) is clamped to the buffer's edge, so a selection can reach the first and last rows. Other
+  events outside it are still dropped.
+- **Routing (pointer capture).** A drag goes to the component that was the target of the last press, then its
+  ancestors, as long as it's still mounted under the current root; otherwise it's dropped. It doesn't go through
+  click to focus. `App.OnEvent` and `App.OnMouse` see drags first, as they see every mouse event. Releases are
+  routed as before (to what's under the pointer).
+- **In the states** (positions from the last draw, as in §6.6):
+  - Left press: move the cursor there and clear the selection (Phase 12 behavior; new for text fields).
+  - Shift+left press: extend the selection to there (anchor at the old cursor). Many terminals keep Shift+click
+    for their own selection, so it often doesn't arrive.
+  - Left drag: extend the selection from where the press put the cursor to the point. Above or below a text
+    area's view, each drag report scrolls one row and selects to the first or last visible row; left or right of
+    a text field (or a `WrapMode.None` text area), it scrolls one column. Terminals report only when the pointer
+    moves, so scrolling happens as the mouse moves, not on a timer.
+  - A drag that started outside the state's area (a press on the border, or on another component) isn't handled.
+- Existing handlers ignore `Drag`: `IsClick` is false, and `SelectionState`, `ScrollState`, `TabBarState` and the
+  dialogs handle only presses and the wheel. Apps with their own `OnMouse` start seeing drags ("Changed").
+
+### 10.8 Drawing
+
+- **Text field:** selected clusters are patched with `Theme.Selection` (focused) or `Theme.SelectionUnfocused`,
+  then the cursor cell gets `Theme.Cursor` as before, so the cursor stays visible at the selection's moving end.
+  Scrolling still follows the cursor.
+- **Text area:** the same, row by row. A selected line break is shown as one selected cell after the line's last
+  character when the row has room, so selecting across an empty line is visible.
+- The selection is kept when focus moves away (shown unfocused) and when the text area scrolls.
+
+### 10.9 Configuration
+
+None. (OSC 52 can't be detected, and writing it to a terminal that doesn't support it is harmless, so there's no
+switch for it.)
+
+### 10.10 Example
+
+- The Form demo: its footer lists Shift+arrows, Ctrl+A, Ctrl+C/X/V and Ctrl+Z/Y. The Notes text area and the
+  fields above it get everything through the states.
+- The menu footer gains nothing (Ctrl+C still says it quits).
+
+### 10.11 Tests and acceptance
+
+Automated (all platforms):
+- **Selection keys** in both states: each Shift move sets the anchor once and extends; ←/→ collapse; other moves
+  clear; Ctrl+A; typing, paste and Enter replace; each delete key deletes only the selection; selections over
+  surrogate pairs, combining marks and wide characters never split a cluster; `Select` clamps and snaps; setting
+  `Text`/`Cursor` clears.
+- **Text area across lines:** Shift+↑↓ by wrapped row with the goal column, Shift+PgUp/PgDn, Ctrl+Shift+Home/End,
+  `SelectedText` over several lines and over an empty line, cutting across lines joins them.
+- **Clipboard:** `SetText` keeps the in-app text; the Windows writer and the OSC 52 writer are called through the
+  hooks (the OSC sequence's exact bytes, base64 of UTF-8, and nothing written before `Enter` or after
+  `Leave`); `GetText` on each platform path; `\r\n` for Windows (manual QA: the Win32 calls aren't run in CI).
+- **Ctrl+C routing** (`AppHarness`): copies with a selection in a focused text field, quits without one; quits
+  when the focused component doesn't capture text, even if it handles every key; a key map binding for ctrl+c
+  never sees it; inside an overlay.
+- **Undo:** typing a sentence undoes by word; each group boundary in §10.6; redo; a new edit clears redo; the 100
+  limit; `Text =` clears history; undo restores the cursor and selection; Ctrl+Z with an empty stack is handled
+  and doesn't suspend; Ctrl+Z with focus on a list still suspends.
+- **Mouse decoding:** SGR and X10 drags (each button, modifiers), motion without a button dropped, `?1002h` and
+  `?1002l` in the mode strings and every restore path; Windows `MOUSE_MOVED` with and without buttons; clamping.
+- **Mouse routing:** drags go to the pressed target even when the pointer leaves it; a target unmounted since the
+  press drops them; click to focus isn't run for drags.
+- **Mouse in the states:** press, Shift+press, drag in both directions, drag past the edges scrolls, drag from
+  the border ignored; text field click placement with a scrolled field and wide characters.
+- **Snapshots:** selected text focused and unfocused, the cursor at either end, a selected line break, monochrome.
+
+Manual QA (results in the PR): the Form demo on Linux (tmux with `set-clipboard on`, and Windows Terminal through
+WSL) and Windows (Windows Terminal and conhost): select with every key in §10.3, copy and paste into another
+program and back, cut, undo and redo a paragraph, drag across wrapped rows and past the top and bottom, Ctrl+C
+with and without a selection; emoji and CJK text.
+
+### 10.12 Out of scope
+
+- Selecting text anywhere else: paragraphs, lists, tables, the log view, or the whole screen (terminals' own
+  Shift+drag selection still does that).
+- Reading the system clipboard on Unix (OSC 52 queries), and primary selection (X11 middle-click paste).
+- Double- and triple-click to select a word or line: terminals don't report them, and timing presses is left to
+  apps. Windows' `DOUBLE_CLICK` stays a press.
+- Hover and all-motion reports (`?1003`); dragging scrollbars, splitters or list items (apps can use `Drag` for
+  those now).
+- Ctrl+Insert, Shift+Insert and Shift+Delete as copy, paste and cut.
+- Persistent or unlimited undo, undo across `Text =`, and an undo API for app-made edits (`Insert`, `Paste` from
+  code are undoable groups; there's no way to group several calls into one).
+- A selection or undo in `SelectState`'s type-ahead and `PopupMenu`.
+
+### 10.13 Implementation order
+
+Two PRs, like Phase 10, since the mouse part changes input decoding on both platforms and needs hand testing of its
+own:
+1. **16a** (keys): the selection model, keys and drawing in both states; `Clipboard` with the Windows and OSC 52
+   writers; the Ctrl+C step; undo and redo; the Example footer, README, CHANGELOG, manual QA.
+2. **16b** (mouse): `?1002`, `MouseAction.Drag` in the SGR, X10 and Windows decoders; clamping; pointer capture
+   in the router; press, Shift+press and drag in both states; README, CHANGELOG, manual QA.
+
+Both go out in one release (1.5.0).
+
+### 10.14 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | The copy key: Ctrl+C when the focused field has a selection (quitting otherwise), or a separate key such as Alt+C (Ctrl+Shift+C can't be told from Ctrl+C in most terminals, and terminals keep it)? | **Ctrl+C with a selection** (§10.4), as Windows Terminal does. |
+| 2 | Undo and redo in this phase? A text state then always takes Ctrl+Z, so `WithSuspendKey` suspends only while focus isn't on text. | **Yes, on Ctrl+Z / Ctrl+Y** (§10.6). |
+| 3 | Ctrl+A: select all (GUIs, Textual's `TextArea`) or start of line (readline, Emacs)? Home already moves to the start. | **Select all.** |
+| 4 | System clipboard on Windows: the Win32 API in every console, or OSC 52 in Windows Terminal and Win32 only in conhost? | **Win32 everywhere** (§10.5): one path, no size limit, works in both. |
+| 5 | Mouse drag in this phase (it needs `?1002` and pointer capture), or keys only, with the mouse later? | **In this phase, as PR 16b** (§10.13). |
+| 6 | The selection when focus leaves: keep it, shown with `SelectionUnfocused` (GUIs), or clear it? | **Keep it** (§10.8). |

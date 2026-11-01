@@ -67,8 +67,13 @@ public sealed class TextAreaBuilder
         else
         {
             var left = _wrap == WrapMode.None ? state.HorizontalOffset : 0;
+            var selection = _focused ? theme.Selection : theme.SelectionUnfocused;
             for (var y = 0; y < inner.Height && state.ScrollOffset + y < rows.Count; y++)
-                DrawRow(buf, inner.X, inner.Y + y, state.Lines, rows[state.ScrollOffset + y], left, inner.Width, style);
+            {
+                var visible = rows[state.ScrollOffset + y];
+                DrawRow(buf, inner.X, inner.Y + y, state.Lines, visible, left, inner.Width, style);
+                if (state.HasSelection) DrawSelection(buf, inner, inner.Y + y, state, visible, left, selection);
+            }
         }
 
         if (!_focused) return;
@@ -105,6 +110,23 @@ public sealed class TextAreaBuilder
             if (cursorColumn >= left + inner.Width) left = cursorColumn - inner.Width + 1;
         }
         state.HorizontalOffset = Math.Max(0, left);
+    }
+
+    // 1.x spec §10.8: the selected part of a row, and a cell for a selected line break when the row has room
+    private static void DrawSelection(Buffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, Style style)
+    {
+        var (start, end) = (state.SelectionStart, state.SelectionEnd);
+        if (row.Line < start.Line || row.Line > end.Line) return;
+        var line = state.Lines[row.Line];
+        var from = Math.Max(row.Line == start.Line ? start.Index : 0, row.Start);
+        var to = Math.Min(row.Line == end.Line ? end.Index : line.Length, row.End);
+        if (from > to) return;
+        var x0 = TextAreaState.ColumnIn(line, row, from) - left;
+        var x1 = TextAreaState.ColumnIn(line, row, to) - left;
+        if (row.LastOfLine && row.Line < end.Line) x1++;
+        x0 = Math.Max(x0, 0);
+        x1 = Math.Min(x1, inner.Width);
+        if (x1 > x0) buf.SetStyle(new Rect(inner.X + x0, y, x1 - x0, 1), style);
     }
 
     private static void DrawRow(Buffer buf, int x, int y, IReadOnlyList<string> lines, TextAreaLayout.Row row, int left, int width, Style style)

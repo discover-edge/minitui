@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Text selection in `TextFieldState` and `TextAreaState` (so in `TextField`, `TextArea` and `CommandLine`): Shift with the movement keys, Ctrl+A to select all; typing, pasting and the delete keys replace the selection, and ← / → collapse it. `SelectionAnchor`, `SelectionStart`, `SelectionEnd`, `HasSelection`, `SelectedText`, `Select`, `SelectAll` and `ClearSelection` for code. Selected text is drawn with `Theme.Selection`, or `Theme.SelectionUnfocused` when the widget isn't focused.
+- Copy, cut and paste: Ctrl+C (with a selection), Ctrl+X and Ctrl+V, and `Copy()` / `Cut()` on both states. `Clipboard.SetText` and `Clipboard.GetText`: the system clipboard on Windows, OSC 52 on Unix terminals, and an in-app clipboard that always works.
+- Undo and redo: Ctrl+Z and Ctrl+Y, `Undo()`, `Redo()`, `CanUndo` and `CanRedo` on both states. Typing undoes a word at a time; up to 100 steps are kept.
+- `TextPosition` compares (`IComparable<TextPosition>`, `<`, `>`, `<=`, `>=`).
+- Example: the Form demo lists the selection and clipboard keys.
+- `docs/SPEC-1.x.md` §10: the text selection and clipboard spec.
+
+### Changed
+- Ctrl+C copies when the focused component captures text and its field has a selection; otherwise it still quits.
+- In text fields and text areas, Ctrl+A, Ctrl+X, Ctrl+V, Ctrl+Z and Ctrl+Y are handled by the field and no longer reach key bindings. With `WithSuspendKey`, Ctrl+Z suspends only while focus isn't on a text field or area.
+- `TextFieldState.Insert` and `TextAreaState.Insert` replace the selection, if there is one.
+
 ## [1.4.0] - 2026-10-31
 
 MiniTui 1.4: canvas drawing, line and bar charts, and a debug overlay.

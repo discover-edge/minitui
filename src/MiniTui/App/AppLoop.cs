@@ -41,6 +41,10 @@ public partial class App
     private Theme? _activeTheme;
     private bool _noColor;
     private bool _basicGlyphs;
+    private Clipboard.Target? _clipboard;
+
+    /// <summary>The system clipboard to use instead of the backend's; set by tests.</summary>
+    internal Clipboard.Target? ClipboardTarget { get; set; }
 
     /// <summary>The app whose loop is running on the current thread.</summary>
     internal static App? Current => t_current;
@@ -91,6 +95,7 @@ public partial class App
             _noColor = _activeColorMode == ColorMode.None;
             _activeTheme = ResolveTheme(_theme);
             _basicGlyphs = Glyphs.DetectBasic(backend);
+            _clipboard = ClipboardTarget ?? Clipboard.For(backend);
             StartDebug();
             if (_captureConsole) run.Capture = ConsoleCapture.Start(Log);
 
@@ -289,6 +294,7 @@ public partial class App
         private readonly SynchronizationContext? _previousContext;
         private readonly Theme.Scope _theme;
         private readonly Glyphs.Scope _glyphs;
+        private readonly Clipboard.Scope _clipboard;
 
         public UiBinding(App app)
         {
@@ -298,12 +304,14 @@ public partial class App
             t_current = app;
             _theme = Theme.Use(app._activeTheme ?? app._theme ?? Theme.Default);
             _glyphs = Glyphs.Use(app._basicGlyphs);
+            _clipboard = Clipboard.Use(app._clipboard);
             SynchronizationContext.SetSynchronizationContext(new MiniTuiSynchronizationContext(app));
         }
 
         public void Dispose()
         {
             SynchronizationContext.SetSynchronizationContext(_previousContext);
+            _clipboard.Dispose();
             _glyphs.Dispose();
             _theme.Dispose();
             t_current = _previousApp;
@@ -341,9 +349,10 @@ public partial class App
         if (_onKey?.Invoke(key) == true) return;
         if (HandleDebugKey(key)) return;
 
-        // Ctrl+C always quits unless OnKey took it
+        // Ctrl+C quits unless OnKey took it, or the focused text component copied with it (1.x spec §10.4)
         if (KeyInput.IsCtrlC(key))
         {
+            if (KeyRouter.Chain(this) is [.., { CapturesText: true } focused] && focused.HandleKey(key)) return;
             Quit();
             return;
         }
