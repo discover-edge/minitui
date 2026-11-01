@@ -5,7 +5,23 @@ using System.Text;
 namespace MiniTui;
 
 /// <summary>A position in a <see cref="TextAreaState"/>: a line, and a UTF-16 index into it on a grapheme cluster boundary.</summary>
-public readonly record struct TextPosition(int Line, int Index);
+public readonly record struct TextPosition(int Line, int Index) : IComparable<TextPosition>
+{
+    /// <summary>Compare by line, then by index.</summary>
+    public int CompareTo(TextPosition other) => Line != other.Line ? Line.CompareTo(other.Line) : Index.CompareTo(other.Index);
+
+    /// <summary>True if <paramref name="left"/> comes before <paramref name="right"/>.</summary>
+    public static bool operator <(TextPosition left, TextPosition right) => left.CompareTo(right) < 0;
+
+    /// <summary>True if <paramref name="left"/> comes after <paramref name="right"/>.</summary>
+    public static bool operator >(TextPosition left, TextPosition right) => left.CompareTo(right) > 0;
+
+    /// <summary>True if <paramref name="left"/> comes before <paramref name="right"/> or is the same.</summary>
+    public static bool operator <=(TextPosition left, TextPosition right) => left.CompareTo(right) <= 0;
+
+    /// <summary>True if <paramref name="left"/> comes after <paramref name="right"/> or is the same.</summary>
+    public static bool operator >=(TextPosition left, TextPosition right) => left.CompareTo(right) >= 0;
+}
 
 /// <summary>
 /// The text and cursor of a multi-line text area (1.x spec §6). The text is a list of lines; the cursor is a line
@@ -18,8 +34,10 @@ public class TextAreaState
 
     private readonly List<string> _lines = [""];
     private readonly ReadOnlyCollection<string> _readOnlyLines;
+    private readonly EditHistory<Snapshot> _history = new();
     private int _line;
     private int _index;
+    private TextPosition? _anchor;
     private int? _goalColumn;
     private char? _pendingHighSurrogate;
 
@@ -33,7 +51,7 @@ public class TextAreaState
     /// <summary>
     /// The text, lines joined by <c>"\n"</c>. Setting it normalizes <c>"\r\n"</c> and <c>"\r"</c> to <c>"\n"</c>,
     /// turns tabs into spaces up to the next multiple of 4 columns, removes other control characters, and moves the
-    /// cursor to the end.
+    /// cursor to the end. Setting it also clears the selection and the undo history.
     /// </summary>
     public string Text
     {
@@ -44,7 +62,9 @@ public class TextAreaState
             _lines.Add("");
             _line = 0;
             _index = 0;
+            _anchor = null;
             _pendingHighSurrogate = null;
+            _history.Clear();
             InsertNormalized(value ?? "");
             Moved();
         }
@@ -53,18 +73,47 @@ public class TextAreaState
     /// <summary>The lines, without line breaks. Never empty: empty text is one empty line.</summary>
     public IReadOnlyList<string> Lines => _readOnlyLines;
 
-    /// <summary>The cursor. Set values are clamped to the text and snap to the next cluster boundary.</summary>
+    /// <summary>
+    /// The cursor. Set values are clamped to the text and snap to the next cluster boundary, and clear the selection.
+    /// </summary>
     public TextPosition Cursor
     {
         get => new(_line, _index);
-        set
+        set => MoveTo(Clamp(value));
+    }
+
+    /// <summary>
+    /// The other end of the selection, or null for none; <see cref="Cursor"/> is the end that moves (1.x spec §10).
+    /// </summary>
+    public TextPosition? SelectionAnchor => _anchor;
+
+    /// <summary>The start of the selection (the earlier of the anchor and the cursor), or the cursor without one.</summary>
+    public TextPosition SelectionStart => _anchor is { } a && a < Cursor ? a : Cursor;
+
+    /// <summary>The end of the selection (the later of the anchor and the cursor), or the cursor without one.</summary>
+    public TextPosition SelectionEnd => _anchor is { } a && a > Cursor ? a : Cursor;
+
+    /// <summary>True if some text is selected.</summary>
+    public bool HasSelection => _anchor is { } anchor && anchor != Cursor;
+
+    /// <summary>The selected text, lines joined by <c>"\n"</c>, or <c>""</c>.</summary>
+    public string SelectedText
+    {
+        get
         {
-            _line = Math.Clamp(value.Line, 0, _lines.Count - 1);
-            var line = _lines[_line];
-            _index = TextFieldState.SnapToBoundary(line, Math.Clamp(value.Index, 0, line.Length));
-            Moved();
+            var (start, end) = (SelectionStart, SelectionEnd);
+            if (start.Line == end.Line) return _lines[start.Line][start.Index..end.Index];
+            var text = new StringBuilder(_lines[start.Line], start.Index, _lines[start.Line].Length - start.Index, 64);
+            for (var l = start.Line + 1; l < end.Line; l++) text.Append('\n').Append(_lines[l]);
+            return text.Append('\n').Append(_lines[end.Line], 0, end.Index).ToString();
         }
     }
+
+    /// <summary>True if <see cref="Undo"/> has something to take back.</summary>
+    public bool CanUndo => _history.CanUndo;
+
+    /// <summary>True if <see cref="Redo"/> has something to do again.</summary>
+    public bool CanRedo => _history.CanRedo;
 
     /// <summary>The first visible row (a wrapped row, not a line). Written by the widget while drawing, and by the wheel.</summary>
     public int ScrollOffset { get; internal set; }
@@ -87,81 +136,163 @@ public class TextAreaState
     /// <summary>Clear the text.</summary>
     public void Clear() => Text = "";
 
-    /// <summary>Insert text at the cursor and move the cursor past it. Line breaks in the text start new lines.</summary>
-    public void Insert(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return;
-        InsertNormalized(text);
-        Moved();
-    }
+    /// <summary>
+    /// Insert text at the cursor, replacing the selection, and move the cursor past it. Line breaks in the text start
+    /// new lines.
+    /// </summary>
+    public void Insert(string text) => InsertText(text, EditKind.Other);
 
     /// <summary>
-    /// Insert pasted text at the cursor, keeping its line breaks. Tabs and control characters are handled as for
-    /// <see cref="Text"/>.
+    /// Insert pasted text at the cursor, replacing the selection and keeping the text's line breaks. Tabs and control
+    /// characters are handled as for <see cref="Text"/>.
     /// </summary>
     /// <returns>Always true, so a component can write <c>HandlePaste(text) =&gt; State.Paste(text)</c>.</returns>
     public bool Paste(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        Insert(text);
+        if (text.Length > 0) InsertText(text, EditKind.Other);
+        else DeleteSelection();
         return true;
     }
 
     /// <summary>
-    /// Handle an editing or movement key (1.x spec §6.3): text, Enter, ← → ↑ ↓, PgUp PgDn, Home End, Ctrl+Home End,
-    /// Ctrl+← →, Backspace, Delete, Ctrl+Backspace / Ctrl+W, Ctrl+U and Ctrl+K. Tab, Esc and other Ctrl or Alt keys
-    /// aren't handled.
+    /// Select from <paramref name="anchor"/> to <paramref name="cursor"/>, both clamped and snapped as
+    /// <see cref="Cursor"/> is. Equal values clear the selection.
+    /// </summary>
+    public void Select(TextPosition anchor, TextPosition cursor)
+    {
+        var a = Clamp(anchor);
+        MoveTo(a);
+        _anchor = a;
+        MoveTo(Clamp(cursor), extend: true);
+    }
+
+    /// <summary>Select all the text, with the cursor at the end.</summary>
+    public void SelectAll() => Select(default, End);
+
+    /// <summary>Clear the selection, leaving the cursor where it is.</summary>
+    public void ClearSelection() => MoveTo(Cursor);
+
+    /// <summary>Copy the selection to the <see cref="MiniTui.Clipboard"/>.</summary>
+    /// <returns>False, doing nothing, without a selection.</returns>
+    public bool Copy()
+    {
+        if (!HasSelection) return false;
+        MiniTui.Clipboard.SetText(SelectedText);
+        return true;
+    }
+
+    /// <summary>Copy the selection to the <see cref="MiniTui.Clipboard"/> and delete it.</summary>
+    /// <returns>False, doing nothing, without a selection.</returns>
+    public bool Cut()
+    {
+        if (!Copy()) return false;
+        DeleteSelection();
+        return true;
+    }
+
+    /// <summary>
+    /// Take back the last edit group (1.x spec §10.6): typed characters undo a word at a time. The text, cursor and
+    /// selection return to how they were before it.
+    /// </summary>
+    /// <returns>False when there's nothing to undo.</returns>
+    public bool Undo()
+    {
+        if (!_history.Undo(Current(), out var snapshot)) return false;
+        Restore(snapshot);
+        return true;
+    }
+
+    /// <summary>Do again the last edit group undone.</summary>
+    /// <returns>False when there's nothing to redo.</returns>
+    public bool Redo()
+    {
+        if (!_history.Redo(Current(), out var snapshot)) return false;
+        Restore(snapshot);
+        return true;
+    }
+
+    /// <summary>
+    /// Handle an editing or movement key (1.x spec §6.3 and §10.3): text, Enter, ← → ↑ ↓, PgUp PgDn, Home End,
+    /// Ctrl+Home End, Ctrl+← →, Shift with the movement keys to select, Backspace, Delete, Ctrl+Backspace / Ctrl+W,
+    /// Ctrl+U, Ctrl+K, Ctrl+A (select all), Ctrl+C / Ctrl+X (copy and cut, only with a selection), Ctrl+V (paste the
+    /// clipboard), Ctrl+Z (undo) and Ctrl+Y (redo). Tab, Esc and other Ctrl or Alt keys aren't handled.
     /// </summary>
     /// <returns>True if the key was one of these.</returns>
     public virtual bool HandleKey(ConsoleKeyInfo key)
     {
         var ctrl = KeyInput.HasControl(key);
         var alt = (key.Modifiers & ConsoleModifiers.Alt) != 0;
+        var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
         switch (key.Key)
         {
             case ConsoleKey.Enter:
                 if (ctrl || alt) return false;
-                Insert("\n");
-                return Edited();
+                InsertText("\n", EditKind.Other);
+                return true;
             case ConsoleKey.LeftArrow:
-                return MoveTo(ctrl ? PreviousWord(Cursor) : PreviousCluster(Cursor));
+                if (HasSelection && !shift && !ctrl) return MoveTo(SelectionStart);
+                return MoveTo(ctrl ? PreviousWord(Cursor) : PreviousCluster(Cursor), shift);
             case ConsoleKey.RightArrow:
-                return MoveTo(ctrl ? NextWord(Cursor) : NextCluster(Cursor));
+                if (HasSelection && !shift && !ctrl) return MoveTo(SelectionEnd);
+                return MoveTo(ctrl ? NextWord(Cursor) : NextCluster(Cursor), shift);
             case ConsoleKey.UpArrow:
-                return MoveRows(-1);
+                return MoveRows(-1, shift);
             case ConsoleKey.DownArrow:
-                return MoveRows(1);
+                return MoveRows(1, shift);
             case ConsoleKey.PageUp:
-                return MoveRows(-Math.Max(1, ViewHeight));
+                return MoveRows(-Math.Max(1, ViewHeight), shift);
             case ConsoleKey.PageDown:
-                return MoveRows(Math.Max(1, ViewHeight));
+                return MoveRows(Math.Max(1, ViewHeight), shift);
             case ConsoleKey.Home:
-                return MoveTo(ctrl ? default : RowHome());
+                return MoveTo(ctrl ? default : RowHome(), shift);
             case ConsoleKey.End:
-                return MoveTo(ctrl ? End : RowEnd());
+                return MoveTo(ctrl ? End : RowEnd(), shift);
             case ConsoleKey.Backspace:
                 // Unix terminals send Ctrl+Backspace as ^H (Backspace + Control); Windows reports the modifier directly
-                DeleteRange(ctrl ? PreviousWord(Cursor) : PreviousCluster(Cursor), Cursor);
-                return Edited();
+                if (DeleteSelection()) return true;
+                if (ctrl) DeleteRange(PreviousWord(Cursor), Cursor, EditKind.Other);
+                else DeleteRange(PreviousCluster(Cursor), Cursor, EditKind.DeleteBackward);
+                return true;
             case ConsoleKey.Delete:
-                DeleteRange(Cursor, NextCluster(Cursor));
-                return Edited();
+                if (!DeleteSelection()) DeleteRange(Cursor, NextCluster(Cursor), EditKind.DeleteForward);
+                return true;
         }
 
         if (KeyInput.IsCtrl(key, 'W'))
         {
-            DeleteRange(PreviousWord(Cursor), Cursor);
-            return Edited();
+            if (!DeleteSelection()) DeleteRange(PreviousWord(Cursor), Cursor, EditKind.Other);
+            return true;
         }
         if (KeyInput.IsCtrl(key, 'U'))
         {
-            DeleteRange(_index == 0 ? PreviousCluster(Cursor) : new TextPosition(_line, 0), Cursor);
-            return Edited();
+            if (!DeleteSelection())
+                DeleteRange(_index == 0 ? PreviousCluster(Cursor) : new TextPosition(_line, 0), Cursor, EditKind.Other);
+            return true;
         }
         if (KeyInput.IsCtrl(key, 'K'))
         {
-            DeleteRange(Cursor, _index == _lines[_line].Length ? NextCluster(Cursor) : new TextPosition(_line, _lines[_line].Length));
-            return Edited();
+            if (!DeleteSelection())
+                DeleteRange(Cursor, _index == _lines[_line].Length ? NextCluster(Cursor) : new TextPosition(_line, _lines[_line].Length), EditKind.Other);
+            return true;
+        }
+        if (KeyInput.IsCtrl(key, 'A'))
+        {
+            SelectAll();
+            return true;
+        }
+        if (KeyInput.IsCtrlC(key)) return Copy();
+        if (KeyInput.IsCtrl(key, 'X')) return Cut();
+        if (KeyInput.IsCtrl(key, 'V')) return Paste(MiniTui.Clipboard.GetText() ?? "");
+        if (KeyInput.IsCtrlZ(key))
+        {
+            Undo();
+            return true;
+        }
+        if (KeyInput.IsCtrl(key, 'Y'))
+        {
+            Redo();
+            return true;
         }
 
         return TypeChar(key);
@@ -212,19 +343,24 @@ public class TextAreaState
     internal static int ColumnIn(string line, TextAreaLayout.Row row, int index) =>
         UnicodeWidth.Of(line.AsSpan(row.Start, Math.Max(0, index - row.Start)));
 
-    private bool MoveTo(TextPosition position)
+    // Move the cursor; Shift extends the selection from where the cursor was, anything else clears it
+    private bool MoveTo(TextPosition position, bool extend = false)
     {
+        if (extend) _anchor ??= Cursor;
+        else _anchor = null;
         _line = position.Line;
         _index = position.Index;
+        if (_anchor == Cursor) _anchor = null;
         _pendingHighSurrogate = null;
+        _history.Break();
         Moved();
         return true;
     }
 
-    private bool Edited()
+    private TextPosition Clamp(TextPosition position)
     {
-        Moved();
-        return true;
+        var line = Math.Clamp(position.Line, 0, _lines.Count - 1);
+        return new TextPosition(line, TextFieldState.SnapToBoundary(_lines[line], Math.Clamp(position.Index, 0, _lines[line].Length)));
     }
 
     // A horizontal move, edit or click: the goal column resets and the view follows the cursor
@@ -235,15 +371,15 @@ public class TextAreaState
     }
 
     // ↑ ↓ PgUp PgDn: by wrapped row, keeping the goal column; past the first or last row, to the start or end
-    private bool MoveRows(int delta)
+    private bool MoveRows(int delta, bool extend)
     {
         var rows = Rows();
         var current = TextAreaLayout.RowOf(rows, Cursor);
         var goal = _goalColumn ?? ColumnIn(_lines[_line], rows[current], _index);
         var target = current + delta;
-        if (target < 0) MoveTo(default);
-        else if (target >= rows.Count) MoveTo(End);
-        else MoveTo(new TextPosition(rows[target].Line, IndexAtColumn(rows[target], goal)));
+        if (target < 0) MoveTo(default, extend);
+        else if (target >= rows.Count) MoveTo(End, extend);
+        else MoveTo(new TextPosition(rows[target].Line, IndexAtColumn(rows[target], goal)), extend);
         _goalColumn = goal;
         return true;
     }
@@ -316,9 +452,18 @@ public class TextAreaState
         return p;
     }
 
-    private void DeleteRange(TextPosition start, TextPosition end)
+    private void DeleteRange(TextPosition start, TextPosition end, EditKind kind)
     {
-        if (end.Line < start.Line || (end.Line == start.Line && end.Index <= start.Index)) return;
+        if (end <= start) return;
+        _history.Record(kind, Current);
+        RemoveRange(start, end);
+        Moved();
+    }
+
+    private void RemoveRange(TextPosition start, TextPosition end)
+    {
+        _anchor = null;
+        if (end <= start) return;
         var joined = _lines[start.Line][..start.Index] + _lines[end.Line][end.Index..];
         _lines[start.Line] = joined;
         if (end.Line > start.Line) _lines.RemoveRange(start.Line + 1, end.Line - start.Line);
@@ -341,14 +486,48 @@ public class TextAreaState
         {
             var high = _pendingHighSurrogate;
             _pendingHighSurrogate = null;
-            if (high is { } h) Insert(new string([h, c]));
+            if (high is { } h) InsertText(new string([h, c]), EditKind.Type);
             return true;
         }
 
         _pendingHighSurrogate = null;
-        Insert(c.ToString());
+        InsertText(c.ToString(), EditKind.Type, char.IsWhiteSpace(c));
         return true;
     }
+
+    private void InsertText(string text, EditKind kind, bool typedSpace = false)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        // Replacing a selection is a group of its own, which the typing after it joins
+        if (HasSelection) _history.Break();
+        _history.Record(kind, Current, typedSpace);
+        RemoveRange(SelectionStart, SelectionEnd);
+        InsertNormalized(text);
+        Moved();
+    }
+
+    private bool DeleteSelection()
+    {
+        if (!HasSelection) return false;
+        _history.Record(EditKind.Other, Current);
+        RemoveRange(SelectionStart, SelectionEnd);
+        Moved();
+        return true;
+    }
+
+    private Snapshot Current() => new([.. _lines], Cursor, _anchor);
+
+    private void Restore(Snapshot snapshot)
+    {
+        _lines.Clear();
+        _lines.AddRange(snapshot.Lines);
+        (_line, _index) = snapshot.Cursor;
+        _anchor = snapshot.Anchor;
+        _pendingHighSurrogate = null;
+        Moved();
+    }
+
+    private sealed record Snapshot(string[] Lines, TextPosition Cursor, TextPosition? Anchor);
 
     // Insert at the cursor: line breaks split lines, tabs become spaces, other control characters are dropped
     private void InsertNormalized(string text)

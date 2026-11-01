@@ -121,6 +121,8 @@ internal sealed class FormScreen : Screen
             .Add("subscribe", Constraint.Length(1))
             .Add("gap2", Constraint.Length(1))
             .Add("help", Constraint.Length(1))
+            .Add("select", Constraint.Length(1))
+            .Add("clipboard", Constraint.Length(1))
             .Build();
         ctx.Render(_name, buf, rows["name"]);
         ctx.Render(_email, buf, rows["email"]);
@@ -128,6 +130,8 @@ internal sealed class FormScreen : Screen
         ctx.Render(_notes, buf, rows["notes"]);
         ctx.Render(_subscribe, buf, rows["subscribe"]);
         buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S submit", ctx.Theme.TextMuted);
+        buf.SetString(rows["select"].X, rows["select"].Y, "Shift+arrows select · Ctrl+A select all", ctx.Theme.TextMuted);
+        buf.SetString(rows["clipboard"].X, rows["clipboard"].Y, "Ctrl+C/X/V copy/cut/paste · Ctrl+Z undo", ctx.Theme.TextMuted);
     }
 
     private void Submit()

@@ -2167,9 +2167,8 @@ key) and quitting:
   - **Windows** (any console, Windows Terminal or conhost): writes `CF_UNICODETEXT` with `OpenClipboard`,
     `EmptyClipboard` and `SetClipboardData`, retrying three times when the clipboard is locked, as
     `ReadClipboardText` does. Failures are ignored.
-  - **Unix**, while an app is running with stdout a terminal: queues `ESC ] 52 ; c ; <base64 UTF-8> BEL` on the
-    running app's terminal, written with the next flush (before the frame's changes; a frame is requested so it
-    goes out even if no cell changed). Terminals that don't support OSC 52 ignore it, as they must ignore any OSC.
+  - **Unix**, while an app is running on the ANSI backend: writes `ESC ] 52 ; c ; <base64 UTF-8> BEL` to the
+    running app's terminal right away, under the backend's lock, so it never lands inside a frame. Terminals that don't support OSC 52 ignore it, as they must ignore any OSC.
     tmux passes it on only with `set -s set-clipboard on`; screen and some terminals limit its size. None of
     this can be detected, so the in-app clipboard is the fallback.
   - With no running app (a state used in a test or by a custom loop): the in-app clipboard only.
@@ -2253,9 +2252,8 @@ Automated (all platforms):
 - **Text area across lines:** Shift+↑↓ by wrapped row with the goal column, Shift+PgUp/PgDn, Ctrl+Shift+Home/End,
   `SelectedText` over several lines and over an empty line, cutting across lines joins them.
 - **Clipboard:** `SetText` keeps the in-app text; the Windows writer and the OSC 52 writer are called through the
-  hooks (the OSC sequence's exact bytes, base64 of UTF-8, written once with the next flush even when no cell
-  changed, and not written without a running app or when stdout isn't a terminal); `GetText` on each platform
-  path; `\r\n` for Windows.
+  hooks (the OSC sequence's exact bytes, base64 of UTF-8, and nothing written before `Enter` or after
+  `Leave`); `GetText` on each platform path; `\r\n` for Windows (manual QA: the Win32 calls aren't run in CI).
 - **Ctrl+C routing** (`AppHarness`): copies with a selection in a focused text field, quits without one; quits
   when the focused component doesn't capture text, even if it handles every key; a key map binding for ctrl+c
   never sees it; inside an overlay.

@@ -30,6 +30,16 @@ internal static class TextFieldRenderer
         else
             DrawScrolled(buf, area.X, y, text, scroll, width, style);
 
+        // 1.x spec §10.8: the selection, by display column, under the cursor
+        if (state.HasSelection)
+        {
+            var from = UnicodeWidth.Of(Sanitizer.SingleLine(state.Text.AsSpan(0, state.SelectionStart))) - scroll;
+            var to = UnicodeWidth.Of(Sanitizer.SingleLine(state.Text.AsSpan(0, state.SelectionEnd))) - scroll;
+            from = Math.Max(from, 0);
+            to = Math.Min(to, width);
+            if (to > from) buf.SetStyle(new Rect(area.X + from, y, to - from, 1), focused ? theme.Selection : theme.SelectionUnfocused);
+        }
+
         if (!focused) return;
         var cursorX = area.X + cursorColumn - scroll;
         if (cursorX < area.X || cursorX >= area.Right) return;

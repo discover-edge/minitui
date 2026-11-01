@@ -343,9 +343,9 @@ size, scroll offset) back into it while drawing.
 |---|---|---|
 | `SelectionState` | ↑ ↓ j k PgUp PgDn Home End, plus `Next`/`Previous`/`PageDown`/`First`/`Last` | List, Table |
 | `ScrollState` | ↑ ↓ j k PgUp PgDn Home End | Paragraph, MessageDialog |
-| `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end) | TextField |
+| `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end); Shift with the moves selects, Ctrl+A selects all, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste, Ctrl+Z / Ctrl+Y undo and redo (see [Selection and the clipboard](#selection-and-the-clipboard)) | TextField |
 | `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
-| `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls | TextArea |
+| `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls | TextArea |
 | `SelectState` | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the `App`: `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option | Select |
 | `TabBarState` | ← → h l | TabBar |
 
@@ -391,6 +391,23 @@ sealed class PlanField : Component
         Widget.Select().State(State).Placeholder("Choose a plan").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
+
+### Selection and the clipboard
+
+Text fields, text areas and command lines select with Shift and the movement keys (or Ctrl+A for
+everything); typing, pasting or a delete key replaces the selection, and ← / → collapse it. From code:
+`Select`, `SelectAll`, `ClearSelection`, `SelectedText`, `SelectionStart` and `SelectionEnd`.
+
+- **Ctrl+C** copies the selection in the focused field. Without a selection, it quits as always; a
+  component that doesn't capture text, or a key binding, never gets Ctrl+C.
+- **Ctrl+X** cuts, and **Ctrl+V** pastes what was copied. Copying goes to the system clipboard: on
+  Windows through the clipboard API, and on Linux and macOS through the terminal (OSC 52; in tmux, with
+  `set -s set-clipboard on`). It's also kept in the app, so copy and paste within it always work. In
+  Windows Terminal and conhost, Ctrl+V is the terminal's paste, which pastes the system clipboard.
+- **Ctrl+Z** undoes and **Ctrl+Y** redoes, by word while typing. Setting `Text` clears the history. A
+  text field takes Ctrl+Z even with nothing to undo, so with `WithSuspendKey`, Ctrl+Z suspends only
+  while focus isn't on text.
+- `Clipboard.SetText` and `Clipboard.GetText` use the same clipboard from your own code.
 
 A binding is `(ctrl|alt|shift "+")* name`, where `name` is a printable character or one of `enter esc
 tab backspace delete insert up down left right home end pgup pgdn space f1`–`f12`. A character binding
@@ -464,7 +481,7 @@ arrive without the Ctrl.
 
 - **Esc** is recognized 50 ms after it's pressed, because terminals send other keys as sequences that
   start with Esc. Change it with `app.WithInput(new TerminalInputSource(TimeSpan.FromMilliseconds(100)))`.
-- **Ctrl+C** quits. **Ctrl+Z**, Ctrl+\, Ctrl+S and Ctrl+Q reach the app as keys instead of suspending
+- **Ctrl+C** quits, unless the focused text field has a selection, which it copies. **Ctrl+Z**, Ctrl+\, Ctrl+S and Ctrl+Q reach the app as keys instead of suspending
   the process or pausing output. To make an unhandled Ctrl+Z suspend to the shell, call
   `app.WithSuspendKey()` (see [Running other programs](#running-other-programs)).
 - **macOS:** raw input is tested in CI on a pseudo-terminal, but not yet by hand in Terminal.app or
@@ -534,7 +551,7 @@ the app.
 **Ctrl+Z** (Linux and macOS): `app.SuspendProcess()` stops the process and returns to the shell, with the
 terminal restored as `Suspend` does; `fg` resumes the app, which redraws. `app.WithSuspendKey()` makes an
 unhandled Ctrl+Z do that. It's off by default, as in most TUI libraries; a component or key binding for
-`ctrl+z` (undo, say) still gets it first. A `SIGTSTP` sent from outside (`kill -TSTP`) is handled the same
+`ctrl+z` still gets it first, and text fields and areas take it for undo. A `SIGTSTP` sent from outside (`kill -TSTP`) is handled the same
 way. After any resume, `OnEvent` gets a `ResumeEvent`. Windows has no job control, so there Ctrl+Z is
 always a key and `SuspendProcess` returns false.
 
