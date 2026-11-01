@@ -38,6 +38,7 @@ public class TextAreaState
     private int _line;
     private int _index;
     private TextPosition? _anchor;
+    private bool _dragging;
     private int? _goalColumn;
     private char? _pendingHighSurrogate;
 
@@ -299,31 +300,54 @@ public class TextAreaState
     }
 
     /// <summary>
-    /// A left press inside the text moves the cursor there; the wheel scrolls by three rows without moving it (1.x
-    /// spec §6.6). Uses the area from the last draw.
+    /// A left press inside the text moves the cursor there (Shift+press extends the selection to there), and a drag
+    /// after it extends the selection, scrolling a row (or, without wrapping, a column) at a time past the edges; the
+    /// wheel scrolls by three rows without moving the cursor (1.x spec §6.6 and §10.7). Uses the area from the last
+    /// draw.
     /// </summary>
-    /// <returns>True if the event did either.</returns>
+    /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
-        if (!ViewArea.Contains(mouse.X, mouse.Y)) return false;
+        var area = ViewArea;
         switch (mouse.Action)
         {
-            case MouseAction.ScrollUp or MouseAction.ScrollDown:
+            case MouseAction.ScrollUp or MouseAction.ScrollDown when area.Contains(mouse.X, mouse.Y):
                 var delta = mouse.Action == MouseAction.ScrollUp ? -WheelRows : WheelRows;
-                ScrollOffset = Math.Clamp(ScrollOffset + delta, 0, Math.Max(0, ViewRowCount - ViewHeight));
+                ScrollOffset = Math.Clamp(ScrollOffset + delta, 0, MaxScroll);
                 FollowCursor = false;
                 return true;
             case MouseAction.Press when mouse.Button == MouseButton.Left:
-                var rows = Rows();
-                var row = ScrollOffset + mouse.Y - ViewArea.Y;
-                var column = mouse.X - ViewArea.X + (ViewWrap == WrapMode.None ? HorizontalOffset : 0);
-                var target = row >= rows.Count ? End : new TextPosition(rows[row].Line, IndexAtColumn(rows[row], column));
-                MoveTo(target);
+                _dragging = area.Contains(mouse.X, mouse.Y);
+                if (!_dragging) return false;
+                MoveTo(PositionAt(ScrollOffset + mouse.Y - area.Y, mouse.X - area.X), (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
                 return true;
+            case MouseAction.Drag when mouse.Button == MouseButton.Left && _dragging:
+                // Past the top or bottom, scroll a row and select to the first or last visible row
+                int row;
+                if (mouse.Y < area.Y) row = ScrollOffset = Math.Max(0, ScrollOffset - 1);
+                else if (mouse.Y >= area.Bottom) row = (ScrollOffset = Math.Min(ScrollOffset + 1, MaxScroll)) + ViewHeight - 1;
+                else row = ScrollOffset + mouse.Y - area.Y;
+                var column = mouse.X < area.X ? -1 : mouse.X >= area.Right ? area.Width : mouse.X - area.X;
+                MoveTo(PositionAt(row, column), extend: true);
+                return true;
+            case MouseAction.Release:
+                _dragging = false;
+                return false;
             default:
                 return false;
         }
+    }
+
+    private int MaxScroll => Math.Max(0, ViewRowCount - ViewHeight);
+
+    // The position at a visible row and a column from the view's left edge; the end of the text below the last row
+    private TextPosition PositionAt(int row, int column)
+    {
+        var rows = Rows();
+        if (row >= rows.Count) return End;
+        var none = ViewWrap == WrapMode.None;
+        return new TextPosition(rows[row].Line, IndexAtColumn(rows[row], Math.Max(0, column + (none ? HorizontalOffset : 0))));
     }
 
     /// <summary>Record what the widget drew, so the keys and the mouse can use the same layout.</summary>

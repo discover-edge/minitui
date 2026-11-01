@@ -498,7 +498,7 @@ arrive without the Ctrl.
 
 ### Mouse
 
-Call `app.WithMouse()` to have the terminal report mouse presses, releases and the wheel. It's off by
+Call `app.WithMouse()` to have the terminal report mouse presses, releases, drags and the wheel. It's off by
 default because, while an app captures the mouse, selecting text in the terminal needs Shift+drag
 (Option+drag in iTerm2).
 
@@ -507,12 +507,16 @@ default because, while an app captures the mouse, selecting text in the terminal
 - **Routing:** `App.OnMouse` sees each `MouseEvent` first; then the component under the pointer gets
   `HandleMouse`, and if it returns false, its parent, up to the screen. With a dialog open, only the
   dialog can be clicked. Key bindings never fire from the mouse. `X` and `Y` are 0-based cells.
+- **Drags** (`MouseAction.Drag`, the pointer moving with a button held) go to the component the press
+  hit, even after the pointer leaves it, and are kept inside the screen. They don't move focus.
 - **Hit testing** uses where components were drawn in the last frame: the top screen, overlays, and
   children rendered with `ctx.Render(child, buf, rect)`, which also sets `child.Area`. A child rendered
   with `child.Render(buf, rect, ctx.For(child))` isn't a target; its clicks go to its parent.
 - **Built in:** `SelectionState.HandleMouse(mouse, count)` (lists and tables: the wheel moves the
   selection, a click selects a row), `ScrollState.HandleMouse` (the wheel scrolls text by three rows),
-  `TabBarState.HandleMouse` (a click selects a tab). Confirm dialogs take clicks on Yes and No; message
+  `TabBarState.HandleMouse` (a click selects a tab), `TextFieldState.HandleMouse` and
+  `TextAreaState.HandleMouse` (a click places the cursor, Shift+click and dragging select, and a drag
+  past an edge scrolls). Confirm dialogs take clicks on Yes and No; message
   and help dialogs scroll with the wheel.
 - **Your own controls** handle clicks themselves; `IsClick` is a left-button press:
 

@@ -1,5 +1,6 @@
 #nullable enable
 MiniTui.Clipboard
+MiniTui.MouseAction.Drag = 6 -> MiniTui.MouseAction
 MiniTui.TextAreaState.CanRedo.get -> bool
 MiniTui.TextAreaState.CanUndo.get -> bool
 MiniTui.TextAreaState.ClearSelection() -> void
@@ -19,6 +20,7 @@ MiniTui.TextFieldState.CanUndo.get -> bool
 MiniTui.TextFieldState.ClearSelection() -> void
 MiniTui.TextFieldState.Copy() -> bool
 MiniTui.TextFieldState.Cut() -> bool
+MiniTui.TextFieldState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 MiniTui.TextFieldState.HasSelection.get -> bool
 MiniTui.TextFieldState.Redo() -> bool
 MiniTui.TextFieldState.Select(int anchor, int cursor) -> void

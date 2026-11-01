@@ -108,7 +108,7 @@ internal static unsafe partial class WindowsConsoleInput
                 ? (s_vtMode | EnableMouseInput | EnableExtendedFlags) & ~EnableQuickEditMode
                 : s_vtMode | EnableExtendedFlags | (s_savedMode & EnableQuickEditMode);
             SetConsoleMode(s_input, mode);
-            Write(enabled ? "\e[?1000h\e[?1006h"u8 : "\e[?1006l\e[?1000l"u8);
+            Write(enabled ? "\e[?1002h\e[?1006h"u8 : "\e[?1006l\e[?1002l"u8);
         }
     }
 
@@ -140,7 +140,7 @@ internal static unsafe partial class WindowsConsoleInput
             }
             try
             {
-                if (s_mouse) Write("\e[?1006l\e[?1000l"u8);
+                if (s_mouse) Write("\e[?1006l\e[?1002l"u8);
                 Write("\e[?2004l"u8);
             }
             catch (Exception) { }

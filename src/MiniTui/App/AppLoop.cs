@@ -43,6 +43,9 @@ public partial class App
     private bool _basicGlyphs;
     private Clipboard.Target? _clipboard;
 
+    /// <summary>The component the last mouse press hit, which gets the drags after it (1.x spec §10.7).</summary>
+    internal Component? PressTarget { get; set; }
+
     /// <summary>The system clipboard to use instead of the backend's; set by tests.</summary>
     internal Clipboard.Target? ClipboardTarget { get; set; }
 
@@ -321,6 +324,9 @@ public partial class App
     // §4.7 of the 1.x spec: OnEvent, OnMouse, then the component under the pointer. Unhandled events are dropped.
     private void HandleMouse(MouseEvent mouse)
     {
+        // 1.x spec §10.7: a drag past the screen's edge stays at the edge, so a selection can reach it
+        if (mouse.Action == MouseAction.Drag && !_lastFrame.IsEmpty)
+            mouse = mouse with { X = Math.Clamp(mouse.X, _lastFrame.X, _lastFrame.Right - 1), Y = Math.Clamp(mouse.Y, _lastFrame.Y, _lastFrame.Bottom - 1) };
         _pointer = (mouse.X, mouse.Y);
         _onEvent?.Invoke(mouse);
         if (_onMouse?.Invoke(mouse) == true) return;

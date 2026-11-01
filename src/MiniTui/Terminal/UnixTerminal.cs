@@ -205,8 +205,8 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
-    private static ReadOnlySpan<byte> MouseOn => "\e[?1000h\e[?1006h"u8;
-    private static ReadOnlySpan<byte> MouseOff => "\e[?1006l\e[?1000l"u8;
+    private static ReadOnlySpan<byte> MouseOn => "\e[?1002h\e[?1006h"u8;
+    private static ReadOnlySpan<byte> MouseOff => "\e[?1006l\e[?1002l"u8;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct PollFd

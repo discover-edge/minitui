@@ -49,6 +49,12 @@ public enum MouseAction
 
     /// <summary>The wheel scrolled right.</summary>
     ScrollRight,
+
+    /// <summary>
+    /// The pointer moved with a button held (1.x spec §10.7); <see cref="MouseEvent.Button"/> is the held button.
+    /// Drags go to the component that got the press, even outside it.
+    /// </summary>
+    Drag,
 }
 
 /// <summary>
