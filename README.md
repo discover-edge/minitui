@@ -286,6 +286,7 @@ Widget.Table()
 | `TextArea()` | Multi-line input from `TextAreaState`: `Wrap(WrapMode.Word/Char/None)` (word by default; `None` scrolls sideways), `Placeholder`, `Block`. Scrolls to keep the cursor visible. |
 | `Select()` | A dropdown field from `SelectState`: the chosen option (or a muted `Placeholder`) and a ▼. Opening it shows a `PopupMenu` of the options below the field. |
 | `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
+| `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](#trees). |
 | `Button()`, `Checkbox()` | Themed controls. |
 
 ```csharp
@@ -348,6 +349,7 @@ size, scroll offset) back into it while drawing.
 | `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls | TextArea |
 | `SelectState` | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the `App`: `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option | Select |
 | `TabBarState` | ← → h l | TabBar |
+| `TreeState<T>` | ↑ ↓ PgUp PgDn Home End, → (expand, then first child), ← (collapse, then parent), Enter (toggle, or `Activated` on a leaf), letters jump by name; `HandleMouse` selects, toggles on the expander and scrolls | Tree |
 
 `KeyMap` binds keys to actions and produces hints and help text from the same list:
 
@@ -391,6 +393,38 @@ sealed class PlanField : Component
         Widget.Select().State(State).Placeholder("Choose a plan").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
+
+### Trees
+
+`TreeState<T>` shows your own node objects: give it a function for a node's children and one for its label.
+It reads children only for expanded nodes, recomputes the visible rows at every frame, and keeps the expanded
+set and the selection by node (pass an `IEqualityComparer<T>` to match rebuilt nodes, say by path):
+
+```csharp
+sealed record Folder(string Name, List<Folder> Children);
+
+var tree = new TreeState<Folder>(f => f.Children, f => f.Name) { Roots = [root] };
+tree.Activated += (_, e) => Open(e.Node);              // Enter on a node without children
+Widget.Tree(tree).Title(" Folders ").Guides().Focused(ctx.Focused).Draw(buf, area);
+```
+
+For a slow source, set `HasChildren` so the expander shows before anything is read, and load in `Expanded`.
+Until the load finishes, `children` returns what's there (or a "Loading…" node of your own), and the next
+frame shows the rest:
+
+```csharp
+var files = new TreeState<Entry>(e => e.Children ?? [], e => e.Name)
+{
+    HasChildren = e => e.IsDirectory,
+    Roots = [new Entry(root)],
+};
+files.Expanded += (_, e) => e.Node.Children ??= Directory.EnumerateFileSystemEntries(e.Node.Path).Select(p => new Entry(p)).ToList();
+```
+
+`ExpandAll` reads the whole tree, which on a disk or an API can take a while; a node that is its own ancestor
+is shown as a leaf, so cycles can't hang it. Letters typed while a tree is focused jump to the next row whose
+label starts with them, so they don't reach plain-letter bindings such as `q`; bind tree commands to keys with
+Alt or Ctrl (Esc still goes back).
 
 ### Selection and the clipboard
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -39,10 +39,11 @@ or add to them:
 | **14. Canvas and charts** | `Canvas` with braille (2×4 dots per cell) drawing, line `Chart` with axes and labels, and `BarChart`. | — | §8 | 1.4.0 |
 | **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | §9 | 1.4.0 |
 | **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | §10 | 1.5.0 |
+| **17. Tree view** | `Widget.Tree()` and `TreeState<T>` over the app's own nodes: expand and collapse, lazily read children, tree keys, type-ahead, the mouse and optional guide lines. | 10 | §11 | 1.6.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
-can be reordered. Phase 16 comes after the rest.
+can be reordered. Phase 16 comes after the rest. Phase 17 was added after Phases 8–16 shipped.
 
 ---
 
@@ -2308,3 +2309,274 @@ Both go out in one release (1.5.0).
 | 4 | System clipboard on Windows: the Win32 API in every console, or OSC 52 in Windows Terminal and Win32 only in conhost? | **Win32 everywhere** (§10.5): one path, no size limit, works in both. |
 | 5 | Mouse drag in this phase (it needs `?1002` and pointer capture), or keys only, with the mouse later? | **In this phase, as PR 16b** (§10.13). |
 | 6 | The selection when focus leaves: keep it, shown with `SelectionUnfocused` (GUIs), or clear it? | **Keep it** (§10.8). |
+
+---
+
+## 11. Tree view (Phase 17)
+
+### 11.1 Purpose
+
+MiniTui has lists and tables but no way to show a hierarchy: a file browser, a project outline, a JSON document
+or a settings tree has to be flattened by the app, which then writes its own expand and collapse logic,
+indentation and keys. Phase 17 adds `Widget.Tree()` and `TreeState<T>`: a scrollable tree over the app's own
+objects, with nodes that expand and collapse, the keys of tree views in file managers and GUIs, type-ahead,
+clicking and the wheel, optional guide lines, and children that are read only when a node is expanded, so a tree
+over a large or slow source (a disk, an API) costs only what's open.
+
+### 11.2 Public API
+
+```csharp
+/// The nodes, expanded set, selection and scroll offset of a tree (§11.4), drawn with Widget.Tree. T is the
+/// app's own node type; the state asks for children instead of holding a copy of the tree.
+public sealed class TreeState<T> where T : class
+{
+    /// children: a node's children, asked for only while the node is expanded (§11.4).
+    /// text: a node's label, drawn and used by type-ahead.
+    /// comparer: how nodes are matched, for the expanded set and the selection (default: EqualityComparer<T>.Default).
+    public TreeState(Func<T, IReadOnlyList<T>> children, Func<T, string> text, IEqualityComparer<T>? comparer = null);
+
+    /// The top-level nodes. Setting them keeps the expanded set and the selection where they still match.
+    public IReadOnlyList<T> Roots { get; set; }
+
+    /// Whether a node can expand, without reading its children; drawn as an expander. Default: children(node)
+    /// isn't empty. Set it when reading children is slow, or to show an expander before they're loaded.
+    public Func<T, bool>? HasChildren { get; set; }
+
+    /// The selected node, or null for none (the first row is selected at the next draw or key). Set from code, it
+    /// doesn't raise SelectionChanged and doesn't expand anything.
+    public T? Selected { get; set; }
+
+    /// The first visible row. Adjusted when drawn so Selected is visible.
+    public int Offset { get; set; }
+
+    /// How many rows were visible at the last draw. Used by PgUp and PgDn.
+    public int ViewportHeight { get; }
+
+    /// The rows the tree shows: every root, and the children of each expanded node, depth first (§11.4).
+    public IReadOnlyList<TreeRow<T>> Rows { get; }
+
+    public bool IsExpanded(T node);
+    /// Expand, collapse or toggle one node. Expand does nothing for a node without children; Collapse moves the
+    /// selection to the node if it was inside it. Each raises Expanded or Collapsed when it changes something.
+    public void Expand(T node);
+    public void Collapse(T node);
+    public void Toggle(T node);
+    /// Expand every node that has children, reading the whole tree (§11.4), or collapse every node.
+    public void ExpandAll();
+    public void CollapseAll();
+
+    /// Raised on the UI thread when the user moves the selection (not when code sets it).
+    public event EventHandler? SelectionChanged;
+    /// Raised when Enter is pressed on a node without children (§11.3).
+    public event EventHandler<TreeNodeEventArgs<T>>? Activated;
+    /// Raised when a node expands or collapses, from a key, a click or code. Lazy loaders start loading here.
+    public event EventHandler<TreeNodeEventArgs<T>>? Expanded;
+    public event EventHandler<TreeNodeEventArgs<T>>? Collapsed;
+
+    /// The keys in §11.3. Returns true if the key was one of them.
+    public bool HandleKey(ConsoleKeyInfo key);
+
+    /// The wheel moves the selection; a left press on a row selects it, and on its expander also toggles it
+    /// (§11.6). Uses the area from the last draw. Returns true if it did any of these.
+    public bool HandleMouse(MouseEvent mouse);
+}
+
+/// One visible row of a tree.
+public readonly record struct TreeRow<T>(T Node, T? Parent, int Depth, bool HasChildren, bool IsExpanded)
+    where T : class;
+
+public sealed class TreeNodeEventArgs<T>(T node) : EventArgs where T : class
+{
+    public T Node { get; }
+}
+
+public static class Widget
+{
+    public static TreeBuilder<T> Tree<T>(TreeState<T> state) where T : class;
+}
+
+/// A bordered, scrollable tree (§11.5).
+public class TreeBuilder<T> where T : class
+{
+    /// How a node is drawn. Default: its text from the state, in the theme's text style.
+    public TreeBuilder<T> Format(Func<T, Line> format);
+    /// Guide lines (│ ├─ └─) from each node to its parent, instead of indentation only. Default: off.
+    public TreeBuilder<T> Guides(bool guides = true);
+    /// Columns per level without guides (default 2, at least 1). Guides always take 2.
+    public TreeBuilder<T> Indent(int columns);
+
+    // As ListBuilder:
+    public TreeBuilder<T> Focused(bool focused = true);
+    public TreeBuilder<T> Title(string title);
+    public TreeBuilder<T> ShowScrollInfo(bool show = true);
+    public TreeBuilder<T> HighlightSymbol(string symbol);
+    public TreeBuilder<T> Block(BlockBuilder block);
+    public TreeBuilder<T> Style(Style style);
+    public TreeBuilder<T> HighlightStyle(Style style);
+    public void Draw(Buffer buf, Rect area);
+}
+```
+
+- The state holds the tree's view, and the app holds the tree. This is the shape of `ListBuilder.Items<T>`
+  (the app's list, the widget's formatting) and of Textual's and Terminal.Gui's tree data providers. An app with
+  no node type of its own uses a small record, such as `record Node(string Name, List<Node> Children)`.
+- `where T : class` keeps `Selected` and `Parent` nullable without a `HasSelection` flag. Value-type nodes
+  (an index into an array) can be boxed in a record.
+- No theme changes: the selection uses `Theme.Selection` and `Theme.SelectionUnfocused`, and the expanders and
+  guides use `Theme.TextMuted`.
+
+### 11.3 Keys
+
+| Key | Effect |
+|---|---|
+| ↑ / ↓ | The previous or next row, stopping at the first or last. |
+| PgUp / PgDn | Up or down by the visible rows. |
+| Home / End | The first or last row. |
+| → | On a collapsed node with children: expand it. On an expanded node: move to its first child. On a leaf: nothing (handled). |
+| ← | On an expanded node: collapse it. Otherwise: move to its parent. On a collapsed root: nothing (handled). |
+| Enter | On a node with children: toggle it. On a leaf: raise `Activated`. |
+| A printable character | Type-ahead (below). |
+
+- **Type-ahead** works as in `PopupMenu` (§7.3): characters typed without Ctrl or Alt build a search string
+  cleared 1 s after the last one, and the selection moves to the next row, starting at the selected one and
+  wrapping around, whose text starts with it (ordinal, ignoring case). The same character again moves to the next
+  match. It searches the rows (the expanded part of the tree) and never expands anything. No match leaves the
+  selection where it is, and the key is still handled.
+- So, unlike `SelectionState`, `j` and `k` don't move: they're type-ahead, as in file manager trees and Windows'
+  tree view. Since a focused component gets keys before bindings (§9.4), plain-letter bindings (`q` for back)
+  don't fire while a tree has focus; the example and README bind tree commands with Alt. Space, Tab, Esc and keys with Ctrl or Alt aren't handled, so they reach the screen's bindings and
+  focus.
+- Each user move raises `SelectionChanged` once; moving to the row already selected (↑ on the first row)
+  doesn't.
+
+### 11.4 Rows and the expanded set
+
+- **Rows** are computed by walking the roots and, depth first, the children of each expanded node. Children are
+  read with `children(node)` only for expanded nodes, and `HasChildren` only for rows. They're recomputed at each
+  draw and at each key and mouse event, so a tree whose source changed (a loader added children, a file was
+  deleted) shows it at the next frame without a refresh call. The cost is linear in the visible part of the tree
+  (the expanded nodes, not the screen). That's fine for thousands of open nodes, and §11.10 leaves caching out.
+- **The expanded set** is a `HashSet<T>` with the state's comparer. Nodes that leave the tree stay in it, so
+  removing and re-adding a node (a rebuilt model with equal records, or a comparer by path) keeps it expanded.
+  `Roots =` doesn't clear it; `CollapseAll` does.
+- **Cycles:** a node that equals one of its own ancestors on the walk is shown as a leaf and isn't walked again,
+  so a cyclic source (symlinked directories, a graph) can't hang the walk or `ExpandAll`. `ExpandAll` still reads
+  every reachable node, which on a disk or an API can be slow. The README says so.
+- **Keeping the selection:** after the rows are computed, if `Selected` isn't among them, the selection moves to
+  its nearest ancestor that is (remembered from the row's parents at the last walk), or else the row at its old
+  index, clamped. So collapsing a node, from code or with ←, selects the node, and deleting the selected node
+  selects its parent or neighbour. This doesn't raise `SelectionChanged`. With no rows, `Selected` is null.
+- `Offset` is fitted as a list's is (`SelectionState.FitOffset`), so the selected row stays visible with as
+  little scrolling as possible. Expanding a node near the bottom doesn't scroll on its own.
+
+### 11.5 Drawing
+
+- **Block, title and scrollbar** as in `ListBuilder`: a single-line border by default (focused styles with
+  `Focused`), the title with `[n]` or `[a-b of n]` counting rows, and a scrollbar on the right border when the
+  rows overflow.
+- **Each row:** the indentation, then the expander, then a space, then the node (`Format`, or its text). It's
+  truncated at the right edge as list items are. There's no horizontal scrolling.
+  - The expander is `▾` (expanded) or `▸` (collapsed) for a node with children and a space for a leaf, so labels
+    at one depth line up. In basic glyph mode (conhost and similar, `Glyphs.Basic`) they're `-` and `+`.
+  - Without guides, the indentation is `Depth × Indent` spaces.
+  - With `Guides()`, a row at depth d draws, for each level from 1 to d − 1, `│ ` if a later row continues that
+    level (the ancestor at that depth has a sibling below it) or two spaces, then `├─`, or `└─` for a last child.
+    Roots draw no connector, so a parent's children hang from its expander. It reads like the `tree` command:
+    ```
+    ▾ src
+    ├─▾ MiniTui
+    │ ├─  App.cs
+    │ └─▸ Widgets
+    └─▸ MiniTui.Example
+    ▸ tests
+    ```
+    The exact column layout is settled by the snapshot tests. Box-drawing characters are used in every glyph
+    mode, as borders are.
+- **Selection:** the selected row's full width gets `Theme.Selection` (focused) or `Theme.SelectionUnfocused`,
+  patched with `HighlightStyle`, after the row is drawn. `HighlightSymbol` is drawn before the indentation, and
+  other rows are indented to match. The expander and guides use `Theme.TextMuted` under the highlight.
+
+### 11.6 Mouse
+
+- The wheel moves the selection by one row, as in a list (§4.8).
+- A left press on a row selects it. On the row's expander cell, it also toggles the node. Clicking a selected
+  leaf doesn't raise `Activated`: terminals don't report double clicks (§10.12), and activating on a single
+  click would make selecting with the mouse impossible. Apps that want to open on click do it in their own
+  `HandleMouse`.
+- Positions come from the last draw (`Track`, as `SelectionState` does). Drags aren't handled.
+- Each change raises the same events as the keys.
+
+### 11.7 Lazy and async children
+
+There's no async API: `children` is synchronous, because it runs inside a frame. A slow source is loaded by the
+app:
+1. `HasChildren` answers from what's known without loading (a directory, a node with a `HasMore` flag).
+2. `Expanded` starts the load (`Task.Run`, an HTTP call). Until it finishes, `children` returns what's loaded so
+   far, or one placeholder node ("Loading…") of the app's own type.
+3. When the load finishes on the UI thread (MiniTui's synchronization context), the app stores the children and
+   the next frame shows them.
+
+The README shows this with a directory tree, and the example (§11.8) uses it.
+
+### 11.8 Example
+
+A "Tree" demo after "Tabs" in the menu: the file system from the current directory.
+- Directories expand lazily, with `HasChildren` true for any directory and the children read on `Expanded`.
+  Unreadable directories show one "(access denied)" leaf.
+- A detail pane on the right shows the selected path, its size and its modified time.
+- Enter on a file shows a toast with its path (`Activated`). Alt+G toggles guides, Alt+E and Alt+C expand and
+  collapse everything under the selected node (`ExpandAll`/`CollapseAll` are whole-tree, so the demo walks the subtree
+  itself), and the footer lists the keys.
+
+### 11.9 Tests and acceptance
+
+Automated (all platforms):
+- **Rows:** roots only, after expanding at several depths, after collapsing a parent with expanded children
+  (they stay expanded inside it), `Parent`/`Depth`, `children` not called for collapsed nodes (a counting
+  function), `HasChildren` used when set, cycles shown as leaves, `ExpandAll` on a cycle terminates.
+- **Expanded set and comparer:** a rebuilt model of equal records keeps its expanded nodes; a comparer by key;
+  `Roots =` keeps it; `CollapseAll` clears it; `Expand` on a leaf does nothing; each event once per change.
+- **Selection:** null selects the first row; collapsing an ancestor selects it; removing the selected node
+  selects its parent, then the old index; the empty tree; `SelectionChanged` only for user moves.
+- **Keys:** every row in §11.3, at the first and last rows and on roots and leaves; Enter toggling versus
+  `Activated`; type-ahead (prefix, repeated character, wrap, no match, reset after 1 s with fake time, never
+  expanding); keys that aren't handled.
+- **Mouse:** wheel, row press, expander press, a press below the last row or on the border, after scrolling.
+- **Snapshots:** indentation only and guides (middle and last children, deep trees, a root with no children),
+  expanders in Unicode and basic glyph mode, the selection focused and unfocused with a highlight symbol,
+  truncation, the scroll info and scrollbar, monochrome.
+
+Manual QA (results in the PR): the Tree demo on Linux (tmux) and Windows (Windows Terminal and conhost). Browse
+the repository with every key and the mouse; check the guides and glyphs in conhost's basic mode; open a large
+directory (`/usr/lib` or `C:\Windows\System32`) to check speed; check an access-denied directory.
+
+### 11.10 Out of scope
+
+- Multi-select, checkboxes in the tree, and tri-state parents.
+- Drag and drop, renaming or editing nodes in place, and sorting (the app orders `children`).
+- A filter box, or search that finds collapsed nodes and expands to them. Type-ahead sees only the rows.
+- Revealing a node by path (expanding its ancestors and selecting it). The state has no parent function. Apps
+  can `Expand` each ancestor themselves and set `Selected`.
+- A tree table (columns beside the tree), icons, and per-node expander glyphs.
+- Horizontal scrolling for deep trees.
+- An async `children` and a built-in loading indicator (§11.7).
+- Caching rows between frames.
+- `*` (expand the subtree) and `-`/`+` keys, as in Windows' tree view.
+
+### 11.11 Implementation order
+
+One PR (17), released as 1.6.0:
+1. `TreeState<T>`, `TreeRow<T>` and `TreeNodeEventArgs<T>`: rows, the expanded set, selection keeping and
+   events, with their tests.
+2. Keys, type-ahead and the mouse.
+3. `TreeBuilder<T>` and `Widget.Tree`: drawing, guides, glyph modes and snapshots.
+4. The example demo, README ("### Trees", with the lazy-loading example), CHANGELOG, TODO, manual QA.
+
+### 11.12 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | The model: a generic `TreeState<T>` over the app's own objects with a `children` function, or a concrete `TreeNode` class (text, children list, expanded flag, `Data`) that the app builds? | **Generic over the app's objects** (§11.2). Nothing is copied, laziness is natural, and an app with no model uses a small record. |
+| 2 | Enter: toggle a parent and activate a leaf, or always raise `Activated` (and expand only with → / click)? | **Toggle a parent, activate a leaf** (§11.3), as file managers do. |
+| 3 | Letters: type-ahead (`PopupMenu`, Windows tree view), or vim keys `h j k l` (`SelectionState`'s `j`/`k`)? | **Type-ahead** (§11.3). ← → ↑ ↓ already cover movement, and trees are searched by name. |
+| 4 | Guide lines on or off by default? | **Off**, with `Guides()` (§11.5), as Ratatui's tree widgets. Textual draws them by default. |

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Widget.Tree(state)`, `TreeBuilder<T>`, `TreeState<T>`, `TreeRow<T>` and `TreeNodeEventArgs<T>`: a scrollable tree over the app's own nodes. The state asks for children only for expanded nodes and recomputes the visible rows at each frame; `HasChildren` shows an expander before children are loaded, and `Expanded` is where lazy loaders start. Keys: ↑ ↓ PgUp PgDn Home End, → expands or moves to the first child, ← collapses or moves to the parent, Enter toggles a parent or raises `Activated` on a leaf, and letters jump by name (type-ahead). The mouse selects rows, toggles on the ▸/▾ expander and scrolls. `Expand`, `Collapse`, `Toggle`, `ExpandAll`, `CollapseAll`, `IsExpanded`, `Rows`, `SelectionChanged` and `Collapsed`; cycles are shown as leaves. `Guides()` draws │ ├─ └─ lines; in conhost the expanders are `+` and `-`.
+- Example: a Tree demo browsing the file system from the current directory, a directory at a time.
+- `docs/SPEC-1.x.md` §11: the tree view spec.
+
 ## [1.5.0] - 2026-11-01
 
 MiniTui 1.5: text selection, copy and paste, undo and redo, and selecting with the mouse.

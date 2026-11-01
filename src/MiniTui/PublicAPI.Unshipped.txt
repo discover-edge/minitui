@@ -1,1 +1,61 @@
 #nullable enable
+MiniTui.TreeBuilder<T>
+MiniTui.TreeBuilder<T>.Block(MiniTui.BlockBuilder! block) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.TreeBuilder<T>.Focused(bool focused = true) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.Format(System.Func<T!, MiniTui.Line!>! format) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.Guides(bool guides = true) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.HighlightStyle(MiniTui.Style style) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.HighlightSymbol(string! symbol) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.Indent(int columns) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.ShowScrollInfo(bool show = true) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.Style(MiniTui.Style style) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.Title(string! title) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeNodeEventArgs<T>
+MiniTui.TreeNodeEventArgs<T>.Node.get -> T!
+MiniTui.TreeNodeEventArgs<T>.TreeNodeEventArgs(T! node) -> void
+MiniTui.TreeRow<T>
+MiniTui.TreeRow<T>.Deconstruct(out T! Node, out T? Parent, out int Depth, out bool HasChildren, out bool IsExpanded) -> void
+MiniTui.TreeRow<T>.Depth.get -> int
+MiniTui.TreeRow<T>.Depth.init -> void
+MiniTui.TreeRow<T>.HasChildren.get -> bool
+MiniTui.TreeRow<T>.HasChildren.init -> void
+MiniTui.TreeRow<T>.IsExpanded.get -> bool
+MiniTui.TreeRow<T>.IsExpanded.init -> void
+MiniTui.TreeRow<T>.Node.get -> T!
+MiniTui.TreeRow<T>.Node.init -> void
+MiniTui.TreeRow<T>.Parent.get -> T?
+MiniTui.TreeRow<T>.Parent.init -> void
+MiniTui.TreeRow<T>.TreeRow() -> void
+MiniTui.TreeRow<T>.TreeRow(T! Node, T? Parent, int Depth, bool HasChildren, bool IsExpanded) -> void
+MiniTui.TreeState<T>
+MiniTui.TreeState<T>.Activated -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
+MiniTui.TreeState<T>.Collapse(T! node) -> void
+MiniTui.TreeState<T>.CollapseAll() -> void
+MiniTui.TreeState<T>.Collapsed -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
+MiniTui.TreeState<T>.Expand(T! node) -> void
+MiniTui.TreeState<T>.ExpandAll() -> void
+MiniTui.TreeState<T>.Expanded -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
+MiniTui.TreeState<T>.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.TreeState<T>.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.TreeState<T>.HasChildren.get -> System.Func<T!, bool>?
+MiniTui.TreeState<T>.HasChildren.set -> void
+MiniTui.TreeState<T>.IsExpanded(T! node) -> bool
+MiniTui.TreeState<T>.Offset.get -> int
+MiniTui.TreeState<T>.Offset.set -> void
+MiniTui.TreeState<T>.Roots.get -> System.Collections.Generic.IReadOnlyList<T!>!
+MiniTui.TreeState<T>.Roots.set -> void
+MiniTui.TreeState<T>.Rows.get -> System.Collections.Generic.IReadOnlyList<MiniTui.TreeRow<T!>>!
+MiniTui.TreeState<T>.Selected.get -> T?
+MiniTui.TreeState<T>.Selected.set -> void
+MiniTui.TreeState<T>.SelectionChanged -> System.EventHandler?
+MiniTui.TreeState<T>.Toggle(T! node) -> void
+MiniTui.TreeState<T>.TreeState(System.Func<T!, System.Collections.Generic.IReadOnlyList<T!>!>! children, System.Func<T!, string!>! text, System.Collections.Generic.IEqualityComparer<T!>? comparer = null) -> void
+MiniTui.TreeState<T>.ViewportHeight.get -> int
+override MiniTui.TreeRow<T>.GetHashCode() -> int
+static MiniTui.Widget.Tree<T>(MiniTui.TreeState<T!>! state) -> MiniTui.TreeBuilder<T!>!
+~MiniTui.TreeRow<T>.Equals(MiniTui.TreeRow<T> other) -> bool
+~override MiniTui.TreeRow<T>.Equals(object obj) -> bool
+~override MiniTui.TreeRow<T>.ToString() -> string
+~static MiniTui.TreeRow<T>.operator !=(MiniTui.TreeRow<T> left, MiniTui.TreeRow<T> right) -> bool
+~static MiniTui.TreeRow<T>.operator ==(MiniTui.TreeRow<T> left, MiniTui.TreeRow<T> right) -> bool
