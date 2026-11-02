@@ -2735,13 +2735,15 @@ public partial class Theme
   dark, and 7 or 9–15 is light. Otherwise it's null.
 - **`WithTheme(dark, light)`** uses `light` when `IsDark` is false, and `dark` otherwise (true or unknown). The
   theme is chosen once per run, when the background is first known, not on every reply.
-- **`Theme.Light`:**
-  - It keeps every Default slot except the ones whose colors disappear on a light background: Default uses
-    Yellow (focused titles, table headers, warnings) and Cyan (chart series) as foregrounds, and White on
-    DarkGray (the status bar, buttons). Light uses darker variants (DarkYellow, DarkCyan and DarkBlue), and Black
-    on Gray for the status bar and buttons.
-  - The selection, Black on Cyan, reads on both backgrounds, so it stays.
-  - The exact slots are settled with snapshot tests and manual QA on light terminal profiles.
+- **`Theme.Light`:** clearly a light theme, not only a fix for unreadable colors (QA of a first version that only
+  darkened the fading colors found it barely looked different):
+  - Dark blue for focus: the selection, focused buttons and the active tab are White on DarkBlue, and focused
+    borders, focused titles, prompts and table headers are DarkBlue.
+  - Black on Gray for the status bar, buttons, the unfocused selection and the active tab when unfocused.
+  - Darker variants where Default uses Yellow, Cyan or Green as a foreground: titles and info text DarkCyan,
+    warnings DarkYellow, success and gauges DarkGreen, errors DarkRed, and the chart series in their dark
+    colors.
+  - Text, muted text and borders are unchanged (the terminal's foreground and DarkGray).
 - Monochrome is unaffected (`NO_COLOR` still selects it).
 
 ### 12.5 Keyboard protocols

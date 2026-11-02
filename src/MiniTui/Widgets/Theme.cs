@@ -116,19 +116,25 @@ public sealed record Theme
     };
 
     /// <summary>
-    /// A theme for light backgrounds (1.x spec §12.4): <see cref="Default"/> with darker colors where its yellow, cyan
-    /// and white-on-gray would fade on white. The selection stays black on cyan, which reads on both.
+    /// A theme for light backgrounds (1.x spec §12.4): <see cref="Default"/> with dark blue for the selection and
+    /// focus, black on light gray for bars, buttons and unfocused selections, and darker colors where its yellow,
+    /// cyan and green would fade on white.
     /// </summary>
     public static Theme Light { get; } = Default with
     {
-        BorderFocused = new Style(Color.DarkCyan),
+        BorderFocused = new Style(Color.DarkBlue),
         Title = new Style(Color.DarkCyan),
-        TitleFocused = new Style(Color.DarkBlue),
+        TitleFocused = new Style(Color.DarkBlue).Bold(),
+        Selection = new Style(Color.White, Color.DarkBlue),
+        SelectionUnfocused = new Style(Color.Black, Color.Gray),
         TableHeader = new Style(Color.DarkBlue).Bold(),
-        Prompt = new Style(Color.DarkCyan),
+        Prompt = new Style(Color.DarkBlue),
         StatusBar = new Style(Color.Black, Color.Gray),
         Button = new Style(Color.Black, Color.Gray),
-        ModalTitle = new Style(Color.DarkCyan),
+        ButtonFocused = new Style(Color.White, Color.DarkBlue),
+        TabActive = new Style(Color.White, Color.DarkBlue),
+        TabActiveUnfocused = new Style(Color.Black, Color.Gray),
+        ModalTitle = new Style(Color.DarkBlue),
         GaugeFilled = new Style(Color.DarkGreen),
         Success = new Style(Color.DarkGreen),
         Warning = new Style(Color.DarkYellow),

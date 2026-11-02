@@ -352,17 +352,21 @@ public class TerminalQueryTests
     }
 
     [Fact]
-    public void LightTheme_ChangesOnlyColorsThatFadeOnWhite()
+    public void LightTheme_UsesDarkBlueForFocus_AndNoColorsThatFadeOnWhite()
     {
         var light = Theme.Light;
-        var dark = Theme.Default;
-        Assert.Equal(dark.Selection, light.Selection);
-        Assert.Equal(dark.Text, light.Text);
+        Assert.Equal(Theme.Default.Text, light.Text);
+        Assert.Equal(new Style(Color.White, Color.DarkBlue), light.Selection);
+        Assert.Equal(new Style(Color.Black, Color.Gray), light.SelectionUnfocused);
         Assert.Equal(new Style(Color.Black, Color.Gray), light.StatusBar);
-        Assert.DoesNotContain(light.ChartSeries, s => s.Fg is var c && (c == Color.Yellow || c == Color.Cyan));
+
+        // No light foregrounds anywhere except on a dark background
+        var slots = typeof(Theme).GetProperties().Where(p => p.PropertyType == typeof(Style)).Select(p => (Style)p.GetValue(light)!)
+            .Concat(light.ChartSeries);
+        Assert.DoesNotContain(slots, s => s.Fg is var c && (c == Color.Yellow || c == Color.Cyan || c == Color.Green || c == Color.White) && s.Bg != Color.DarkBlue);
 
         var buf = new Buffer(20, 3);
         using (Theme.Use(light)) Widget.Block().Title("T").Focused().Draw(buf, buf.Area);
-        Assert.Equal(Color.DarkCyan, buf.Get(0, 0).Fg);
+        Assert.Equal(Color.DarkBlue, buf.Get(0, 0).Fg);
     }
 }

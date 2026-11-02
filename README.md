@@ -332,8 +332,8 @@ app.WithTheme(Theme.Default with { Selection = new Style(Color.Black, Color.Yell
 `Theme.ChartSeries` lists the styles of chart datasets that don't set their own (cyan, yellow, magenta,
 green, blue, red; Monochrome has one plain style, so datasets differ by marker).
 
-`Theme.Light` is `Theme.Default` with darker colors where its yellow, cyan and white-on-gray fade on a
-white background. To follow the terminal, pass both: the app asks the terminal for its background color
+`Theme.Light` is for light backgrounds: dark blue for the selection and focus, black on light gray for bars
+and buttons, and darker colors where `Theme.Default`'s yellow, cyan and green would fade on white. To follow the terminal, pass both: the app asks the terminal for its background color
 (see [Terminal queries](#terminal-queries)) and picks one, waiting up to 150 ms before the first frame so it
 doesn't flash the wrong one. Until the terminal answers, and if it never does, the dark theme is used:
 
