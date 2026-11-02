@@ -26,12 +26,17 @@ internal static class MouseRouter
         Component? root = app.Overlays.Top is { } overlay ? overlay : app.Screens.Top;
         if (root is null) return false;
 
-        // 1.x spec §10.7: drags go to what the press hit, wherever the pointer is now
+        // 1.x spec §10.7, §14.3: drags and the release go to what the press hit, wherever the pointer is now
         Component? target;
         if (mouse.Action == MouseAction.Drag)
         {
             target = app.PressTarget;
             if (target is null || !target.IsMounted || !IsUnder(target, root)) return false;
+        }
+        else if (mouse.Action == MouseAction.Release && app.PressTarget is { IsMounted: true } pressed && IsUnder(pressed, root))
+        {
+            target = pressed;
+            app.PressTarget = null;
         }
         else
         {

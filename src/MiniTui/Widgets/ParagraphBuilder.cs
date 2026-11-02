@@ -104,6 +104,7 @@ public sealed class ParagraphBuilder
         {
             var bar = scrollbarOnBorder ? new Rect(area.Right - 1, inner.Y, 1, inner.Height) : new Rect(inner.Right, inner.Y, 1, inner.Height);
             new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(inner.Height).Position(offset).Draw(buf, bar);
+            _state.TrackScrollbar(bar);
         }
     }
 }

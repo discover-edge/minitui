@@ -123,8 +123,9 @@ public class ListBuilder
             if (selected) buf.SetStyle(new Rect(rows.X, y, rows.Width, 1), highlight);
         }
 
-        if (overflow)
-            new ScrollbarBuilder().ContentLength(_count).ViewportLength(viewport).Position(offset).Draw(buf, scrollbar);
+        if (!overflow) return;
+        new ScrollbarBuilder().ContentLength(_count).ViewportLength(viewport).Position(offset).Draw(buf, scrollbar);
+        _state?.TrackScrollbar(scrollbar, _count);
     }
 
     private string TitleWithScrollInfo(int offset, int visible, int viewport)

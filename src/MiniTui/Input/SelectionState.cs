@@ -64,15 +64,40 @@ public sealed class SelectionState
         }
     }
 
+    /// <summary>The column the data is sorted by, ascending if it wasn't already, else the other way (1.x spec §14.5). Raises <see cref="SortChanged"/>.</summary>
+    public void ToggleSort(int column)
+    {
+        SortDescending = SortColumn == column && !SortDescending;
+        SortColumn = column;
+        SortChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Raised on the UI thread when a header click or <see cref="ToggleSort"/> sorts by a column, for the app to sort its items.</summary>
+    public event EventHandler? SortChanged;
+
     /// <summary>
-    /// Handle the mouse over the list or table drawn last (1.x spec §4.8): the wheel moves the selection by one
-    /// item, and a left press on a visible row selects it.
+    /// Handle the mouse over the list or table drawn last (1.x spec §4.8, §14.4, §14.5): the wheel moves the
+    /// selection by one item, a left press on a visible row selects it, the scrollbar's thumb drags and its track
+    /// pages (the selection moves into view), and a press on a sortable header cell calls <see cref="ToggleSort"/>.
     /// </summary>
-    /// <returns>True if the event did either.</returns>
+    /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse, int count)
     {
         ArgumentNullException.ThrowIfNull(mouse);
+        var offset = Offset;
+        if (_bar.Handle(mouse, ref offset))
+        {
+            Offset = offset;
+            if (ViewportHeight > 0 && count > 0)
+                Selected = Math.Clamp(Selected, offset, Math.Min(count - 1, offset + ViewportHeight - 1));
+            return true;
+        }
         if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
+        if (mouse.IsClick && _headers.FindIndex(h => h.Rect.Contains(mouse.X, mouse.Y)) is var header and >= 0)
+        {
+            ToggleSort(_headers[header].Column);
+            return true;
+        }
         switch (mouse.Action)
         {
             case MouseAction.ScrollUp: Previous(count); return true;
@@ -91,7 +116,15 @@ public sealed class SelectionState
     {
         _mouseArea = area;
         _mouseRows = rows;
+        _bar.Track(default, 0, 0);
+        _headers.Clear();
     }
+
+    /// <summary>Called by widgets while drawing, after <see cref="Track(Rect, Rect)"/>: where the scrollbar was drawn, for <paramref name="count"/> items.</summary>
+    internal void TrackScrollbar(Rect bar, int count) => _bar.Track(bar, count, ViewportHeight);
+
+    /// <summary>Called by the table while drawing, after <see cref="Track(Rect, Rect)"/>: a sortable header cell.</summary>
+    internal void TrackHeader(int column, Rect cell) => _headers.Add((column, cell));
 
     /// <summary>
     /// Called by widgets while drawing: clamp the selection to <paramref name="count"/> and scroll so it's
@@ -117,6 +150,8 @@ public sealed class SelectionState
 
     private Rect _mouseArea;
     private Rect _mouseRows;
+    private readonly ScrollbarDrag _bar = new();
+    private readonly List<(int Column, Rect Rect)> _headers = [];
 
     private static int Clamp(int index, int count) => count <= 0 ? 0 : Math.Clamp(index, 0, count - 1);
 }

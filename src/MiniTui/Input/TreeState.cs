@@ -170,13 +170,26 @@ public sealed class TreeState<T> where T : class
     }
 
     /// <summary>
-    /// Handle the mouse over the tree drawn last: the wheel moves the selection by one row, and a left press on a
-    /// row selects it and, on its expander, also toggles it.
+    /// Handle the mouse over the tree drawn last: the wheel moves the selection by one row, a left press on a row
+    /// selects it and, on its expander, also toggles it, and the scrollbar's thumb drags and its track pages, moving
+    /// the selection into view (1.x spec §14.4).
     /// </summary>
-    /// <returns>True if the event did either.</returns>
+    /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
+        var offset = Offset;
+        if (_bar.Handle(mouse, ref offset))
+        {
+            Refresh();
+            Offset = offset;
+            if (ViewportHeight > 0 && _rows.Count > 0 && _index >= 0)
+            {
+                var inView = Math.Clamp(_index, offset, Math.Min(_rows.Count - 1, offset + ViewportHeight - 1));
+                if (inView != _index) Move(inView);
+            }
+            return true;
+        }
         if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
         Refresh();
         switch (mouse.Action)
@@ -212,7 +225,13 @@ public sealed class TreeState<T> where T : class
         _mouseArea = area;
         _mouseRows = rows;
         _expanderColumns = expanderColumns;
+        _bar.Track(default, 0, 0);
     }
+
+    /// <summary>Called by the widget while drawing, after <see cref="Track"/>: where the scrollbar was drawn.</summary>
+    internal void TrackScrollbar(Rect bar) => _bar.Track(bar, _rows.Count, ViewportHeight);
+
+    private readonly ScrollbarDrag _bar = new();
 
     internal string TextOf(T node) => _text(node) ?? "";
 
