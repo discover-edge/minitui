@@ -45,6 +45,28 @@ Phases 8–11 are input work, so they go first: each depends on Phase 8, and Pha
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
 can be reordered. Phase 16 comes after the rest. Phase 17 was added after Phases 8–16 shipped.
 
+### 1.1 Backlog
+
+These ideas aren't specced yet. Most were left out of scope by an earlier phase. They're ordered by value: how
+much each one helps typical apps, weighed against its cost. Each gets a phase number and a section when it's
+picked, as in §0 rule 3.
+
+| Rank | Idea | Why it matters | Deferred by | Depends on |
+|---|---|---|---|---|
+| 1 | **Richer keyboard input.** The kitty keyboard protocol (`CSI > 1 u`) and xterm `modifyOtherKeys` on Unix, and `win32-input-mode` (`?9001`) in Windows Terminal, all opt-in and detected. They report Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+Backspace as themselves, and tell Ctrl+I from Tab and Ctrl+M from Enter. | Today a text area has no natural submit key, and Ctrl+Enter, the usual answer, can't be told from Enter. Every input phase deferred this, and every app with a multi-line field runs into it. | §2.12, §4.14 | 8, 10 |
+| 2 | **Command palette and filterable select.** A `CommandPalette` overlay (Ctrl+P or Ctrl+Shift+P) that fuzzy-filters `CommandRegistry` entries and key map actions as you type, with their key hints. The same filtering list makes a combo box `Select` you can type into. | The discoverability of keys and commands is the main usability gap in larger apps, and VS Code, Textual and lazygit all have a palette. It reuses `PopupMenu`, `TextFieldState` and `CommandRegistry`. | §7.12 | 7, 13 |
+| 3 | **Split panes and scrollbar dragging.** A `Split` layout with draggable dividers (mouse and keyboard), dragging a scrollbar's thumb in lists, tables, paragraphs and text areas, and clicking a table header to sort (an event; the app sorts). | `MouseAction.Drag` (1.5) makes these cheap now. Resizable panes are standard in file managers, log viewers and dashboards. | §4.14, §10.12 | 10, 16 |
+| 4 | **Menu bar and richer menus.** A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
+| 5 | **Text area as an editor.** An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
+| 6 | **Terminal queries.** Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
+| 7 | **Hover and double-click.** Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
+| 8 | **Tree extras.** Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
+| 9 | **Chart extras.** Grouped and stacked bar charts, time axes (`DateTime` and `TimeSpan`), tick marks and grid lines, and area charts. | Dashboards want them, but the 1.4 charts cover the common cases. | §8.11 | 14 |
+| 10 | **Clipboard and selection extras.** Reading the Unix clipboard through OSC 52 queries (needs rank 6), Ctrl+Insert, Shift+Insert and Shift+Delete, and selecting text in paragraphs and the log view. | Edge cases. Terminals' own Shift+drag already selects screen text. | §10.12 | 16 |
+
+Ranks 1 and 6 share the reply parser, so they could be one phase, with rank 6 first. Ranks 3 and 7 both build on
+mouse motion.
+
 ---
 
 ## 2. Raw input (Phase 8)
