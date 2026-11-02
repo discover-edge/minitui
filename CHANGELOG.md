@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-02
+
+MiniTui 1.7: the app asks the terminal about itself, picks a light or dark theme to match, and turns on keyboard protocols for keys like Ctrl+Enter.
+
 ### Added
 - Terminal queries: at startup and after a resume, the app asks the terminal for its default colors (OSC 10 and 11), its name (XTVERSION), its keyboard protocol support and its Primary Device Attributes. The input decoder reads the replies and never turns them into keys. `App.TerminalInfo` (`Answered`, `Background`, `Foreground`, `IsDark`, `Keyboard`, `Name`) holds what the terminal said, and `TerminalInfoEvent` reports each change. `WithTerminalQueries(false)` or `MINITUI_QUERIES=0` turns them off.
 - Keyboard protocols: where the terminal supports one, the app turns on the kitty keyboard protocol, else xterm's modifyOtherKeys (each only after the terminal's reply says it's supported), or win32-input-mode on Windows (Windows Terminal). Ctrl+Enter, Shift+Enter, Ctrl+Tab, Ctrl+I, Ctrl+M, Ctrl+[ and Ctrl with digits and punctuation then arrive as themselves, and bindings such as `ctrl+enter` match them; every key the classic encoding can express decodes exactly as before, and Esc no longer waits for a timeout under the kitty protocol. The protocol is turned off on every path that restores the terminal. `KeyboardProtocol` and `TerminalInfo.Keyboard` say which is in use; `App.WithKeyboardProtocol(false)` or `MINITUI_KEYBOARD=legacy` turns them off.

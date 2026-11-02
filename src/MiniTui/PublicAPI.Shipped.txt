@@ -42,14 +42,18 @@ MiniTui.App.Size.get -> (int Width, int Height)
 MiniTui.App.Stopping.get -> System.Threading.CancellationToken
 MiniTui.App.Suspend(System.Action! action) -> void
 MiniTui.App.SuspendProcess() -> bool
+MiniTui.App.TerminalInfo.get -> MiniTui.TerminalInfo!
 MiniTui.App.Toasts.get -> MiniTui.ToastQueue!
 MiniTui.App.WithBackend(MiniTui.ITerminalBackend! backend) -> MiniTui.App!
 MiniTui.App.WithChrome(bool statusBar = true, bool breadcrumb = true) -> MiniTui.App!
 MiniTui.App.WithColorMode(MiniTui.ColorMode mode) -> MiniTui.App!
 MiniTui.App.WithDebugKey(string? key = "f12") -> MiniTui.App!
 MiniTui.App.WithInput(MiniTui.IInputSource! input) -> MiniTui.App!
+MiniTui.App.WithKeyboardProtocol(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithMouse(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithSuspendKey(bool enabled = true) -> MiniTui.App!
+MiniTui.App.WithTerminalQueries(bool enabled = true) -> MiniTui.App!
+MiniTui.App.WithTheme(MiniTui.Theme! dark, MiniTui.Theme! light) -> MiniTui.App!
 MiniTui.App.WithTheme(MiniTui.Theme! theme) -> MiniTui.App!
 MiniTui.App.WithTickRate(System.TimeSpan? rate) -> MiniTui.App!
 MiniTui.App.WithTimeProvider(System.TimeProvider! provider) -> MiniTui.App!
@@ -392,6 +396,11 @@ MiniTui.KeyMap.Handle(System.ConsoleKeyInfo key) -> bool
 MiniTui.KeyMap.HelpLines() -> System.Collections.Generic.IEnumerable<string!>!
 MiniTui.KeyMap.Hints(int maxWidth) -> string!
 MiniTui.KeyMap.KeyMap() -> void
+MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.Kitty = 1 -> MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.Legacy = 0 -> MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.ModifyOtherKeys = 2 -> MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.Win32InputMode = 3 -> MiniTui.KeyboardProtocol
 MiniTui.Layout
 MiniTui.Layout.Add(string! name, MiniTui.Constraint! constraint) -> MiniTui.Layout!
 MiniTui.Layout.Build() -> MiniTui.Layout!
@@ -821,6 +830,28 @@ MiniTui.Terminal.Invalidate() -> void
 MiniTui.Terminal.Terminal() -> void
 MiniTui.Terminal.Terminal(MiniTui.ITerminalBackend! backend) -> void
 MiniTui.Terminal.Width.get -> int
+MiniTui.TerminalInfo
+MiniTui.TerminalInfo.<Clone>$() -> MiniTui.TerminalInfo!
+MiniTui.TerminalInfo.Answered.get -> bool
+MiniTui.TerminalInfo.Answered.init -> void
+MiniTui.TerminalInfo.Background.get -> MiniTui.Color?
+MiniTui.TerminalInfo.Background.init -> void
+MiniTui.TerminalInfo.Equals(MiniTui.TerminalInfo? other) -> bool
+MiniTui.TerminalInfo.Foreground.get -> MiniTui.Color?
+MiniTui.TerminalInfo.Foreground.init -> void
+MiniTui.TerminalInfo.IsDark.get -> bool?
+MiniTui.TerminalInfo.IsDark.init -> void
+MiniTui.TerminalInfo.Keyboard.get -> MiniTui.KeyboardProtocol
+MiniTui.TerminalInfo.Keyboard.init -> void
+MiniTui.TerminalInfo.Name.get -> string?
+MiniTui.TerminalInfo.Name.init -> void
+MiniTui.TerminalInfo.TerminalInfo() -> void
+MiniTui.TerminalInfoEvent
+MiniTui.TerminalInfoEvent.Deconstruct(out MiniTui.TerminalInfo! Info) -> void
+MiniTui.TerminalInfoEvent.Equals(MiniTui.TerminalInfoEvent? other) -> bool
+MiniTui.TerminalInfoEvent.Info.get -> MiniTui.TerminalInfo!
+MiniTui.TerminalInfoEvent.Info.init -> void
+MiniTui.TerminalInfoEvent.TerminalInfoEvent(MiniTui.TerminalInfo! Info) -> void
 MiniTui.TerminalInputSource
 MiniTui.TerminalInputSource.Dispose() -> void
 MiniTui.TerminalInputSource.EscapeTimeout.get -> System.TimeSpan
@@ -1199,6 +1230,13 @@ override MiniTui.ResumeEvent.ToString() -> string!
 override MiniTui.Screen.KeysGroup.get -> string!
 override MiniTui.Span.GetHashCode() -> int
 override MiniTui.Style.GetHashCode() -> int
+override MiniTui.TerminalInfo.Equals(object? obj) -> bool
+override MiniTui.TerminalInfo.GetHashCode() -> int
+override MiniTui.TerminalInfo.ToString() -> string!
+override MiniTui.TerminalInfoEvent.<Clone>$() -> MiniTui.TerminalInfoEvent!
+override MiniTui.TerminalInfoEvent.Equals(object? obj) -> bool
+override MiniTui.TerminalInfoEvent.GetHashCode() -> int
+override MiniTui.TerminalInfoEvent.ToString() -> string!
 override MiniTui.Text.Equals(object? obj) -> bool
 override MiniTui.Text.GetHashCode() -> int
 override MiniTui.Text.ToString() -> string!
@@ -1218,6 +1256,7 @@ override sealed MiniTui.MouseEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.PasteEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.ResizeEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.ResumeEvent.Equals(MiniTui.Event? other) -> bool
+override sealed MiniTui.TerminalInfoEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.TickEvent.Equals(MiniTui.Event? other) -> bool
 static MiniTui.App.Create() -> MiniTui.App!
 static MiniTui.Axis.operator !=(MiniTui.Axis? left, MiniTui.Axis? right) -> bool
@@ -1316,6 +1355,10 @@ static MiniTui.Span.operator ==(MiniTui.Span left, MiniTui.Span right) -> bool
 static MiniTui.Style.Default.get -> MiniTui.Style
 static MiniTui.Style.operator !=(MiniTui.Style left, MiniTui.Style right) -> bool
 static MiniTui.Style.operator ==(MiniTui.Style left, MiniTui.Style right) -> bool
+static MiniTui.TerminalInfo.operator !=(MiniTui.TerminalInfo? left, MiniTui.TerminalInfo? right) -> bool
+static MiniTui.TerminalInfo.operator ==(MiniTui.TerminalInfo? left, MiniTui.TerminalInfo? right) -> bool
+static MiniTui.TerminalInfoEvent.operator !=(MiniTui.TerminalInfoEvent? left, MiniTui.TerminalInfoEvent? right) -> bool
+static MiniTui.TerminalInfoEvent.operator ==(MiniTui.TerminalInfoEvent? left, MiniTui.TerminalInfoEvent? right) -> bool
 static MiniTui.TerminalInputSource.DefaultEscapeTimeout.get -> System.TimeSpan
 static MiniTui.Text.From(string! s) -> MiniTui.Text!
 static MiniTui.Text.implicit operator MiniTui.Text!(MiniTui.Line! line) -> MiniTui.Text!
@@ -1329,7 +1372,9 @@ static MiniTui.TextPosition.operator ==(MiniTui.TextPosition left, MiniTui.TextP
 static MiniTui.TextPosition.operator >(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
 static MiniTui.TextPosition.operator >=(MiniTui.TextPosition left, MiniTui.TextPosition right) -> bool
 static MiniTui.Theme.Current.get -> MiniTui.Theme!
+static MiniTui.Theme.Dark.get -> MiniTui.Theme!
 static MiniTui.Theme.Default.get -> MiniTui.Theme!
+static MiniTui.Theme.Light.get -> MiniTui.Theme!
 static MiniTui.Theme.Monochrome.get -> MiniTui.Theme!
 static MiniTui.Theme.operator !=(MiniTui.Theme? left, MiniTui.Theme? right) -> bool
 static MiniTui.Theme.operator ==(MiniTui.Theme? left, MiniTui.Theme? right) -> bool
