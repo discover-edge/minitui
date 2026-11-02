@@ -19,7 +19,15 @@ internal static class MouseRouter
         if (app.Overlays.Top is { CloseOnClickOutside: true } top && mouse.Action == MouseAction.Press
             && HitRect(hits, top) is { } rect && !rect.Contains(mouse.X, mouse.Y))
         {
-            app.Overlays.Close(top);
+            // 1.x spec §15.4: and every menu under it the press is also outside of, so a click outside a submenu
+            // and its parents closes them all, while one on a parent only closes the submenu
+            var all = app.Overlays.All;
+            for (var i = all.Count - 1; i >= 0; i--)
+            {
+                if (all[i] is not { CloseOnClickOutside: true } menu) break;
+                if (i < all.Count - 1 && HitRect(hits, menu) is { } under && under.Contains(mouse.X, mouse.Y)) break;
+                app.Overlays.Close(menu);
+            }
             return true;
         }
 

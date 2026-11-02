@@ -299,30 +299,45 @@ internal sealed class CommandScreen : Screen
     private Rect SelectedRow() =>
         new(Area.X + 1, Area.Y + 1 + _selection.Selected - _selection.Offset, Math.Max(0, Area.Width - 2), 1);
 
-    private void ShowMenu(Rect anchor) => App.RunTask(async _ =>
+    // Mnemonics (the underlined letters choose at once), a Sort submenu of radio items, and Run actions
+    private void ShowMenu(Rect anchor)
     {
         var any = _notes.Count > 0;
         MenuItem[] items =
         [
-            new("Delete") { Hint = "x", Enabled = any },
-            new("Delete all") { Enabled = any },
+            new("&Delete") { Hint = "x", Enabled = any, Run = DeleteSelected },
+            new("Delete &all") { Enabled = any, Run = () => { _notes.Clear(); App.Toasts.Push("Notes cleared"); } },
+            new("&Sort")
+            {
+                Enabled = _notes.Count > 1,
+                Submenu =
+                [
+                    SortItem("&Newest first", NoteOrder.Newest),
+                    SortItem("&Oldest first", NoteOrder.Oldest),
+                    SortItem("&Alphabetical", NoteOrder.Alphabetical),
+                ],
+            },
             MenuItem.Separator,
-            new("Help") { Hint = ":help" },
+            new("&Help") { Hint = ":help", Run = () => _ = App.Overlays.ShowMessageAsync("Commands", string.Join("\n", _commands.GetHelpLines())) },
         ];
-        switch (await App.Overlays.ShowMenuAsync(items, anchor))
-        {
-            case 0:
-                DeleteSelected();
-                break;
-            case 1:
-                _notes.Clear();
-                App.Toasts.Push("Notes cleared");
-                break;
-            case 3:
-                await App.Overlays.ShowMessageAsync("Commands", string.Join("\n", _commands.GetHelpLines()));
-                break;
-        }
-    });
+        App.Overlays.Show(new PopupMenu(items, anchor));
+    }
+
+    private MenuItem SortItem(string label, NoteOrder order) =>
+        new(label) { Radio = true, Checked = _order == order, Run = () => Sort(order) };
+
+    private void Sort(NoteOrder order)
+    {
+        _order = order;
+        // Notes start with their [HH:mm] time, so ordinal order is oldest first
+        _notes.Sort(StringComparer.Ordinal);
+        if (order == NoteOrder.Newest) _notes.Reverse();
+        else if (order == NoteOrder.Alphabetical) _notes.Sort((a, b) => string.Compare(a[(a.IndexOf(']') + 1)..], b[(b.IndexOf(']') + 1)..], StringComparison.OrdinalIgnoreCase));
+    }
+
+    private enum NoteOrder { Newest, Oldest, Alphabetical }
+
+    private NoteOrder _order;
 
     private void DeleteSelected()
     {
