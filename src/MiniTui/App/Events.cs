@@ -79,6 +79,12 @@ public sealed record ResizeEvent(int Width, int Height) : Event;
 /// </summary>
 public sealed record ResumeEvent : Event;
 
+/// <summary>
+/// Raised through <see cref="App.OnEvent"/> when <see cref="App.TerminalInfo"/> changes because a reply to the
+/// startup queries arrived (1.x spec §12.3).
+/// </summary>
+public sealed record TerminalInfoEvent(TerminalInfo Info) : Event;
+
 /// <summary>A tick from <see cref="App.WithTickRate"/>. <paramref name="Elapsed"/> is the time since the previous tick.</summary>
 public sealed record TickEvent(TimeSpan Elapsed) : Event;
 

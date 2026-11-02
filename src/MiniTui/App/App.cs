@@ -269,6 +269,7 @@ public partial class App
     {
         ArgumentNullException.ThrowIfNull(theme);
         _theme = theme;
+        _themePair = null;
         if (_running) InvokeOnUiThread(() =>
         {
             _activeTheme = ResolveTheme(theme);

@@ -279,6 +279,8 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
 
         public void Mouse(MouseEvent mouse) => _queue.Enqueue(InputItem.FromMouse(mouse));
 
+        public void Reply(TerminalReply reply) => _queue.Enqueue(InputItem.FromReply(reply));
+
         public bool TryDequeue(out InputItem item) => _queue.TryDequeue(out item);
     }
 }

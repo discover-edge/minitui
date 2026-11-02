@@ -14,11 +14,12 @@ public interface IInputSource : IDisposable
 /// <summary>What <see cref="InputPump"/> carries: a key, a paste or a mouse event, in arrival order (1.x spec §3.3, §4.3).</summary>
 internal readonly struct InputItem
 {
-    private InputItem(ConsoleKeyInfo key, string? paste, MouseEvent? mouse)
+    private InputItem(ConsoleKeyInfo key, string? paste, MouseEvent? mouse, TerminalReply? reply = null)
     {
         Key = key;
         Paste = paste;
         Mouse = mouse;
+        Reply = reply;
     }
 
     public ConsoleKeyInfo Key { get; }
@@ -29,14 +30,19 @@ internal readonly struct InputItem
     /// <summary>The mouse event, or null unless a mouse event.</summary>
     public MouseEvent? Mouse { get; }
 
+    /// <summary>A reply to a startup query (1.x spec §12.3), or null.</summary>
+    public TerminalReply? Reply { get; }
+
     /// <summary>True for a key.</summary>
-    public bool IsKey => Paste is null && Mouse is null;
+    public bool IsKey => Paste is null && Mouse is null && Reply is null;
 
     public static InputItem FromKey(ConsoleKeyInfo key) => new(key, null, null);
 
     public static InputItem FromPaste(string text) => new(default, text, null);
 
     public static InputItem FromMouse(MouseEvent mouse) => new(default, null, mouse);
+
+    public static InputItem FromReply(TerminalReply reply) => new(default, null, null, reply);
 }
 
 /// <summary>A source that produces pastes and mouse events as well as keys.</summary>

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -40,6 +40,7 @@ or add to them:
 | **15. Debug overlay** | A toggleable overlay showing layout rects, the focus chain and frame time / bytes per frame. | — | §9 | 1.4.0 |
 | **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | §10 | 1.5.0 |
 | **17. Tree view** | `Widget.Tree()` and `TreeState<T>` over the app's own nodes: expand and collapse, lazily read children, tree keys, type-ahead, the mouse and optional guide lines. | 10 | §11 | 1.6.0 |
+| **18. Terminal queries and richer keyboard input** | Ask the terminal about itself (DA1 as the sentinel, OSC 10/11 colors, XTVERSION, keyboard protocol support) with replies never leaked as keys; `TerminalInfo`; light and dark themes; the kitty keyboard protocol, modifyOtherKeys and win32-input-mode for Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+I. Backlog ranks 1 and 6. | 8, 10 | §12 | 1.7.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -53,12 +54,12 @@ picked, as in §0 rule 3.
 
 | Rank | Idea | Why it matters | Deferred by | Depends on |
 |---|---|---|---|---|
-| 1 | **Richer keyboard input.** The kitty keyboard protocol (`CSI > 1 u`) and xterm `modifyOtherKeys` on Unix, and `win32-input-mode` (`?9001`) in Windows Terminal, all opt-in and detected. They report Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+Backspace as themselves, and tell Ctrl+I from Tab and Ctrl+M from Enter. | Today a text area has no natural submit key, and Ctrl+Enter, the usual answer, can't be told from Enter. Every input phase deferred this, and every app with a multi-line field runs into it. | §2.12, §4.14 | 8, 10 |
+| 1 | **Richer keyboard input** (Phase 18, §12). The kitty keyboard protocol (`CSI > 1 u`) and xterm `modifyOtherKeys` on Unix, and `win32-input-mode` (`?9001`) in Windows Terminal, all opt-in and detected. They report Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+Backspace as themselves, and tell Ctrl+I from Tab and Ctrl+M from Enter. | Today a text area has no natural submit key, and Ctrl+Enter, the usual answer, can't be told from Enter. Every input phase deferred this, and every app with a multi-line field runs into it. | §2.12, §4.14 | 8, 10 |
 | 2 | **Command palette and filterable select.** A `CommandPalette` overlay (Ctrl+P or Ctrl+Shift+P) that fuzzy-filters `CommandRegistry` entries and key map actions as you type, with their key hints. The same filtering list makes a combo box `Select` you can type into. | The discoverability of keys and commands is the main usability gap in larger apps, and VS Code, Textual and lazygit all have a palette. It reuses `PopupMenu`, `TextFieldState` and `CommandRegistry`. | §7.12 | 7, 13 |
 | 3 | **Split panes and scrollbar dragging.** A `Split` layout with draggable dividers (mouse and keyboard), dragging a scrollbar's thumb in lists, tables, paragraphs and text areas, and clicking a table header to sort (an event; the app sorts). | `MouseAction.Drag` (1.5) makes these cheap now. Resizable panes are standard in file managers, log viewers and dashboards. | §4.14, §10.12 | 10, 16 |
 | 4 | **Menu bar and richer menus.** A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
 | 5 | **Text area as an editor.** An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
-| 6 | **Terminal queries.** Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
+| 6 | **Terminal queries** (Phase 18, §12). Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
 | 7 | **Hover and double-click.** Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
 | 8 | **Tree extras.** Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
 | 9 | **Chart extras.** Grouped and stacked bar charts, time axes (`DateTime` and `TimeSpan`), tick marks and grid lines, and area charts. | Dashboards want them, but the 1.4 charts cover the common cases. | §8.11 | 14 |
@@ -2602,3 +2603,309 @@ One PR (17), released as 1.6.0:
 | 2 | Enter: toggle a parent and activate a leaf, or always raise `Activated` (and expand only with → / click)? | **Toggle a parent, activate a leaf** (§11.3), as file managers do. |
 | 3 | Letters: type-ahead (`PopupMenu`, Windows tree view), or vim keys `h j k l` (`SelectionState`'s `j`/`k`)? | **Type-ahead** (§11.3). ← → ↑ ↓ already cover movement, and trees are searched by name. |
 | 4 | Guide lines on or off by default? | **Off**, with `Guides()` (§11.5), as Ratatui's tree widgets. Textual draws them by default. |
+
+---
+
+## 12. Terminal queries and richer keyboard input (Phase 18)
+
+### 12.1 Purpose
+
+The legacy keyboard encoding that every terminal speaks can't tell Ctrl+Enter from Enter, Shift+Enter from
+Enter, Ctrl+I from Tab or Ctrl+Tab from Tab, so a text area has no natural submit key and many familiar shortcuts
+can't be bound. Modern terminals offer better encodings: the kitty keyboard protocol (kitty, WezTerm, foot,
+Ghostty, Alacritty, iTerm2 and others), xterm's `modifyOtherKeys`, and Windows Terminal's `win32-input-mode`. A
+terminal that doesn't speak one of them must not receive it, so MiniTui first has to ask the terminal what it
+supports. Phase 18 adds those questions (backlog ranks 1 and 6, §1.1):
+- **Terminal queries:** asked at startup, with the replies parsed by the input decoder and never leaked as keys.
+  They report the background and foreground colors, the keyboard protocols the terminal supports, and its name
+  and version.
+- **Light and dark themes:** new `Theme.Dark` and `Theme.Light` with their own colors, and `WithTheme(dark,
+  light)` to pick one from the background color.
+- **Richer keyboard input:** the best protocol the terminal supports is turned on, so keys the legacy encoding
+  can't express (Ctrl+Enter, Shift+Enter, Ctrl+Tab, Ctrl+I, Ctrl+digits and punctuation) arrive as themselves.
+  Every key the legacy encoding can express still decodes exactly as before.
+
+### 12.2 Public API
+
+```csharp
+/// What the terminal said about itself in reply to the startup queries (§12.3). Unknown values are null.
+public sealed record TerminalInfo
+{
+    /// True once the terminal answered (its Primary Device Attributes reply arrived). False before that, with
+    /// queries turned off, on the legacy Windows console backend, and when it never answered.
+    public bool Answered { get; init; }
+
+    /// The default background and foreground colors (OSC 11 and OSC 10 replies) as RGB colors.
+    public Color? Background { get; init; }
+    public Color? Foreground { get; init; }
+
+    /// Whether the background is dark: from Background's luminance, or else COLORFGBG; null if neither is known.
+    public bool? IsDark { get; init; }
+
+    /// The keyboard protocol in use (§12.5). Legacy until one is detected and turned on.
+    public KeyboardProtocol Keyboard { get; init; }
+
+    /// The terminal's name and version from its XTVERSION reply, such as "WezTerm 20240203-110809-5046fc22".
+    public string? Name { get; init; }
+}
+
+public enum KeyboardProtocol
+{
+    /// The classic encoding: keys such as Ctrl+Enter arrive as plain Enter.
+    Legacy,
+    /// The kitty keyboard protocol, with the "disambiguate escape codes" flag.
+    Kitty,
+    /// xterm's modifyOtherKeys, level 2.
+    ModifyOtherKeys,
+    /// Windows Terminal's win32-input-mode (?9001).
+    Win32InputMode,
+}
+
+/// Raised (through OnEvent) when TerminalInfo changes because a reply arrived.
+public sealed record TerminalInfoEvent(TerminalInfo Info) : Event;
+
+public partial class App
+{
+    /// What the terminal has said so far. Updated on the UI thread as replies arrive.
+    public TerminalInfo TerminalInfo { get; }
+
+    /// Ask the terminal about itself at startup (§12.3). On by default.
+    public App WithTerminalQueries(bool enabled = true);
+
+    /// Turn on the best keyboard protocol the terminal supports (§12.5). On by default; it needs the queries,
+    /// except win32-input-mode on Windows.
+    public App WithKeyboardProtocol(bool enabled = true);
+
+    /// Use `dark` on a dark background and `light` on a light one (§12.4). `dark` is used until the background
+    /// is known, and when it never is.
+    public App WithTheme(Theme dark, Theme light);
+}
+
+public partial class Theme
+{
+    /// Themes with their own RGB colors, the same in every terminal whatever its palette, including the text and
+    /// background colors; the app fills the screen with the background (§12.4).
+    public static Theme Dark { get; }
+    public static Theme Light { get; }
+}
+```
+
+- `WithTheme(Theme)` from 1.0 is unchanged and replaces the pair if called after it (last call wins, as for
+  the other `With` options).
+- `KeyBinding.Parse` needs no new names: `ctrl+enter`, `shift+enter`, `ctrl+tab`, `ctrl+i`, `ctrl+1` and
+  `ctrl+.` already parse. Until now they could only match when a terminal sent them by accident; now they match
+  in terminals that support a protocol.
+
+### 12.3 Queries and replies
+
+- **When:** once, right after the terminal is entered (the alternate screen and raw mode), and again after a
+  resume from suspend (§5). Each time, the backend writes, in one write and under its lock:
+  `CSI ? u` (the kitty keyboard flags), `CSI ? 4 m` (XTQMODKEYS: the modifyOtherKeys level), `OSC 10 ; ? ST`,
+  `OSC 11 ; ? ST`, `CSI > 0 q` (XTVERSION), and last `CSI c` (Primary Device Attributes, DA1).
+- **DA1 is the sentinel.** Every terminal answers DA1, and terminals answer in order, so when the DA1 reply
+  arrives, any query not answered before it never will be. `Answered` turns true then. If DA1 hasn't arrived 1 s
+  after the queries were sent (a terminal behind a slow link, or one that doesn't answer at all), MiniTui stops
+  waiting. Replies that arrive later are still recognized and applied.
+- **The first frame isn't delayed,** except with `WithTheme(dark, light)`: then the loop waits up to 150 ms for
+  the DA1 reply (or the OSC 11 one) before drawing, so a fast terminal doesn't flash the wrong theme. A slower
+  reply switches the theme and redraws when it arrives.
+- **Decoding:** the decoder already reads OSC and DCS strings and private CSI forms whole, and drops them
+  (§2.4). It now turns these into internal replies instead of dropping them. Anything else is still dropped:
+  - `CSI ? flags u`: the kitty protocol is supported.
+  - `CSI > 4 ; value m`: the XTQMODKEYS reply, so modifyOtherKeys is supported.
+  - `OSC 10/11 ; rgb:R/G/B` (1–4 hex digits per channel), ended by BEL or ST. The 16-bit form is used by xterm,
+    VTE and most others.
+  - `DCS > | text ST`: the XTVERSION reply.
+  - `CSI ? … c`: the DA1 reply.
+- **Never as keys:** a reply split across reads is reassembled like any sequence, and a reply arriving at any
+  time (even after the 1 s cut-off) is consumed, never decoded as Esc and characters. That's the guarantee that
+  matters most: a query reply typed into a text field is the classic failure of terminal queries.
+- **Where queries go:**
+  - Linux and macOS: to the terminal on the ANSI backend.
+  - Windows: to the console on the VT backend (Windows Terminal, and conhost in VT mode, which answers DA1
+    itself).
+  - Not on the legacy console backend, nor with `WithBackend` (a test backend or a custom one), where `Answered`
+    stays false.
+  - Tests drive replies through the decoder and a fake clock.
+- **Without queries** (`WithTerminalQueries(false)`): no protocol is detected, so the keyboard stays legacy,
+  except win32-input-mode (§12.5). `IsDark` comes only from `COLORFGBG`.
+
+### 12.4 Light and dark
+
+- **`IsDark`:** from `Background`'s relative luminance (sRGB, Rec. 709 weights), dark below 0.5. Without a
+  background reply, it comes from `COLORFGBG` (`fg;bg`, set by rxvt, Konsole and others): a bg of 0–6 or 8 is
+  dark, and 7 or 9–15 is light. Otherwise it's null.
+- **`WithTheme(dark, light)`** uses `light` when `IsDark` is false, and `dark` otherwise (true or unknown). The
+  theme is chosen once per run, when the background is first known, not on every reply.
+- **Three kinds of theme** (decided in 18a QA: a palette-based light theme looked different in every light
+  profile, because light profiles redefine the 16 colors heavily):
+  - `Theme.Default` uses the terminal's palette (the 16 named colors) and its default text and background, so it
+    fits the user's profile. Unchanged.
+  - `Theme.Dark` and `Theme.Light` use their own RGB colors in every slot, including `Text`'s foreground and
+    background, so they look the same in every terminal. The usual pair is `WithTheme(Theme.Dark, Theme.Light)`.
+  - `Theme.Monochrome` uses only modifiers. Unchanged.
+- **Filling the background:** when the theme's `Text` has a background, each frame starts by filling the screen
+  with `Text`, and `WidgetText.Clear` (used by dialogs, toasts, buttons, the status bar and the command line)
+  clears with `Text` instead of empty cells. Text drawn over it patches its style, so it keeps the background.
+  With `Theme.Default`, whose `Text` has no colors, nothing changes.
+- **The colors:**
+  - Dark: light gray text on a near-black blue background, a blue accent and focus, a yellow focused title, and
+    green, yellow, red, cyan and magenta accents.
+  - Light: near-black text on off-white, a dark blue accent, focus and selection (white text), light gray bars,
+    and dark accents.
+  - Text has a contrast of at least 7:1, selections, bars and buttons at least 4.5:1, and accents and chart
+    series at least 4:1 against the background. Tests check these.
+  - Terminals with 256 colors get the nearest palette entry; with 16, the nearest named color.
+- `NO_COLOR` selects Monochrome in place of Default, Dark and Light.
+
+### 12.5 Keyboard protocols
+
+**Choosing one** (with `WithKeyboardProtocol()` on, the default):
+1. If the kitty flags reply arrived, push the kitty flags: `CSI > 1 u` ("disambiguate escape codes" only: no
+   key release events, alternate keys or text reports, since `ConsoleKeyInfo` can't carry them).
+2. Else, if the XTQMODKEYS reply arrived, turn on `modifyOtherKeys` level 2: `CSI > 4 ; 2 m`.
+3. On Windows with VT input: `CSI ? 9001 h` (win32-input-mode) as soon as the input mode is set, without waiting
+   for a reply. Windows Terminal has no query for it. Consoles that don't support it ignore the private mode,
+   and the decoder accepts both encodings. `Keyboard` says `Win32InputMode` once the first such sequence
+   arrives.
+4. Otherwise, stay legacy.
+
+A protocol is never turned on without a reply that shows the terminal knows it, except the Windows private mode.
+Some terminals render unknown `CSI > … m` as SGR (underlined text), which is why modifyOtherKeys waits for
+XTQMODKEYS.
+
+**Turning it off:** `CSI < u` (pop the kitty flags), `CSI > 4 ; 0 m`, or `CSI ? 9001 l`, written on every path
+that restores the terminal today: leaving, suspend, the exit backstop, and crash restore (§5.4 and the Phase 8
+restore paths). After a suspend, the queries are asked again and the protocol is re-enabled from the new
+replies, since the user may have come back in a different terminal (after `tmux attach`). Nested apps push and
+pop the kitty flags as a stack, which is what the protocol expects.
+
+**Decoding** (always on, whatever the mode, since stray sequences are harmless):
+- **Kitty and `formatOtherKeys`:** `CSI code ; modifiers u`, with optional `:`-separated sub-parameters, of
+  which only the first is read. `code` is a Unicode code point (letters lowercase), or one of 27 Esc, 13 Enter,
+  9 Tab, 127 Backspace, or a kitty private-use code: keypad keys map to their ConsoleKeys, and modifier-only
+  keys and media keys are dropped.
+- **modifyOtherKeys:** `CSI 27 ; modifiers ; code ~`, with the same meaning.
+- **win32-input-mode:** `CSI Vk ; Sc ; Uc ; Kd ; Cs ; Rc _`.
+  - Only key downs (`Kd` = 1) are used. `Vk` maps to `ConsoleKey` directly (the values are Windows virtual-key
+    codes), and `Uc` is the character.
+  - `Cs` is the control key state: Shift 0x10, Left/Right Ctrl 0x08/0x04, Left/Right Alt 0x02/0x01.
+  - `Rc` is the repeat count, capped at 32. Modifier-only keys (Shift, Ctrl, Alt, the Windows keys) are dropped.
+  - AltGr (Right Alt with Left Ctrl) plus a printable `Uc` is that character without modifiers, as the Phase 10
+    translator does for records.
+- **Modifiers:** `ModifiersFrom` as today: the bits of m − 1 are Shift 1, Alt 2, Ctrl 4 and Meta 8 (as Alt).
+  Kitty's Super 8 and Hyper 16 drop the key (the OS or terminal normally takes those). Caps Lock 64 and Num Lock
+  128 are ignored.
+- **Same keys as before:** a combination the legacy encoding can express produces the same `ConsoleKeyInfo` as
+  it does today:
+  - Ctrl+A is `('\x01', A, Control)`, so `KeyInput.IsCtrlC` and Ctrl+Z still work.
+  - Alt+x is `('x', X, Alt)`, and Shift+Tab is `(Tab, Shift)`.
+  - Esc is Escape: kitty's `CSI 27 u` arrives at once, with no Esc timeout.
+  - Ctrl+Backspace is `('\b', Backspace, Control)`, and Ctrl+Space is `('\0', Spacebar, Control)`.
+- **New keys:** Ctrl, Shift or Alt with Enter (`'\r'`), Tab (`'\t'`) and Backspace. Ctrl+I, Ctrl+M and Ctrl+[
+  as letters and punctuation, not Tab, Enter and Esc. Ctrl and Ctrl+Shift with digits and punctuation, with
+  the base character as `KeyChar` and `ConsoleKey.D0`–`D9` or `0` as the key. Ctrl+Shift+letter as
+  `(control char, letter, Control | Shift)`.
+- **Text:** printable text without modifiers still arrives as UTF-8 bytes in every protocol, so typing,
+  non-ASCII input and IMEs are unchanged. Pastes keep using bracketed paste.
+
+**What apps see:** keys that used to arrive as Enter or Tab can now arrive as Ctrl+Enter or Ctrl+Tab. Built-in
+handling:
+- `TextAreaState` already ignores Enter with Ctrl or Alt, and inserts a line break with Shift+Enter, as chat
+  apps do.
+- `TextFieldState` and the dialogs treat Shift+Enter as Enter, and ignore Ctrl+Enter.
+- Focus treats Ctrl+Tab as unhandled, so it isn't Tab.
+
+This is a "Changed" entry (§0 rule 2): in a terminal with a protocol, Ctrl+Enter no longer submits a form where
+Enter does.
+
+### 12.6 Configuration
+
+- `MINITUI_KEYBOARD=legacy` turns off the protocols (as `WithKeyboardProtocol(false)`), and
+  `MINITUI_QUERIES=0` turns off the queries, for working around a misbehaving terminal without code changes,
+  as `MINITUI_DEBUG` does for the overlay (§9).
+- `COLORFGBG` is read for `IsDark` (§12.4).
+
+### 12.7 Debug overlay and example
+
+- The debug overlay's terminal line adds the keyboard protocol, light or dark, and the terminal name when known:
+  `120×40  truecolor  braille  mouse  kitty  dark  WezTerm 20240203`.
+- **Input demo:**
+  - Shows `TerminalInfo` (every field, and whether DA1 was answered).
+  - Lists Ctrl+Enter, Shift+Enter and Ctrl+Tab in its "try these" line, so a terminal is quick to check.
+  - Shows the raw sequence beside each decoded key, as it does now.
+- The example app uses `WithTheme(Theme.Dark, Theme.Light)`. The Widgets demo's theme toggle cycles auto (the
+  pair), Default, Dark, Light and Monochrome.
+- The Form demo binds Ctrl+Enter to Register, alongside the existing key, and says it needs a terminal with a
+  keyboard protocol.
+
+### 12.8 Tests and acceptance
+
+Automated (all platforms):
+- **Replies:** each reply form parsed (OSC 10/11 with 1-, 2- and 4-digit channels, BEL and ST endings; XTVERSION;
+  kitty flags; XTQMODKEYS; DA1), split at every byte across reads, arriving before, among and after keys and
+  pastes, and after the 1 s cut-off. None ever produces a key. Unknown replies are still dropped.
+- **Sequencing:** the exact query bytes, written once after entering and again after resume, never before
+  entering or after leaving. `Answered` on DA1, the cut-off with fake time, and `TerminalInfoEvent` raised on
+  the UI thread once per change.
+- **Light and dark:** luminance thresholds, `COLORFGBG` forms (`15;0`, `0;15`, `default;default`, three-part
+  values), `WithTheme(dark, light)` with a reply before and after the first frame, the 150 ms wait (fake time),
+  and `Theme.Light` snapshots of every widget.
+- **Protocol choice:** kitty preferred over modifyOtherKeys, nothing without replies, `?9001h` on Windows VT
+  only, opt-outs (API and environment), and the exact enable and disable bytes on every restore path and nested
+  run.
+- **Decoding:** a table of every key in §12.5 under kitty, modifyOtherKeys and win32-input-mode, checked against
+  the legacy decoding wherever legacy can express the key (property test: same `ConsoleKeyInfo`). Super and Hyper
+  dropped; keypad, AltGr, repeat counts and key ups; Esc without a timeout; Ctrl+C still quits and Ctrl+Z still
+  suspends.
+- **Widgets:** Shift+Enter and Ctrl+Enter in the text field, text area, command line and dialogs, and Ctrl+Tab
+  and focus.
+
+Manual QA (results in the PR): the Input demo and the Form demo in kitty or WezTerm (kitty protocol), xterm
+(modifyOtherKeys), GNOME Terminal (legacy, with OSC 11), tmux with `extended-keys on`, Windows Terminal
+(win32-input-mode) and conhost (legacy). On each: Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+I, Esc, Alt
+combinations, Ctrl+C and Ctrl+Z, a paste, and suspending and resuming. Check `WithTheme(dark, light)` on a light
+profile, and that no reply ever appears as typed text over SSH.
+
+### 12.9 Migration impact
+
+- Additive API: `TerminalInfo`, `KeyboardProtocol`, `TerminalInfoEvent`, `App.TerminalInfo`,
+  `WithTerminalQueries`, `WithKeyboardProtocol`, `WithTheme(dark, light)`, `Theme.Dark` and `Theme.Light`.
+- "Changed": queries are written at startup and after resume; a protocol is turned on where supported, so
+  Ctrl/Shift+Enter, Ctrl+Tab and Ctrl+I can arrive as themselves; apps with their own `OnEvent` see
+  `TerminalInfoEvent`.
+
+### 12.10 Out of scope
+
+- Key release and repeat events, alternate (shifted and base layout) keys, and associated text: kitty flags 2, 4,
+  8 and 16. `ConsoleKeyInfo` has nowhere to put them.
+- The Super and Hyper modifiers as bindings (`super+s`).
+- Cursor position (DSR 6) and other queries without a use here. A cursor position reply looks like Ctrl+F3 in
+  the legacy encoding, so it isn't asked for.
+- Reading the clipboard with OSC 52 queries (backlog rank 10). The reply parser makes it possible later.
+- Changing the theme when the terminal's colors change mid-run (some terminals report this with mode 2031).
+- Native `KEY_EVENT_RECORD` reading on Windows, which would bring back the problems that made Phase 10 choose VT
+  input.
+- Terminal-specific detection by `TERM` or `TERM_PROGRAM` beyond `COLORFGBG`.
+
+### 12.11 Implementation order
+
+Two PRs, like Phases 10 and 16, because the second changes key decoding on every platform:
+1. **18a** (queries): the query writes and reply decoding, `TerminalInfo`, `TerminalInfoEvent`, the DA1 sentinel
+   and cut-off, `IsDark` and `COLORFGBG`, `WithTheme(dark, light)`, `Theme.Dark` and `Theme.Light`, the debug overlay line and
+   the Input demo's info, README ("### Terminal queries and themes"), CHANGELOG, and manual QA of replies on every
+   terminal in §12.8.
+2. **18b** (keyboard): the three protocol decoders, enabling and restoring, `WithKeyboardProtocol` and
+   `MINITUI_KEYBOARD`, the widget handling of new keys, the example's Ctrl+Enter, README ("Keyboard input"
+   gains the protocols), CHANGELOG, and the manual QA matrix.
+
+Both go out in one release (1.7.0).
+
+### 12.12 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Keyboard protocols on by default (detected, with opt-outs), or opt-in with `WithKeyboardProtocol()`? | **On by default** (§12.5). Keys legacy can express decode exactly as before, and the point is that apps get Ctrl+Enter without knowing about protocols. `WithKeyboardProtocol(false)` and `MINITUI_KEYBOARD=legacy` opt out. |
+| 2 | Turn on modifyOtherKeys only after an XTQMODKEYS reply, or also when `TERM` starts with `xterm` (older xterms and tmux may not answer the query)? | **Only after the reply** (§12.5). Some terminals draw an unknown `CSI > 4;2m` as underlined text, and kitty-protocol terminals cover most users. |
+| 3 | With `WithTheme(dark, light)`, wait up to 150 ms before the first frame, or draw at once and switch when the reply arrives? | **Wait up to 150 ms** (§12.3), only when the pair is used. Local terminals answer in a few milliseconds, and a flash of the wrong theme looks broken. |
+| 4 | Queries on by default? | **Yes** (§12.3). They're harmless (every terminal must ignore unknown queries and DA1 is universal), and protocol detection needs them. `WithTerminalQueries(false)` or `MINITUI_QUERIES=0` turn them off. |

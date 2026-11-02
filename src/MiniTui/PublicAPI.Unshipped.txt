@@ -1,1 +1,45 @@
 #nullable enable
+MiniTui.App.TerminalInfo.get -> MiniTui.TerminalInfo!
+MiniTui.App.WithTerminalQueries(bool enabled = true) -> MiniTui.App!
+MiniTui.App.WithTheme(MiniTui.Theme! dark, MiniTui.Theme! light) -> MiniTui.App!
+MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.Kitty = 1 -> MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.Legacy = 0 -> MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.ModifyOtherKeys = 2 -> MiniTui.KeyboardProtocol
+MiniTui.KeyboardProtocol.Win32InputMode = 3 -> MiniTui.KeyboardProtocol
+MiniTui.TerminalInfo
+MiniTui.TerminalInfo.<Clone>$() -> MiniTui.TerminalInfo!
+MiniTui.TerminalInfo.Answered.get -> bool
+MiniTui.TerminalInfo.Answered.init -> void
+MiniTui.TerminalInfo.Background.get -> MiniTui.Color?
+MiniTui.TerminalInfo.Background.init -> void
+MiniTui.TerminalInfo.Equals(MiniTui.TerminalInfo? other) -> bool
+MiniTui.TerminalInfo.Foreground.get -> MiniTui.Color?
+MiniTui.TerminalInfo.Foreground.init -> void
+MiniTui.TerminalInfo.IsDark.get -> bool?
+MiniTui.TerminalInfo.IsDark.init -> void
+MiniTui.TerminalInfo.Keyboard.get -> MiniTui.KeyboardProtocol
+MiniTui.TerminalInfo.Keyboard.init -> void
+MiniTui.TerminalInfo.Name.get -> string?
+MiniTui.TerminalInfo.Name.init -> void
+MiniTui.TerminalInfo.TerminalInfo() -> void
+MiniTui.TerminalInfoEvent
+MiniTui.TerminalInfoEvent.Deconstruct(out MiniTui.TerminalInfo! Info) -> void
+MiniTui.TerminalInfoEvent.Equals(MiniTui.TerminalInfoEvent? other) -> bool
+MiniTui.TerminalInfoEvent.Info.get -> MiniTui.TerminalInfo!
+MiniTui.TerminalInfoEvent.Info.init -> void
+MiniTui.TerminalInfoEvent.TerminalInfoEvent(MiniTui.TerminalInfo! Info) -> void
+override MiniTui.TerminalInfo.Equals(object? obj) -> bool
+override MiniTui.TerminalInfo.GetHashCode() -> int
+override MiniTui.TerminalInfo.ToString() -> string!
+override MiniTui.TerminalInfoEvent.<Clone>$() -> MiniTui.TerminalInfoEvent!
+override MiniTui.TerminalInfoEvent.Equals(object? obj) -> bool
+override MiniTui.TerminalInfoEvent.GetHashCode() -> int
+override MiniTui.TerminalInfoEvent.ToString() -> string!
+override sealed MiniTui.TerminalInfoEvent.Equals(MiniTui.Event? other) -> bool
+static MiniTui.TerminalInfo.operator !=(MiniTui.TerminalInfo? left, MiniTui.TerminalInfo? right) -> bool
+static MiniTui.TerminalInfo.operator ==(MiniTui.TerminalInfo? left, MiniTui.TerminalInfo? right) -> bool
+static MiniTui.TerminalInfoEvent.operator !=(MiniTui.TerminalInfoEvent? left, MiniTui.TerminalInfoEvent? right) -> bool
+static MiniTui.TerminalInfoEvent.operator ==(MiniTui.TerminalInfoEvent? left, MiniTui.TerminalInfoEvent? right) -> bool
+static MiniTui.Theme.Dark.get -> MiniTui.Theme!
+static MiniTui.Theme.Light.get -> MiniTui.Theme!

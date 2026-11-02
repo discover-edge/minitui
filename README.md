@@ -320,9 +320,9 @@ for 4 seconds (or the `duration` you pass) from when it first appears.
 
 ## Theming
 
-The styles widgets draw with. `Theme.Default` leaves backgrounds to the terminal except for bars,
-buttons and selections, so light terminal themes work. `Theme.Monochrome` uses only bold, underline
-and reverse. When the terminal has no colors (`NO_COLOR`), the app uses it in place of `Theme.Default`,
+The styles widgets draw with. `Theme.Default` uses the terminal's own palette (the 16 standard colors) and
+leaves backgrounds to the terminal except for bars, buttons and selections, so it fits the user's profile. `Theme.Monochrome` uses only bold, underline
+and reverse. When the terminal has no colors (`NO_COLOR`), the app uses it in place of `Theme.Default`, `Theme.Dark` and `Theme.Light`,
 even if you chose `Theme.Default` explicitly, so the selection stays visible; custom themes are used as is.
 
 ```csharp
@@ -331,6 +331,18 @@ app.WithTheme(Theme.Default with { Selection = new Style(Color.Black, Color.Yell
 
 `Theme.ChartSeries` lists the styles of chart datasets that don't set their own (cyan, yellow, magenta,
 green, blue, red; Monochrome has one plain style, so datasets differ by marker).
+
+`Theme.Dark` and `Theme.Light` have their own colors instead of the terminal's palette, so they look the
+same in every terminal. They set the text and background colors too, and the app fills the screen with the
+background. To follow the terminal, pass both: the app asks the terminal for its background color (see
+[Terminal queries](#terminal-queries)) and picks one, waiting up to 150 ms before the first frame so it doesn't
+flash the wrong one. Until the terminal answers, and if it never does, the dark theme is used:
+
+```csharp
+app.WithTheme(Theme.Dark, Theme.Light);
+```
+
+In a terminal with only the 16 standard colors, their colors map to the nearest palette entries.
 
 `Theme.Current` is the running app's theme on its UI thread. `WithTheme` can be called while running.
 Builders take `.Style(...)` (and `HighlightStyle`, `BorderStyle`, …) overrides, patched over the theme.
@@ -504,6 +516,25 @@ so no `Invalidate()` is needed.
 Colors are downsampled to what the terminal supports (`NO_COLOR`, `COLORTERM`, `TERM`, ...; see
 `ColorCapability.Detect`). Stdin and stdout must be a terminal: if either is redirected,
 `TerminalNotSupportedException` is thrown.
+
+### Terminal queries
+
+At startup and after a resume, the app asks the terminal about itself: its default colors (OSC 10 and 11), its
+name and version (XTVERSION), the keyboard protocols it supports, and last Primary Device Attributes, which
+every terminal answers, so its reply means no more are coming. The replies are read by the input decoder and
+never arrive as keys, however late they come. What the terminal said is in `app.TerminalInfo`, and each change
+raises a `TerminalInfoEvent`:
+
+```csharp
+app.OnEvent(e =>
+{
+    if (e is TerminalInfoEvent { Info: { IsDark: false } }) Log.Info("light background");
+});
+```
+
+`TerminalInfo.IsDark` comes from the background's luminance, or from `COLORFGBG` when the terminal doesn't
+answer. Queries are only sent where their replies are decoded (the default backend and input source in a real
+terminal), so they never reach a test backend. `WithTerminalQueries(false)` or `MINITUI_QUERIES=0` turns them off.
 
 ### Keyboard input
 

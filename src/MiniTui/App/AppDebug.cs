@@ -137,7 +137,7 @@ public partial class App
             $"frame {frame}  render {Ms(renderTime.TotalMilliseconds)}  flush {Ms(_lastStats.FlushTime.TotalMilliseconds)}",
             $"avg {Ms(samples.Average())}  max {Ms(samples.Max())}  fps {_frameTimes.Count}",
             $"cells {_lastStats.CellsChanged}  bytes {bytes}{(_lastStats.FullRedraw ? "  full" : "")}",
-            $"{area.Width}×{area.Height}  {ColorName(_activeColorMode)}  {(_basicGlyphs ? "basic" : "braille")}{(_mouse ? "  mouse" : "")}",
+            $"{area.Width}×{area.Height}  {ColorName(_activeColorMode)}  {(_basicGlyphs ? "basic" : "braille")}{(_mouse ? "  mouse" : "")}{TerminalSummary()}",
             "focus: " + WidgetText.TruncateStart(string.Join(" › ", chain.Select(c => c.GetType().Name)), Math.Min(PanelWidth, area.Width) - 4 - 7),
         };
         if (_mouse)
@@ -172,6 +172,25 @@ public partial class App
     private static string Bytes(long bytes) => bytes < 1024
         ? bytes.ToString(CultureInfo.InvariantCulture) + " B"
         : (bytes / 1024.0).ToString("0.0", CultureInfo.InvariantCulture) + " KB";
+
+    // The keyboard protocol, light or dark, and the terminal's name, where known (1.x spec §12.7)
+    private string TerminalSummary()
+    {
+        var info = _terminalInfo;
+        var parts = new List<string>();
+        if (info.Keyboard != KeyboardProtocol.Legacy) parts.Add(ProtocolName(info.Keyboard));
+        if (info.IsDark is { } dark) parts.Add(dark ? "dark" : "light");
+        if (info.Name is { } name) parts.Add(name);
+        return parts.Count == 0 ? "" : "  " + string.Join("  ", parts);
+    }
+
+    internal static string ProtocolName(KeyboardProtocol protocol) => protocol switch
+    {
+        KeyboardProtocol.Kitty => "kitty",
+        KeyboardProtocol.ModifyOtherKeys => "modifyOtherKeys",
+        KeyboardProtocol.Win32InputMode => "win32-input",
+        _ => "legacy",
+    };
 
     private static string ColorName(ColorMode? mode) => mode switch
     {

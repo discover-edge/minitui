@@ -91,5 +91,5 @@ internal static class WidgetText
     }
 
     /// <summary>Clear the cells in <paramref name="area"/>, for widgets drawn over other content.</summary>
-    public static void Clear(Buffer buf, Rect area) => buf.FillRect(area, Cell.Empty);
+    public static void Clear(Buffer buf, Rect area) => buf.FillRect(area, Theme.Current.Text.ApplyTo(Cell.Empty));
 }
