@@ -200,7 +200,7 @@ sealed class FilesScreen : Screen
 - **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and
   the screen titles. Turn it off with `WithChrome(statusBar: false)`.
 - **Overlays:** `app.Overlays.ConfirmAsync(message)`, `ShowMessageAsync(title, text)`,
-  `ShowMenuAsync(items, anchor)`, `ShowHelp()`, or `Show(new CommandLineOverlay(registry))` and your own
+  `ShowMenuAsync(items, anchor)`, `ShowHelp()`, `ShowPalette(registry)`, or `Show(new CommandLineOverlay(registry))` and your own
   `Overlay` subclasses. An overlay with `Framed => false` draws its own border; one with
   `CloseOnClickOutside => true` closes when the user clicks elsewhere.
 - **Menus:** `ShowMenuAsync` opens a `PopupMenu` below the anchor (above it when there's more room there) and
@@ -218,6 +218,16 @@ sealed class FilesScreen : Screen
       });
       return true;
   }
+  ```
+- **Command palette:** `ShowPalette()` opens a `CommandPalette` listing every key binding in scope (the ones
+  help shows, hidden ones included) with its group and key, plus the commands of an optional `CommandRegistry`.
+  Typing filters them with fuzzy matching (matched letters in bold), ↑ ↓ PgUp PgDn move, and Enter or a click
+  runs the item once the palette has closed. A command with a usage opens the command line with its name
+  typed. Nothing is bound by default; `Fuzzy.Match(pattern, text)` is public for filtering your own lists, and
+  `new CommandPalette(items)` takes `PaletteItem`s of your own:
+
+  ```csharp
+  app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette(commands));
   ```
 
 ## Layout
@@ -284,7 +294,7 @@ Widget.Table()
 | `StatusBar()` | `Left` and `Right` text; the right side wins when both don't fit. |
 | `TextField()`, `CommandLine()` | Single-line input from `TextFieldState` / `CommandLineState`, scrolled by display width, with the terminal cursor shown. |
 | `TextArea()` | Multi-line input from `TextAreaState`: `Wrap(WrapMode.Word/Char/None)` (word by default; `None` scrolls sideways), `Placeholder`, `Block`. Scrolls to keep the cursor visible. |
-| `Select()` | A dropdown field from `SelectState`: the chosen option (or a muted `Placeholder`) and a ▼. Opening it shows a `PopupMenu` of the options below the field. |
+| `Select()` | A dropdown field from `SelectState`: the chosen option (or a muted `Placeholder`) and a ▼. Opening it shows a `PopupMenu` of the options below the field; with `SelectState.Filterable`, a dropdown with a filter line, which typing on the field opens. |
 | `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
 | `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](#trees). |
 | `Button()`, `Checkbox()` | Themed controls. |
@@ -359,7 +369,7 @@ size, scroll offset) back into it while drawing.
 | `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end); Shift with the moves selects, Ctrl+A selects all, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste, Ctrl+Z / Ctrl+Y undo and redo (see [Selection and the clipboard](#selection-and-the-clipboard)) | TextField |
 | `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
 | `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls | TextArea |
-| `SelectState` | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the `App`: `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option | Select |
+| `SelectState` | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the `App`: `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option. With `Filterable`, a typed letter opens it too, and typing in it narrows the options | Select |
 | `TabBarState` | ← → h l | TabBar |
 | `TreeState<T>` | ↑ ↓ PgUp PgDn Home End, → (expand, then first child), ← (collapse, then parent), Enter (toggle, or `Activated` on a leaf), letters jump by name; `HandleMouse` selects, toggles on the expander and scrolls | Tree |
 
@@ -790,6 +800,7 @@ var commands = CommandRegistry.Create()
     .Build();
 
 app.Keys.Add(":", "Command", () => app.Overlays.Show(new CommandLineOverlay(commands)));
+app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette(commands));   // the commands and the key bindings
 ```
 
 ## Upgrading from 0.7

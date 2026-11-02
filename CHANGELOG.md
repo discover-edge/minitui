@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `CommandPalette` and `OverlayStack.ShowPalette(commands)`: a searchable list of everything the app can do. By default (`CommandPalette.ItemsFor`) it lists the key bindings in scope, as help does but including hidden ones, with their groups and keys, then the commands and subcommands of an optional `CommandRegistry`. Typing filters them with fuzzy matching and bolds the matched letters; ↑ ↓ PgUp PgDn Ctrl+Home Ctrl+End move; Enter or a click runs the item after the palette closes; Esc or a click outside closes it. A command with a usage opens the command line with its name typed. The binding that opened the palette isn't listed. `PaletteItem` (`Label`, `Run`, `Detail`, `Hint`) for lists of your own. Not bound by default.
+- `Fuzzy.Match(pattern, text)` and `FuzzyMatch`: the palette's matcher, ignoring case and spaces in the pattern, favouring prefixes, word starts and runs, with the matched positions for highlighting.
+- `SelectState.Filterable`: the dropdown gets a filter line that narrows the options as you type, and a letter typed on the closed field opens it with that letter in the filter.
+- Example: Ctrl+P opens the palette everywhere (on the Command Registry screen with its commands too), and the Form demo has a filterable Country select.
+- `docs/SPEC-1.x.md` §13: the command palette and filterable select spec.
+
 ## [1.7.0] - 2026-11-02
 
 MiniTui 1.7: the app asks the terminal about itself, picks a light or dark theme to match, and turns on keyboard protocols for keys like Ctrl+Enter.

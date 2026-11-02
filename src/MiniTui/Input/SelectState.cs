@@ -9,7 +9,7 @@ public sealed class SelectState
     private IReadOnlyList<string> _options;
     private int? _selected;
     private Rect _field;
-    private PopupMenu? _menu;
+    private Overlay? _menu;
 
     /// <summary>Create a state with options and an optional choice.</summary>
     public SelectState(IReadOnlyList<string>? options = null, int? selected = null)
@@ -39,6 +39,12 @@ public sealed class SelectState
     /// <summary>The chosen option, or null.</summary>
     public string? Value => _selected is { } i && i < _options.Count ? _options[i] : null;
 
+    /// <summary>
+    /// Open a dropdown with a filter line instead of a plain menu, so typing narrows the options, and let a
+    /// character typed on the closed field open it with that character in the filter (1.x spec §13.6). Default false.
+    /// </summary>
+    public bool Filterable { get; set; }
+
     /// <summary>True while its menu is open.</summary>
     public bool IsOpen => _menu is not null;
 
@@ -47,19 +53,31 @@ public sealed class SelectState
 
     /// <summary>
     /// Show the options in a <see cref="PopupMenu"/> below the field from the last draw, as wide as it, with the
-    /// current choice selected. Does nothing while open or with no options.
+    /// current choice selected; with <see cref="Filterable"/>, a dropdown with a filter line. Does nothing while
+    /// open or with no options.
     /// </summary>
-    public void Open(App app)
+    public void Open(App app) => Open(app, "");
+
+    private void Open(App app, string filter)
     {
         ArgumentNullException.ThrowIfNull(app);
         if (_menu is not null || _options.Count == 0) return;
+        if (Filterable)
+        {
+            _menu = new FilterMenu(_options, _field, _selected, _field.Width, filter) { Closed = OnClosed };
+            app.Overlays.Show(_menu);
+            return;
+        }
         var items = new MenuItem[_options.Count];
         for (var i = 0; i < items.Length; i++) items[i] = new MenuItem(_options[i] ?? "");
         _menu = new PopupMenu(items, _field, _selected ?? 0) { MinWidth = _field.Width, Closed = OnClosed };
         app.Overlays.Show(_menu);
     }
 
-    /// <summary>Enter, Space, ↑, ↓, Alt+↓ and F4 open the menu. Returns true if it opened.</summary>
+    /// <summary>
+    /// Enter, Space, ↑, ↓, Alt+↓ and F4 open the menu; with <see cref="Filterable"/>, so does a typed character,
+    /// which starts the filter. Returns true if it opened.
+    /// </summary>
     public bool HandleKey(ConsoleKeyInfo key, App app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -70,8 +88,17 @@ public sealed class SelectState
             ConsoleKey.DownArrow => plain || key.Modifiers == ConsoleModifiers.Alt,
             _ => plain && key.KeyChar == ' ',
         };
-        if (!opens || _options.Count == 0 || _menu is not null) return false;
-        Open(app);
+        if (_options.Count == 0 || _menu is not null) return false;
+        if (opens)
+        {
+            Open(app);
+            return true;
+        }
+
+        // 1.x spec §13.6: a filterable field opens on a typed character, with it in the filter
+        var c = key.KeyChar;
+        if (!Filterable || KeyInput.HasCommandModifier(key) || c == '\0' || char.IsControl(c) || char.IsSurrogate(c)) return false;
+        Open(app, c.ToString());
         return true;
     }
 

@@ -98,7 +98,7 @@ internal static class KeyRouter
     }
 
     /// <summary>For each scope (innermost first), its entries with the labels of the bindings no inner scope shadows.</summary>
-    private static List<(string Group, List<(KeyMap.Entry Entry, string Keys)> Entries)> Visible(App app)
+    internal static List<(string Group, List<(KeyMap.Entry Entry, string Keys)> Entries)> Visible(App app)
     {
         var seen = new HashSet<KeyBinding>();
         var result = new List<(string, List<(KeyMap.Entry, string)>)>();

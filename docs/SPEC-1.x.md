@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -41,6 +41,7 @@ or add to them:
 | **16. Text selection and clipboard** | Selection in `TextField` and `TextArea` (Shift+arrows, select all, typing replaces it; mouse drag needs motion reports), copy and cut to the system clipboard (OSC 52; `SetClipboardData` in conhost; an in-app fallback), and a decision on undo/redo. Open questions: the copy key (Ctrl+C quits) and whether undo takes Ctrl+Z from `WithSuspendKey`. | 10, 12 | §10 | 1.5.0 |
 | **17. Tree view** | `Widget.Tree()` and `TreeState<T>` over the app's own nodes: expand and collapse, lazily read children, tree keys, type-ahead, the mouse and optional guide lines. | 10 | §11 | 1.6.0 |
 | **18. Terminal queries and richer keyboard input** | Ask the terminal about itself (DA1 as the sentinel, OSC 10/11 colors, XTVERSION, keyboard protocol support) with replies never leaked as keys; `TerminalInfo`; light and dark themes; the kitty keyboard protocol, modifyOtherKeys and win32-input-mode for Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+I. Backlog ranks 1 and 6. | 8, 10 | §12 | 1.7.0 |
+| **19. Command palette and filterable select** | A `CommandPalette` overlay that fuzzy-filters the key bindings in scope and a `CommandRegistry`'s commands and runs the chosen one; `Fuzzy.Match`; `SelectState.Filterable` for a dropdown you type into. Backlog rank 2. | 13 | §13 | 1.8.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -55,7 +56,7 @@ picked, as in §0 rule 3.
 | Rank | Idea | Why it matters | Deferred by | Depends on |
 |---|---|---|---|---|
 | 1 | **Richer keyboard input** (Phase 18, §12). The kitty keyboard protocol (`CSI > 1 u`) and xterm `modifyOtherKeys` on Unix, and `win32-input-mode` (`?9001`) in Windows Terminal, all opt-in and detected. They report Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+Backspace as themselves, and tell Ctrl+I from Tab and Ctrl+M from Enter. | Today a text area has no natural submit key, and Ctrl+Enter, the usual answer, can't be told from Enter. Every input phase deferred this, and every app with a multi-line field runs into it. | §2.12, §4.14 | 8, 10 |
-| 2 | **Command palette and filterable select.** A `CommandPalette` overlay (Ctrl+P or Ctrl+Shift+P) that fuzzy-filters `CommandRegistry` entries and key map actions as you type, with their key hints. The same filtering list makes a combo box `Select` you can type into. | The discoverability of keys and commands is the main usability gap in larger apps, and VS Code, Textual and lazygit all have a palette. It reuses `PopupMenu`, `TextFieldState` and `CommandRegistry`. | §7.12 | 7, 13 |
+| 2 | **Command palette and filterable select** (Phase 19, §13). A `CommandPalette` overlay (Ctrl+P or Ctrl+Shift+P) that fuzzy-filters `CommandRegistry` entries and key map actions as you type, with their key hints. The same filtering list makes a combo box `Select` you can type into. | The discoverability of keys and commands is the main usability gap in larger apps, and VS Code, Textual and lazygit all have a palette. It reuses `PopupMenu`, `TextFieldState` and `CommandRegistry`. | §7.12 | 7, 13 |
 | 3 | **Split panes and scrollbar dragging.** A `Split` layout with draggable dividers (mouse and keyboard), dragging a scrollbar's thumb in lists, tables, paragraphs and text areas, and clicking a table header to sort (an event; the app sorts). | `MouseAction.Drag` (1.5) makes these cheap now. Resizable panes are standard in file managers, log viewers and dashboards. | §4.14, §10.12 | 10, 16 |
 | 4 | **Menu bar and richer menus.** A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
 | 5 | **Text area as an editor.** An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
@@ -2912,3 +2913,232 @@ Both go out in one release (1.7.0).
 | 2 | Turn on modifyOtherKeys only after an XTQMODKEYS reply, or also when `TERM` starts with `xterm` (older xterms and tmux may not answer the query)? | **Only after the reply** (§12.5). Some terminals draw an unknown `CSI > 4;2m` as underlined text, and kitty-protocol terminals cover most users. |
 | 3 | With `WithTheme(dark, light)`, wait up to 150 ms before the first frame, or draw at once and switch when the reply arrives? | **Wait up to 150 ms** (§12.3), only when the pair is used. Local terminals answer in a few milliseconds, and a flash of the wrong theme looks broken. |
 | 4 | Queries on by default? | **Yes** (§12.3). They're harmless (every terminal must ignore unknown queries and DA1 is universal), and protocol detection needs them. `WithTerminalQueries(false)` or `MINITUI_QUERIES=0` turn them off. |
+
+---
+
+## 13. Command palette and filterable select (Phase 19)
+
+### 13.1 Purpose
+
+In a larger app, nobody remembers every key, and the `?` help overlay only lists them; it can't run them. A
+command palette (VS Code's Ctrl+Shift+P, Textual's Ctrl+P, lazygit's `?` menu) fixes that: an overlay with a
+text field where typing narrows a list of everything the app can do, and Enter runs the selected item. Phase 19
+adds it (backlog rank 2, §1.1) and reuses its filtering list for a second gap left by Phase 13 (§7.12): a
+`Select` with dozens of options (countries, time zones, fonts) you can type into to narrow down.
+- **`CommandPalette`:** an overlay that fuzzy-filters items as you type and runs the chosen one. By default
+  its items are the key bindings in scope (the same entries the help overlay lists, with their keys as hints)
+  and, optionally, the commands of a `CommandRegistry`.
+- **`Fuzzy.Match`:** the matcher it uses, public so apps can filter their own lists the same way.
+- **Filterable select:** `SelectState.Filterable` opens a dropdown with a filter line instead of a plain menu.
+
+### 13.2 Public API
+
+```csharp
+/// An item in a CommandPalette (§13.3).
+/// <param name="Label">The text that's matched and shown, such as "Refresh".</param>
+/// <param name="Run">Called on the UI thread after the palette closes, when the item is chosen.</param>
+public sealed record PaletteItem(string Label, Action Run)
+{
+    /// Muted text shown after the label, not matched: a group ("Files") or a command's description.
+    public string? Detail { get; init; }
+
+    /// Display-only text drawn right-aligned and muted, such as a key: "ctrl+s".
+    public string? Hint { get; init; }
+}
+
+/// A searchable list of things to run (§13.3). Typing filters the items with Fuzzy.Match; ↑ ↓ PgUp PgDn move
+/// the selection; Enter or a click runs the selected item; Esc or a click outside closes it.
+public sealed class CommandPalette : Overlay
+{
+    /// Create a palette over `items`. Show it with OverlayStack.Show.
+    public CommandPalette(IReadOnlyList<PaletteItem> items);
+
+    /// The chosen item's index in `items`, or null when the palette closed without a choice.
+    public Task<int?> Result { get; }
+
+    /// Shown muted in the empty filter line. Default "Type to search".
+    public string Placeholder { get; init; }
+
+    /// At most this many item rows are shown; more scroll. Default 12.
+    public int MaxRows { get; init; } = 12;
+
+    /// The items for the app's current state: the key bindings in scope, innermost first, then each command of
+    /// `commands` (and its subcommands), in add order (§13.4).
+    public static IReadOnlyList<PaletteItem> ItemsFor(App app, CommandRegistry? commands = null);
+}
+
+public sealed partial class OverlayStack
+{
+    /// Show a CommandPalette over CommandPalette.ItemsFor(app, commands). Not bound by default:
+    /// app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette()).
+    public void ShowPalette(CommandRegistry? commands = null);
+}
+
+/// Fuzzy matching, as in the command palette (§13.5).
+public static class Fuzzy
+{
+    /// Match `pattern` against `text`: null unless every character of `pattern` (ignoring case and spaces)
+    /// appears in `text` in order. An empty pattern matches everything with score 0.
+    public static FuzzyMatch? Match(string pattern, string text);
+}
+
+/// A successful fuzzy match: higher scores are better matches; Positions are the matched indexes in the text,
+/// ascending, for highlighting.
+public readonly record struct FuzzyMatch(int Score, IReadOnlyList<int> Positions);
+
+public sealed partial class SelectState
+{
+    /// Open a dropdown with a filter line instead of a plain menu, and let typing on the closed field open it
+    /// (§13.6). Default false.
+    public bool Filterable { get; set; }
+}
+```
+
+- `CommandPalette` is sealed, like `PopupMenu`. Apps that want their own items (recent files, open buffers)
+  build a list, optionally starting from `ItemsFor`, and show it with `app.Overlays.Show(new CommandPalette(items))`.
+- `SelectBuilder` needs nothing new: the field draws the same whether it's filterable or not.
+
+### 13.3 The palette
+
+- **Placement:** centered horizontally, one row below the top of the screen (two on screens taller than 20
+  rows), `max(40, 60%)` of the screen's width (never wider than the screen). Its height fits the filter line, a
+  divider and up to `MaxRows` rows, shrinking to the matches and growing back as the filter changes; with no
+  matches, one row says "No matches" in `TextMuted`. Framed, with the title " Commands ".
+- **The filter line:** a `TextFieldState`, so it has every text field key: ← → Home End, Backspace and Delete,
+  Ctrl+←/→ by word, selection, Ctrl+A, copy, cut, paste, and undo. `CapturesText` is true.
+- **Keys:** ↑ and ↓ move the selection (wrapping), PgUp and PgDn by a page, Ctrl+Home and Ctrl+End to the first
+  and last match. Enter (`KeyInput.IsEnter`) runs the selected item. Esc closes. Tab does nothing. Every other key
+  goes to the filter line; the palette swallows everything, as overlays do.
+- **Filtering:** at each change of the filter text, every item's `Label` is matched with `Fuzzy.Match`. The
+  matches are sorted by score, highest first, with ties in the items' order; an empty filter shows every item in
+  order. The selection goes back to the first match whenever the filter changes.
+- **Rows:** the label, then the `Detail` in `TextMuted` two columns after it, and the `Hint` right-aligned in
+  `TextMuted`, as `PopupMenu` draws hints. The label's matched characters are drawn bold in `Title` (on the
+  selected row, bold in `Selection`). Labels, details and hints are sanitized to one line and truncated with `…`,
+  the detail first. A scrollbar shows when the matches don't fit.
+- **Mouse:** a click on a row runs it, the wheel moves the selection, a click outside closes the palette
+  (`CloseOnClickOutside`), and a click in the filter line moves its cursor.
+- **Running:** choosing an item closes the palette first, then calls `Run` on the UI thread, so the item runs
+  with the focus and overlays as they were before the palette opened (a binding that opens a dialog opens it
+  over the screen, not over the palette). An exception from `Run` goes to the app's usual error handling.
+  `Result` completes with the item's index before `Run` is called.
+
+### 13.4 The default items
+
+`ItemsFor(app, commands)`, called when the palette opens:
+- **Key bindings:** the bindings the help overlay would list (§9.5): the focus chain's key maps innermost first,
+  then `App.Keys`, with shadowed bindings left out. One item per `KeyMap` entry: `Label` is its description,
+  `Detail` is its group (the component's `KeysGroup`, or "Global"), `Hint` is its first key label that isn't
+  shadowed, and `Run` is its handler. Entries with `showInHints: false` are listed too, since the palette is for
+  finding what isn't shown. An open overlay's bindings are listed (its chain is the focus chain); the global ones
+  aren't, as in help.
+- **The binding that opened the palette isn't listed.** `KeyMap` remembers the entry whose handler is running,
+  and `ItemsFor` skips it, so "Commands" doesn't appear in its own list, whatever the binding's description is.
+- **Commands:** with a `CommandRegistry`, one item per command, then its subcommands, in add order:
+  - `Label` is `:name`, or `:name sub` for a subcommand, with the usage after it (`:add <text>`).
+  - `Detail` is the description; there's no hint.
+  - Choosing a command without a usage runs it as `:name` does in `CommandLineOverlay`: its message becomes a
+    toast, and `CommandResult.Quit` quits.
+  - Choosing a command with a usage opens a `CommandLineOverlay` for the registry with `name ` already typed,
+    so the user adds the arguments.
+- Duplicates aren't merged: a command also bound to a key appears twice, once from each source.
+
+### 13.5 Fuzzy matching
+
+`Fuzzy.Match(pattern, text)`, by UTF-16 character, ignoring case with `char.ToUpperInvariant`:
+- Spaces in the pattern are skipped, so "new file" matches "New File" and "NewFile". Every other pattern
+  character must appear in the text in order; otherwise the result is null.
+- **Positions** are the ones with the highest score, found by dynamic programming in O(pattern × text). This
+  keeps "nf" on the N and F of "New File" rather than an N and F inside a word.
+- **Score:** 0, then per matched character:
+  - +10 at a word start: index 0, after a space or punctuation, or an uppercase letter after a lowercase one
+    ("Fi" in "OpenFile").
+  - +5 right after the previous match (a consecutive run).
+  - +3 if the case is the same as the pattern's.
+  - −1 for each unmatched character skipped since the previous match (−3 at most per gap).
+  - A match of the whole text at the start gets +15, and a prefix of it +10.
+  - Ties sort by the shorter text, then the items' order.
+- An empty or all-space pattern matches every text with score 0 and no positions.
+- The weights aren't a **Decision** and can be tuned: tests pin orderings, not exact scores (a prefix beats a
+  word-start match, which beats a scattered match).
+
+### 13.6 Filterable select
+
+With `SelectState.Filterable` true:
+- **Opening:** Enter, Space, ↑, ↓, Alt+↓, F4 and a click open it, as today, with an empty filter. A printable
+  character without Ctrl or Alt typed on the closed, focused field also opens it, with that character already in
+  the filter, so typing "ger" on a country field goes straight to Germany. That's a "Changed" only for fields
+  that opt in: a plain select still returns false for letters, so they reach the bindings.
+- **The dropdown:** placed as the plain menu is (below the field, as wide as it, above when there's more room),
+  with the filter line in its top row, a divider, and the matching options under it, drawn like the palette's
+  rows with matched characters highlighted. `MaxRows` is 12.
+- **Keys:** as the palette's (§13.3), except that Tab and Esc close it without a choice, as a plain menu.
+- **Selection:** with an empty filter the current choice is selected and scrolled into view; once the filter
+  changes, the first match is.
+- **Choosing** sets `Selected` to the option's index in `Options` (not in the matches) and raises `Changed` if
+  it's a different option. The choice is always one of the options: free text isn't accepted.
+- Space types a space in the filter once the dropdown is open, so options with spaces can be matched.
+
+### 13.7 Example
+
+- The example app binds Ctrl+P to the palette globally. The Notes screen (the `:` command line demo) binds
+  Ctrl+P itself, shadowing the global binding, to `ShowPalette(_commands)`, so its commands are listed too.
+- The Controls section of the Form demo gains a filterable "Country" select with about 50 options.
+- README: "### Command palette" under the overlays, and the filterable select in the Select paragraph.
+
+### 13.8 Tests and acceptance
+
+Automated:
+- **Fuzzy:** matches and non-matches, case, spaces in the pattern, empty patterns, word starts (spaces,
+  punctuation, camelCase), the position choice ("nf" in "New File"), and orderings: exact prefix > word starts >
+  scattered, shorter text on ties, stable for equal scores. Non-BMP text doesn't throw.
+- **Palette:** filtering, ordering and reselecting as the filter changes; every key in §13.3, including
+  Ctrl+Home and Ctrl+End and text-field keys reaching the filter; Enter running the item after the palette has
+  closed (the focus chain at `Run` is the screen's); `Result`; Esc; the mouse; the "No matches" row; placement
+  and shrinking on small screens; snapshots with highlights, details, hints and truncation.
+- **Items:** bindings in scope innermost first, shadowing, groups, the opening binding skipped, hidden
+  (`showInHints: false`) bindings listed, an open overlay's bindings, registry commands and subcommands, a
+  command with a usage opening the command line with its name typed, results as toasts, and `Quit`.
+- **Select:** filterable opening keys (and typing on the closed field), the plain select unchanged, choosing an
+  option maps to its index in `Options`, `Changed`, Esc and Tab closing without a change, the initial selection,
+  and snapshots of the dropdown above and below the field.
+
+Manual QA (results in the PR): the palette and the country select in Windows Terminal, conhost and a Linux
+terminal, with the mouse; Ctrl+P in tmux.
+
+### 13.9 Migration impact
+
+- Additive API: `PaletteItem`, `CommandPalette`, `OverlayStack.ShowPalette`, `Fuzzy`, `FuzzyMatch` and
+  `SelectState.Filterable`.
+- No behavior changes for existing apps: nothing is bound by default, and `Filterable` is off by default.
+
+### 13.10 Out of scope
+
+- Recently used items first, and remembering the filter between openings.
+- Item icons, disabled items, separators and nested palettes (a "Go to file…" item opening a second list is an
+  app's own `CommandPalette`).
+- An editable combo box that accepts text outside the options, multi-select, and `SelectState<T>`.
+- Filtering `List`, `Table` and `Tree` as you type (an app can do it with `Fuzzy.Match`); tree filtering is
+  backlog rank 8.
+- Matching on details or hints, and matching by grapheme cluster or with diacritics folded.
+- A default key for the palette (§13.11 question 1).
+
+### 13.11 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Bind Ctrl+P to the palette by default, as `?` is bound to help, or leave it to the app? | **Leave it to the app** (§13.2). Ctrl+P means "previous" or "print" in many apps, and a built-in binding would shadow nothing but still appear in every app's hints. One line binds it. |
+| 2 | Default items: key bindings (plus an optional registry), or only items the app passes? | **Key bindings plus an optional registry** (§13.4). Every app gets a useful palette from one line, and the bindings already have descriptions. |
+| 3 | Run the chosen item after the palette closes, or while it's still open? | **After it closes** (§13.3), so a binding sees the same focus chain as when its key is pressed, and a dialog it opens isn't stacked over the palette. |
+| 4 | Filterable select: open on the first typed letter, or only with the usual open keys? | **Open on the first letter too** (§13.6), as combo boxes do. Only fields that opt in change. |
+
+### 13.12 Implementation order
+
+One PR. The palette and the filterable select share an internal filter list (the filter line, the matches, the
+selection and the row drawing), so they're built together:
+1. `Fuzzy` and its tests.
+2. The internal filter list, then `CommandPalette`, `PaletteItem`, `ItemsFor` and `ShowPalette`.
+3. `SelectState.Filterable` and its dropdown, sharing `PopupMenu`'s placement.
+4. The example, README, CHANGELOG and the manual QA.
+
+Ships as 1.8.0 when released.

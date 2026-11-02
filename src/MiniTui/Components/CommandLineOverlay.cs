@@ -13,6 +13,13 @@ public sealed class CommandLineOverlay : Overlay
     /// <summary>Create a command line that runs commands from <paramref name="registry"/>.</summary>
     public CommandLineOverlay(CommandRegistry registry) => _registry = registry ?? throw new ArgumentNullException(nameof(registry));
 
+    /// <summary>A command line with <paramref name="text"/> already typed, the cursor at its end (1.x spec §13.4).</summary>
+    internal CommandLineOverlay(CommandRegistry registry, string text) : this(registry)
+    {
+        _state.Text = text;
+        _state.Cursor = text.Length;
+    }
+
     /// <inheritdoc/>
     public override bool CapturesText => true;
 
@@ -33,14 +40,18 @@ public sealed class CommandLineOverlay : Overlay
         var app = App;
         var text = _state.Text.Trim();
         Close();
-        if (text.Length == 0) return true;
+        if (text.Length > 0) Execute(app, _registry, text);
+        return true;
+    }
 
+    /// <summary>Run <paramref name="text"/> (with or without its <c>:</c>), showing its message as a toast; <see cref="CommandResult.Quit"/> quits.</summary>
+    internal static void Execute(App app, CommandRegistry registry, string text)
+    {
         var command = ParsedCommand.Parse(text.StartsWith(':') ? text : ":" + text);
-        var result = _registry.Execute(command);
+        var result = registry.Execute(command);
         if (result is null) app.Toasts.Push($"Unknown command: {command?.Name ?? text}", ToastLevel.Error);
         else if (result.Message is { } message) app.Toasts.Push(message, result.Success ? ToastLevel.Success : ToastLevel.Error);
         if (result?.ShouldQuit == true) app.Quit();
-        return true;
     }
 
     /// <inheritdoc/>
