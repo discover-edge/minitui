@@ -249,6 +249,13 @@ MiniTui.CommandLineState.History.get -> System.Collections.Immutable.ImmutableLi
 MiniTui.CommandLineState.History.set -> void
 MiniTui.CommandLineState.MaxHistory.get -> int
 MiniTui.CommandLineState.MaxHistory.set -> void
+MiniTui.CommandPalette
+MiniTui.CommandPalette.CommandPalette(System.Collections.Generic.IReadOnlyList<MiniTui.PaletteItem!>! items) -> void
+MiniTui.CommandPalette.MaxRows.get -> int
+MiniTui.CommandPalette.MaxRows.init -> void
+MiniTui.CommandPalette.Placeholder.get -> string!
+MiniTui.CommandPalette.Placeholder.init -> void
+MiniTui.CommandPalette.Result.get -> System.Threading.Tasks.Task<int?>!
 MiniTui.CommandRegistry
 MiniTui.CommandRegistry.Add(string! name, params string![]! aliases) -> MiniTui.CommandBuilder!
 MiniTui.CommandRegistry.CommandRegistry() -> void
@@ -353,6 +360,16 @@ MiniTui.FrameStats.FullRedraw.get -> bool
 MiniTui.FrameStats.FullRedraw.init -> void
 MiniTui.FrameStats.RenderTime.get -> System.TimeSpan
 MiniTui.FrameStats.RenderTime.init -> void
+MiniTui.Fuzzy
+MiniTui.FuzzyMatch
+MiniTui.FuzzyMatch.Deconstruct(out int Score, out System.Collections.Generic.IReadOnlyList<int>! Positions) -> void
+MiniTui.FuzzyMatch.Equals(MiniTui.FuzzyMatch other) -> bool
+MiniTui.FuzzyMatch.FuzzyMatch() -> void
+MiniTui.FuzzyMatch.FuzzyMatch(int Score, System.Collections.Generic.IReadOnlyList<int>! Positions) -> void
+MiniTui.FuzzyMatch.Positions.get -> System.Collections.Generic.IReadOnlyList<int>!
+MiniTui.FuzzyMatch.Positions.init -> void
+MiniTui.FuzzyMatch.Score.get -> int
+MiniTui.FuzzyMatch.Score.init -> void
 MiniTui.GaugeBuilder
 MiniTui.GaugeBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.GaugeBuilder!
 MiniTui.GaugeBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
@@ -565,7 +582,21 @@ MiniTui.OverlayStack.Show(MiniTui.Overlay! overlay) -> void
 MiniTui.OverlayStack.ShowHelp() -> void
 MiniTui.OverlayStack.ShowMenuAsync(System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items, MiniTui.Rect anchor, int selected = 0) -> System.Threading.Tasks.Task<int?>!
 MiniTui.OverlayStack.ShowMessageAsync(string! title, MiniTui.Text! body) -> System.Threading.Tasks.Task!
+MiniTui.OverlayStack.ShowPalette(MiniTui.CommandRegistry? commands = null) -> void
 MiniTui.OverlayStack.Top.get -> MiniTui.Overlay?
+MiniTui.PaletteItem
+MiniTui.PaletteItem.<Clone>$() -> MiniTui.PaletteItem!
+MiniTui.PaletteItem.Deconstruct(out string! Label, out System.Action! Run) -> void
+MiniTui.PaletteItem.Detail.get -> string?
+MiniTui.PaletteItem.Detail.init -> void
+MiniTui.PaletteItem.Equals(MiniTui.PaletteItem? other) -> bool
+MiniTui.PaletteItem.Hint.get -> string?
+MiniTui.PaletteItem.Hint.init -> void
+MiniTui.PaletteItem.Label.get -> string!
+MiniTui.PaletteItem.Label.init -> void
+MiniTui.PaletteItem.PaletteItem(string! Label, System.Action! Run) -> void
+MiniTui.PaletteItem.Run.get -> System.Action!
+MiniTui.PaletteItem.Run.init -> void
 MiniTui.Paragraph
 MiniTui.ParagraphBuilder
 MiniTui.ParagraphBuilder.Alignment(MiniTui.Alignment alignment) -> MiniTui.ParagraphBuilder!
@@ -703,6 +734,8 @@ MiniTui.SelectBuilder.State(MiniTui.SelectState! state) -> MiniTui.SelectBuilder
 MiniTui.SelectBuilder.Style(MiniTui.Style style) -> MiniTui.SelectBuilder!
 MiniTui.SelectState
 MiniTui.SelectState.Changed -> System.EventHandler?
+MiniTui.SelectState.Filterable.get -> bool
+MiniTui.SelectState.Filterable.set -> void
 MiniTui.SelectState.HandleKey(System.ConsoleKeyInfo key, MiniTui.App! app) -> bool
 MiniTui.SelectState.HandleMouse(MiniTui.MouseEvent! mouse, MiniTui.App! app) -> bool
 MiniTui.SelectState.IsOpen.get -> bool
@@ -1155,6 +1188,15 @@ override MiniTui.CommandLineOverlay.Placement(MiniTui.Rect screen) -> MiniTui.Re
 override MiniTui.CommandLineOverlay.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.CommandLineOverlay.Title.get -> string?
 override MiniTui.CommandLineState.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.CommandPalette.CapturesText.get -> bool
+override MiniTui.CommandPalette.CloseOnClickOutside.get -> bool
+override MiniTui.CommandPalette.Framed.get -> bool
+override MiniTui.CommandPalette.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.CommandPalette.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+override MiniTui.CommandPalette.HandlePaste(string! text) -> bool
+override MiniTui.CommandPalette.Placement(MiniTui.Rect screen) -> MiniTui.Rect
+override MiniTui.CommandPalette.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.CommandPalette.Title.get -> string?
 override MiniTui.CommandResult.Equals(object? obj) -> bool
 override MiniTui.CommandResult.GetHashCode() -> int
 override MiniTui.CommandResult.ToString() -> string!
@@ -1173,6 +1215,7 @@ override MiniTui.Event.Equals(object? obj) -> bool
 override MiniTui.Event.GetHashCode() -> int
 override MiniTui.Event.ToString() -> string!
 override MiniTui.FrameStats.GetHashCode() -> int
+override MiniTui.FuzzyMatch.GetHashCode() -> int
 override MiniTui.HelpOverlay.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.HelpOverlay.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.HelpOverlay.Placement(MiniTui.Rect screen) -> MiniTui.Rect
@@ -1204,6 +1247,9 @@ override MiniTui.MouseEvent.Equals(object? obj) -> bool
 override MiniTui.MouseEvent.GetHashCode() -> int
 override MiniTui.MouseEvent.ToString() -> string!
 override MiniTui.Overlay.KeysGroup.get -> string!
+override MiniTui.PaletteItem.Equals(object? obj) -> bool
+override MiniTui.PaletteItem.GetHashCode() -> int
+override MiniTui.PaletteItem.ToString() -> string!
 override MiniTui.ParsedCommand.Equals(object? obj) -> bool
 override MiniTui.ParsedCommand.GetHashCode() -> int
 override MiniTui.ParsedCommand.ToString() -> string!
@@ -1294,6 +1340,7 @@ static MiniTui.Color.implicit operator MiniTui.Color(System.ConsoleColor c) -> M
 static MiniTui.Color.operator !=(MiniTui.Color left, MiniTui.Color right) -> bool
 static MiniTui.Color.operator ==(MiniTui.Color left, MiniTui.Color right) -> bool
 static MiniTui.ColorCapability.Detect(MiniTui.ColorMode? explicitMode = null) -> MiniTui.ColorMode
+static MiniTui.CommandPalette.ItemsFor(MiniTui.App! app, MiniTui.CommandRegistry? commands = null) -> System.Collections.Generic.IReadOnlyList<MiniTui.PaletteItem!>!
 static MiniTui.CommandRegistry.Create() -> MiniTui.CommandRegistry!
 static MiniTui.CommandResult.Error(string! message) -> MiniTui.CommandResult!
 static MiniTui.CommandResult.Ok() -> MiniTui.CommandResult!
@@ -1316,6 +1363,9 @@ static MiniTui.Event.operator !=(MiniTui.Event? left, MiniTui.Event? right) -> b
 static MiniTui.Event.operator ==(MiniTui.Event? left, MiniTui.Event? right) -> bool
 static MiniTui.FrameStats.operator !=(MiniTui.FrameStats left, MiniTui.FrameStats right) -> bool
 static MiniTui.FrameStats.operator ==(MiniTui.FrameStats left, MiniTui.FrameStats right) -> bool
+static MiniTui.Fuzzy.Match(string! pattern, string! text) -> MiniTui.FuzzyMatch?
+static MiniTui.FuzzyMatch.operator !=(MiniTui.FuzzyMatch left, MiniTui.FuzzyMatch right) -> bool
+static MiniTui.FuzzyMatch.operator ==(MiniTui.FuzzyMatch left, MiniTui.FuzzyMatch right) -> bool
 static MiniTui.KeyBinding.Parse(string! s) -> MiniTui.KeyBinding
 static MiniTui.KeyBinding.operator !=(MiniTui.KeyBinding left, MiniTui.KeyBinding right) -> bool
 static MiniTui.KeyBinding.operator ==(MiniTui.KeyBinding left, MiniTui.KeyBinding right) -> bool
@@ -1337,6 +1387,8 @@ static MiniTui.MenuItem.operator ==(MiniTui.MenuItem? left, MiniTui.MenuItem? ri
 static MiniTui.MouseEvent.operator !=(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
 static MiniTui.MouseEvent.operator ==(MiniTui.MouseEvent? left, MiniTui.MouseEvent? right) -> bool
 static MiniTui.Overlay.Centered(MiniTui.Rect screen, int width, int height) -> MiniTui.Rect
+static MiniTui.PaletteItem.operator !=(MiniTui.PaletteItem? left, MiniTui.PaletteItem? right) -> bool
+static MiniTui.PaletteItem.operator ==(MiniTui.PaletteItem? left, MiniTui.PaletteItem? right) -> bool
 static MiniTui.Paragraph.MeasureLines(MiniTui.Text! text, int width, MiniTui.WrapMode wrap) -> int
 static MiniTui.ParsedCommand.Parse(string! input) -> MiniTui.ParsedCommand?
 static MiniTui.ParsedCommand.operator !=(MiniTui.ParsedCommand? left, MiniTui.ParsedCommand? right) -> bool
@@ -1456,6 +1508,8 @@ virtual MiniTui.TextFieldState.HandleKey(System.ConsoleKeyInfo key) -> bool
 ~override MiniTui.Color.Equals(object obj) -> bool
 ~override MiniTui.FrameStats.Equals(object obj) -> bool
 ~override MiniTui.FrameStats.ToString() -> string
+~override MiniTui.FuzzyMatch.Equals(object obj) -> bool
+~override MiniTui.FuzzyMatch.ToString() -> string
 ~override MiniTui.KeyBinding.Equals(object obj) -> bool
 ~override MiniTui.Margin.Equals(object obj) -> bool
 ~override MiniTui.Margin.ToString() -> string
