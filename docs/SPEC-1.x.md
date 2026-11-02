@@ -2767,7 +2767,8 @@ public partial class Theme
 3. On Windows with VT input: `CSI ? 9001 h` (win32-input-mode) as soon as the input mode is set, without waiting
    for a reply. Windows Terminal has no query for it. Consoles that don't support it ignore the private mode,
    and the decoder accepts both encodings. `Keyboard` says `Win32InputMode` once the first such sequence
-   arrives.
+   arrives, on Windows only (on other platforms a stray win32-input-mode sequence still decodes, but doesn't change
+   `Keyboard`).
 4. Otherwise, stay legacy.
 
 A protocol is never turned on without a reply that shows the terminal knows it, except the Windows private mode.
@@ -2814,7 +2815,9 @@ handling:
 - `TextAreaState` already ignores Enter with Ctrl or Alt, and inserts a line break with Shift+Enter, as chat
   apps do.
 - `TextFieldState` and the dialogs treat Shift+Enter as Enter, and ignore Ctrl+Enter.
-- Focus treats Ctrl+Tab as unhandled, so it isn't Tab.
+- Focus treats Ctrl+Tab and Alt+Tab as unhandled, so they aren't Tab.
+- `KeyBinding.Matches` stops matching `ctrl+i` and `ctrl+m` to the Tab and Enter keys (its fallback for Ctrl+letter
+  as a bare control character now skips those two keys), so a protocol's Ctrl+I and the Tab key stay apart.
 
 This is a "Changed" entry (§0 rule 2): in a terminal with a protocol, Ctrl+Enter no longer submits a form where
 Enter does.

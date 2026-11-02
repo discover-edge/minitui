@@ -114,6 +114,7 @@ public partial class App
             // An app started from inside another one on the same input gets the keys the outer one hasn't handled yet
             var outer = run.PreviousApp is { _running: true } app && ReferenceEquals(app._activeInput, input) ? app : null;
             if (outer?.RemoveQueuedKeys() is { Count: > 0 } inherited) _pendingKeys = [.. inherited];
+            StartKeyboard();
             SendQueries();
             StartTicker();
             run.Cancellation = cancellationToken.Register(Quit);

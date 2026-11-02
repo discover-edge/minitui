@@ -29,5 +29,12 @@ internal static class KeyInput
     /// <summary>Ctrl+Z, which the terminal delivers as a key while an app is running (1.x spec §5.5).</summary>
     public static bool IsCtrlZ(ConsoleKeyInfo key) => IsCtrl(key, 'z');
 
+    /// <summary>
+    /// Enter, or Shift+Enter, but not Ctrl+Enter or Alt+Enter, which the keyboard protocols report as themselves
+    /// (1.x spec §12.5) and apps bind separately.
+    /// </summary>
+    public static bool IsEnter(ConsoleKeyInfo key) =>
+        key.Key == ConsoleKey.Enter && (key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == 0;
+
     public static bool HasControl(ConsoleKeyInfo key) => (key.Modifiers & ConsoleModifiers.Control) != 0;
 }

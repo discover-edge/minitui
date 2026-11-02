@@ -29,7 +29,7 @@ public sealed class MessageDialog : Overlay
     /// <inheritdoc/>
     public override bool HandleKey(ConsoleKeyInfo key)
     {
-        if (key.Key == ConsoleKey.Enter)
+        if (KeyInput.IsEnter(key))
         {
             Close();
             return true;

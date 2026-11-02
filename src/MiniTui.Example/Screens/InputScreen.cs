@@ -71,13 +71,14 @@ internal sealed class InputScreen : Screen
     {
         var inner = Widget.Block().Title(" Input ").Padding(new Margin(1, 0)).Draw(buf, area);
         var rows = Layout.Vertical(inner)
-            .Add("help", Constraint.Length(4))
+            .Add("help", Constraint.Length(5))
             .Add("keys", Constraint.Fill())
             .Build();
 
         Widget.Paragraph()
             .Text(new Text([
                 new Line("Press any key, paste or use the mouse to see how it was decoded. q goes back, Ctrl+C quits.", ctx.Theme.Text),
+                new Line("Try Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+I: with a keyboard protocol they arrive as themselves.", ctx.Theme.TextMuted),
                 new Line("Ctrl+R runs a child process, then keys should still decode (QA check 6). Ctrl+E edits a file in "
                          + "$VISUAL or $EDITOR.", ctx.Theme.TextMuted),
                 new Line(DescribeTerminal(App.TerminalInfo), ctx.Theme.Info),

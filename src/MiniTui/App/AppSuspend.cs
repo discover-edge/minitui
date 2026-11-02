@@ -103,6 +103,7 @@ public partial class App
             Guard(() => _onEvent?.Invoke(resize));
         }
         Guard(() => _onEvent?.Invoke(new ResumeEvent()));
+        StartKeyboard();
         SendQueries(); // the user may have come back in another terminal
         RequestRedraw();
     }

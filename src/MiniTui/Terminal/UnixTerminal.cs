@@ -26,6 +26,7 @@ internal static unsafe partial class UnixTerminal
     private static int s_outputFd = -1;
     private static bool s_exitHooked;
     private static bool s_mouse;
+    private static KeyboardProtocol s_keyboard;
 
     // The fd whose saved mode Suspend kept, so entering again doesn't save the mode a child left behind
     private static int s_suspendedFd = -1;
@@ -108,6 +109,18 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
+    /// <summary>Switch the keyboard protocol (1.x spec §12.5), while in raw mode. Turned off again on every restore path.</summary>
+    public static void SetKeyboard(KeyboardProtocol protocol)
+    {
+        lock (Gate)
+        {
+            if (s_fd < 0 || s_keyboard == protocol || s_outputFd < 0) return;
+            Write(s_outputFd, KeyboardModes.Off(s_keyboard));
+            Write(s_outputFd, KeyboardModes.On(protocol));
+            s_keyboard = protocol;
+        }
+    }
+
     /// <summary>Turn mouse reporting and bracketed paste off and put back the mode saved by <see cref="TryEnterRaw"/>. Idempotent, and never throws.</summary>
     public static void Restore() => RestoreCore(keepSaved: false);
 
@@ -134,10 +147,12 @@ internal static unsafe partial class UnixTerminal
             try
             {
                 if (s_outputFd >= 0 && s_mouse) Write(s_outputFd, MouseOff);
+                if (s_outputFd >= 0) Write(s_outputFd, KeyboardModes.Off(s_keyboard));
                 if (s_outputFd >= 0) Write(s_outputFd, "\e[?2004l"u8);
             }
             catch (Exception) { }
             s_mouse = false;
+            s_keyboard = KeyboardProtocol.Legacy;
             try
             {
                 fixed (byte* saved = Saved) tcsetattr(s_fd, TcsaNow, saved);
