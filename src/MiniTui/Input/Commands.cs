@@ -184,6 +184,9 @@ public class CommandRegistry
 {
     private readonly List<Command> _commands = [];
 
+    /// <summary>The commands, in add order.</summary>
+    internal IReadOnlyList<Command> Commands => _commands;
+
     /// <summary>Create a new command registry.</summary>
     public static CommandRegistry Create() => new();
 

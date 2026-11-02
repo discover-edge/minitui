@@ -14,6 +14,8 @@ namespace MiniTui;
 /// </example>
 public sealed class KeyMap
 {
+    [ThreadStatic] private static Entry? t_running;
+
     private readonly List<Entry> _entries = [];
 
     /// <summary>
@@ -45,6 +47,9 @@ public sealed class KeyMap
     /// <returns>True if a binding matched.</returns>
     public bool Handle(ConsoleKeyInfo key) => Handle(key, skipPlainCharacters: false);
 
+    /// <summary>The entry whose handler is running on this thread, or null (1.x spec §13.4: the palette leaves it out).</summary>
+    internal static Entry? Running => t_running;
+
     /// <summary>The bindings, in add order.</summary>
     internal IReadOnlyList<Entry> Entries => _entries;
 
@@ -57,7 +62,16 @@ public sealed class KeyMap
             {
                 if (skipPlainCharacters && binding.IsPlainCharacter) continue;
                 if (!binding.Matches(key)) continue;
-                entry.Handler();
+                var outer = t_running;
+                t_running = entry;
+                try
+                {
+                    entry.Handler();
+                }
+                finally
+                {
+                    t_running = outer;
+                }
                 return true;
             }
         }

@@ -24,16 +24,15 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Text selection, copy/cut and the system clipboard (`Clipboard`, `Select`, `Undo`, `MouseAction.Drag`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §10
 - [x] Ctrl+Z suspend/resume (SIGTSTP/SIGCONT; `App.Suspend`, `App.WithSuspendKey`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §5
 - [x] Tree view (`Widget.Tree`, `TreeState<T>`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §11
+- [x] Terminal queries, light and dark themes, keyboard protocols (Ctrl+Enter, Shift+Enter) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §12
+- [x] Command palette and filterable select (`CommandPalette`, `Fuzzy.Match`, `SelectState.Filterable`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §13
 
 ## Backlog
 Ideas not specced yet, ranked by value in [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §1.1:
 
-- [ ] Richer keyboard input: kitty protocol, `modifyOtherKeys`, `win32-input-mode` (Ctrl+Enter, Shift+Enter)
-- [ ] Command palette and filterable (combo box) select
 - [ ] Split panes with draggable dividers, scrollbar dragging, click a table header to sort
 - [ ] Menu bar, submenus, check/radio items, mnemonics
 - [ ] Text area editor features: Tab indent, auto-indent, line numbers, find
-- [ ] Terminal queries: background color (auto light/dark theme), cursor position, capability replies
 - [ ] Hover (`?1003`) and double-click detection
 - [ ] Tree extras: reveal by path, filter, multi-select/checkboxes, async children
 - [ ] Chart extras: grouped/stacked bars, time axes, grid lines, area charts

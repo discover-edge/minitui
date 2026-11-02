@@ -102,4 +102,12 @@ public sealed class OverlayStack
 
     /// <summary>Show the key bindings in scope on the current focus chain, grouped by component (§9.5).</summary>
     public void ShowHelp() => _app.OnUiThread(() => Show(new HelpOverlay(KeyRouter.HelpLines(_app))));
+
+    /// <summary>
+    /// Show a <see cref="CommandPalette"/> over <see cref="CommandPalette.ItemsFor"/>: the key bindings in scope and
+    /// the commands of <paramref name="commands"/> (1.x spec §13). Not bound by default:
+    /// <c>app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette())</c>.
+    /// </summary>
+    public void ShowPalette(CommandRegistry? commands = null) =>
+        _app.OnUiThread(() => Show(new CommandPalette(CommandPalette.ItemsFor(_app, commands))));
 }

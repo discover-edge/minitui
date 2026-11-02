@@ -93,8 +93,20 @@ internal sealed class FormScreen : Screen
     private readonly TextInput _name;
     private readonly TextInput _email;
     private readonly SelectInput _plan;
+    private readonly SelectInput _country;
     private readonly NotesInput _notes;
     private readonly Toggle _subscribe;
+
+    // A filterable select: typing on the field opens it and narrows the list
+    private static readonly string[] Countries =
+    [
+        "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia", "Czechia",
+        "Denmark", "Egypt", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "India",
+        "Indonesia", "Ireland", "Israel", "Italy", "Japan", "Kenya", "Latvia", "Lithuania", "Luxembourg", "Malaysia",
+        "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway", "Peru", "Philippines", "Poland",
+        "Portugal", "Romania", "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland",
+        "Thailand", "Turkey", "Ukraine", "United Kingdom", "United States", "Vietnam",
+    ];
 
     public override string Title => "Form";
 
@@ -103,9 +115,11 @@ internal sealed class FormScreen : Screen
         _name = AddChild(new TextInput("Name", "Your name"));
         _email = AddChild(new TextInput("Email", "you@example.com"));
         _plan = AddChild(new SelectInput("Plan", "Choose a plan", ["Free", "Pro", "Team", "Enterprise"]));
+        _country = AddChild(new SelectInput("Country", "Type to search", Countries));
+        _country.State.Filterable = true;
         _notes = AddChild(new NotesInput("Notes", "Anything else? Enter starts a new line."));
         _subscribe = AddChild(new Toggle("Subscribe to newsletter"));
-        Focus.Add(_name).Add(_email).Add(_plan).Add(_notes).Add(_subscribe);
+        Focus.Add(_name).Add(_email).Add(_plan).Add(_country).Add(_notes).Add(_subscribe);
         // Ctrl+Enter needs a terminal with a keyboard protocol (kitty, WezTerm, foot, Windows Terminal...); Ctrl+S works everywhere
         Keys.Add("ctrl+s,ctrl+enter", "Submit", Submit);
     }
@@ -117,6 +131,7 @@ internal sealed class FormScreen : Screen
             .Add("name", Constraint.Length(3))
             .Add("email", Constraint.Length(3))
             .Add("plan", Constraint.Length(3))
+            .Add("country", Constraint.Length(3))
             .Add("notes", Constraint.Length(7))
             .Add("gap", Constraint.Length(1))
             .Add("subscribe", Constraint.Length(1))
@@ -128,6 +143,7 @@ internal sealed class FormScreen : Screen
         ctx.Render(_name, buf, rows["name"]);
         ctx.Render(_email, buf, rows["email"]);
         ctx.Render(_plan, buf, rows["plan"]);
+        ctx.Render(_country, buf, rows["country"]);
         ctx.Render(_notes, buf, rows["notes"]);
         ctx.Render(_subscribe, buf, rows["subscribe"]);
         buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S or Ctrl+Enter submit", ctx.Theme.TextMuted);
@@ -144,8 +160,9 @@ internal sealed class FormScreen : Screen
         }
         var newsletter = _subscribe.Checked ? " (subscribed)" : "";
         var plan = _plan.State.Value is { } p ? $" on {p}" : "";
+        var country = _country.State.Value is { } c ? $" in {c}" : "";
         var notes = _notes.State.Text.Length == 0 ? "" : $", {_notes.State.Lines.Count} lines of notes";
-        App.Toasts.Push($"Registered {_name.State.Text}{plan}{newsletter}{notes}", ToastLevel.Success);
+        App.Toasts.Push($"Registered {_name.State.Text}{plan}{country}{newsletter}{notes}", ToastLevel.Success);
     }
 }
 
@@ -253,7 +270,9 @@ internal sealed class CommandScreen : Screen
                 })
             .Build();
 
+        // Ctrl+P here shadows the global palette, adding this screen's commands to the bindings
         Keys.Add(":", "Command", () => App.Overlays.Show(new CommandLineOverlay(_commands)))
+            .Add("ctrl+p", "Commands", () => App.Overlays.ShowPalette(_commands))
             .Add("x", "Delete selected", DeleteSelected)
             .Add("shift+f10", "Menu", () => ShowMenu(SelectedRow()));
     }

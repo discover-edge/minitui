@@ -87,18 +87,26 @@ public sealed class PopupMenu : Overlay
     {
         var width = Math.Min(Math.Max(MinWidth, ContentWidth() + 2), screen.Width);
         var wanted = Math.Min(_items.Length, Math.Max(1, MaxRows)) + 2;
+        return PlaceNear(_anchor, screen, width, wanted, wanted);
+    }
 
+    /// <summary>
+    /// A rect <paramref name="width"/> wide below <paramref name="anchor"/>, or above it when <paramref name="wanted"/>
+    /// rows fit only there or there's more room there, shifted left to stay on the screen. It's
+    /// <paramref name="height"/> rows tall (at most <paramref name="wanted"/>), so a shrinking list keeps its side.
+    /// </summary>
+    internal static Rect PlaceNear(Rect anchor, Rect screen, int width, int wanted, int height)
+    {
         // An anchor left off the screen by a resize is pulled back onto it
-        var top = Math.Clamp(_anchor.Y, screen.Y, screen.Bottom);
-        var bottom = Math.Clamp(_anchor.Bottom, top, screen.Bottom);
+        var top = Math.Clamp(anchor.Y, screen.Y, screen.Bottom);
+        var bottom = Math.Clamp(anchor.Bottom, top, screen.Bottom);
         var below = screen.Bottom - bottom;
         var above = top - screen.Y;
-        var (y, height) = wanted <= below ? (bottom, wanted)
-            : wanted <= above ? (top - wanted, wanted)
-            : below >= above ? (bottom, below)
-            : (screen.Y, above);
-        var x = Math.Clamp(_anchor.X, screen.X, Math.Max(screen.X, screen.Right - width));
-        return new Rect(x, y, Math.Max(0, width), Math.Max(0, height));
+        var downward = wanted <= below || (wanted > above && below >= above);
+        var rows = Math.Min(height, downward ? below : above);
+        var y = downward ? bottom : top - rows;
+        var x = Math.Clamp(anchor.X, screen.X, Math.Max(screen.X, screen.Right - width));
+        return new Rect(x, y, Math.Max(0, width), Math.Max(0, rows));
     }
 
     /// <inheritdoc/>
