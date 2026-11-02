@@ -106,7 +106,8 @@ internal sealed class FormScreen : Screen
         _notes = AddChild(new NotesInput("Notes", "Anything else? Enter starts a new line."));
         _subscribe = AddChild(new Toggle("Subscribe to newsletter"));
         Focus.Add(_name).Add(_email).Add(_plan).Add(_notes).Add(_subscribe);
-        Keys.Add("ctrl+s", "Submit", Submit);
+        // Ctrl+Enter needs a terminal with a keyboard protocol (kitty, WezTerm, foot, Windows Terminal...); Ctrl+S works everywhere
+        Keys.Add("ctrl+s,ctrl+enter", "Submit", Submit);
     }
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
@@ -129,7 +130,7 @@ internal sealed class FormScreen : Screen
         ctx.Render(_plan, buf, rows["plan"]);
         ctx.Render(_notes, buf, rows["notes"]);
         ctx.Render(_subscribe, buf, rows["subscribe"]);
-        buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S submit", ctx.Theme.TextMuted);
+        buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S or Ctrl+Enter submit", ctx.Theme.TextMuted);
         buf.SetString(rows["select"].X, rows["select"].Y, "Shift+arrows select · Ctrl+A select all", ctx.Theme.TextMuted);
         buf.SetString(rows["clipboard"].X, rows["clipboard"].Y, "Ctrl+C/X/V copy/cut/paste · Ctrl+Z undo", ctx.Theme.TextMuted);
     }

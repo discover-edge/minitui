@@ -161,7 +161,7 @@ public sealed class TreeState<T> where T : class
             case ConsoleKey.End: Move(count - 1); return true;
             case ConsoleKey.RightArrow: Right(); return true;
             case ConsoleKey.LeftArrow: Left(); return true;
-            case ConsoleKey.Enter: Enter(); return true;
+            case ConsoleKey.Enter when KeyInput.IsEnter(key): Enter(); return true;
         }
 
         if (KeyInput.HasCommandModifier(key) || char.IsControl(key.KeyChar) || key.KeyChar == ' ') return false;

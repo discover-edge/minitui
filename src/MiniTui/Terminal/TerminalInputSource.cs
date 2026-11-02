@@ -40,6 +40,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private TimeSpan _lastModeCheck;
     private TimeSpan _fastModeCheckUntil;
     private int _mouseRefs;
+    private KeyboardProtocol _keyboard;
 
     /// <summary>Create a source with the <see cref="DefaultEscapeTimeout"/>.</summary>
     public TerminalInputSource() : this(DefaultEscapeTimeout) { }
@@ -136,6 +137,9 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             _closed = false;
             _lastModeCheck = Now;
             if (_raw && _mouseRefs > 0) ApplyMouse(true);
+
+            // The kitty protocol and modifyOtherKeys come back from the replies to the next queries; win32-input-mode has none
+            if (_raw && _keyboard == KeyboardProtocol.Win32InputMode) ApplyKeyboard(_keyboard);
         }
     }
 
@@ -148,6 +152,22 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             var after = _mouseRefs > 0;
             if (before != after && _raw) ApplyMouse(after);
         }
+    }
+
+    /// <summary>Switch the keyboard protocol (1.x spec §12.5). Restoring the terminal turns it off.</summary>
+    internal void SetKeyboardProtocol(KeyboardProtocol protocol)
+    {
+        lock (_lock)
+        {
+            _keyboard = protocol;
+            if (_raw) ApplyKeyboard(protocol);
+        }
+    }
+
+    private static void ApplyKeyboard(KeyboardProtocol protocol)
+    {
+        if (OperatingSystem.IsWindows()) WindowsConsoleInput.SetKeyboard(protocol);
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.SetKeyboard(protocol);
     }
 
     private static void ApplyMouse(bool enabled)
@@ -175,6 +195,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             // A held Esc is the user's key, typed before the suspend
             _decoder.Expire(TimeSpan.MaxValue, _sink);
             _raw = false;
+            if (_keyboard != KeyboardProtocol.Win32InputMode) _keyboard = KeyboardProtocol.Legacy;
             if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.Suspend();
             else if (OperatingSystem.IsWindows()) WindowsConsoleInput.Suspend();
         }
@@ -270,6 +291,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private sealed class ItemQueue : IInputSink
     {
         private readonly Queue<InputItem> _queue = new();
+        private bool _win32Seen;
 
         public int Count => _queue.Count;
 
@@ -279,7 +301,16 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
 
         public void Mouse(MouseEvent mouse) => _queue.Enqueue(InputItem.FromMouse(mouse));
 
-        public void Reply(TerminalReply reply) => _queue.Enqueue(InputItem.FromReply(reply));
+        // Every win32-input-mode key reports the mode; the app needs to hear it once
+        public void Reply(TerminalReply reply)
+        {
+            if (reply is TerminalReply.Win32InputMode)
+            {
+                if (_win32Seen) return;
+                _win32Seen = true;
+            }
+            _queue.Enqueue(InputItem.FromReply(reply));
+        }
 
         public bool TryDequeue(out InputItem item) => _queue.TryDequeue(out item);
     }

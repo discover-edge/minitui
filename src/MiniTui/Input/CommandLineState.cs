@@ -63,7 +63,7 @@ public sealed class CommandLineState : TextFieldState
         submitted = null;
         switch (key.Key)
         {
-            case ConsoleKey.Enter:
+            case ConsoleKey.Enter when KeyInput.IsEnter(key):
                 var line = Text;
                 if (string.IsNullOrWhiteSpace(line)) return true;
                 if (History.Count == 0 || History[^1] != line) History = History.Add(line);

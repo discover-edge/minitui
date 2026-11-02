@@ -39,10 +39,10 @@ public sealed class ConfirmDialog : Overlay
     {
         switch (key.Key)
         {
-            case ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab:
+            case ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.Tab when !KeyInput.HasControl(key):
                 _yesSelected = !_yesSelected;
                 return true;
-            case ConsoleKey.Enter:
+            case ConsoleKey.Enter when KeyInput.IsEnter(key):
                 Answer(_yesSelected);
                 return true;
             case ConsoleKey.Escape:

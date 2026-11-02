@@ -71,7 +71,8 @@ internal static class KeyRouter
         }
 
         // Unhandled Tab cycles the innermost scope with at least two members
-        if (key.Key != ConsoleKey.Tab) return false;
+        // Ctrl+Tab and Alt+Tab aren't Tab (the keyboard protocols report them, 1.x spec §12.5)
+        if (key.Key != ConsoleKey.Tab || (key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) != 0) return false;
         for (var i = chain.Count - 1; i >= 0; i--)
         {
             var scope = chain[i].FocusScope;

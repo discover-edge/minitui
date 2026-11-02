@@ -112,7 +112,7 @@ public sealed class PopupMenu : Overlay
             case ConsoleKey.PageDown: Page(1); return true;
             case ConsoleKey.Home: Select(Find(0, 1, wrap: false)); return true;
             case ConsoleKey.End: Select(Find(_items.Length - 1, -1, wrap: false)); return true;
-            case ConsoleKey.Enter:
+            case ConsoleKey.Enter when KeyInput.IsEnter(key):
                 if (_selected >= 0) Choose(_selected);
                 return true;
             case ConsoleKey.Escape or ConsoleKey.Tab:

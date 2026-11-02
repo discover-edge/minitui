@@ -278,6 +278,9 @@ internal sealed class AnsiInputDecoder
             return length;
         }
 
+        // The keyboard protocols' forms (1.x spec §12.5)
+        if (KeyProtocols.TryDecode(parameters, finalByte, alt, sink)) return length;
+
         if (!TryParseParameters(parameters, out var first, out var modifierParam)) return length;
         var modifiers = ModifiersFrom(modifierParam) | (alt ? ConsoleModifiers.Alt : 0);
 
@@ -342,7 +345,7 @@ internal sealed class AnsiInputDecoder
         return Math.Max(consumed, 1);
     }
 
-    private static ConsoleKeyInfo Ascii(byte b, ConsoleModifiers alt)
+    internal static ConsoleKeyInfo Ascii(byte b, ConsoleModifiers alt)
     {
         var c = (char)b;
         return b switch
@@ -363,7 +366,7 @@ internal sealed class AnsiInputDecoder
         };
     }
 
-    private static ConsoleKeyInfo Named(ConsoleKey key, char c, ConsoleModifiers modifiers) =>
+    internal static ConsoleKeyInfo Named(ConsoleKey key, char c, ConsoleModifiers modifiers) =>
         new(c, key,
             (modifiers & ConsoleModifiers.Shift) != 0,
             (modifiers & ConsoleModifiers.Alt) != 0,
