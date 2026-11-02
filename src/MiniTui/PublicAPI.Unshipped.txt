@@ -1,1 +1,11 @@
 #nullable enable
+MiniTui.MenuItem.Checked.get -> bool?
+MiniTui.MenuItem.Checked.init -> void
+MiniTui.MenuItem.Mnemonic.get -> char?
+MiniTui.MenuItem.Radio.get -> bool
+MiniTui.MenuItem.Radio.init -> void
+MiniTui.MenuItem.Run.get -> System.Action?
+MiniTui.MenuItem.Run.init -> void
+MiniTui.MenuItem.Submenu.get -> System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>?
+MiniTui.MenuItem.Submenu.init -> void
+MiniTui.PopupMenu.Chosen.get -> System.Threading.Tasks.Task<MiniTui.MenuItem?>!

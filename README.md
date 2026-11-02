@@ -205,7 +205,15 @@ sealed class FilesScreen : Screen
   `CloseOnClickOutside => true` closes when the user clicks elsewhere.
 - **Menus:** `ShowMenuAsync` opens a `PopupMenu` below the anchor (above it when there's more room there) and
   answers the chosen index, or null when dismissed. ↑ ↓ PgUp PgDn Home End and type-ahead move; Enter or a
-  click chooses; Esc, Tab or a click outside closes. A right-click makes a context menu:
+  click chooses; Esc, Tab or a click outside closes. Items can also have:
+  - a **mnemonic**, `&` before a letter in the label (`"&Save"`, `"&&"` for a literal `&`): drawn underlined,
+    and typing it (or Alt+it) chooses the item at once;
+  - a **check or radio mark**, `Checked = true/false`, with `Radio = true` for ● / ○;
+  - a **submenu**, `Submenu = [...]`, opened beside the item with → Enter or a click, and closed with ← or Esc;
+  - an action, `Run`, called after every open menu has closed. `PopupMenu.Chosen` gives the chosen item at any
+    depth.
+
+  A right-click makes a context menu:
 
   ```csharp
   public override bool HandleMouse(MouseEvent mouse)

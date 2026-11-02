@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -43,6 +43,7 @@ or add to them:
 | **18. Terminal queries and richer keyboard input** | Ask the terminal about itself (DA1 as the sentinel, OSC 10/11 colors, XTVERSION, keyboard protocol support) with replies never leaked as keys; `TerminalInfo`; light and dark themes; the kitty keyboard protocol, modifyOtherKeys and win32-input-mode for Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+I. Backlog ranks 1 and 6. | 8, 10 | §12 | 1.7.0 |
 | **19. Command palette and filterable select** | A `CommandPalette` overlay that fuzzy-filters the key bindings in scope and a `CommandRegistry`'s commands and runs the chosen one; `Fuzzy.Match`; `SelectState.Filterable` for a dropdown you type into. Backlog rank 2. | 13 | §13 | 1.8.0 |
 | **20. Split panes, scrollbar dragging and sortable tables** | `SplitState` and `Widget.Split()`, by ratio or with a fixed-size pane, with a divider dragged by the mouse or moved with Alt+Shift+arrows; dragging the scrollbar thumbs of lists, tables, trees and paragraphs, and paging on a track press; clicking a table header to sort (`TableBuilder.Sortable`, `SelectionState.ToggleSort` and `SortChanged`). Backlog rank 3. | 10, 16 | §14 | 1.9.0 |
+| **21. Menu bar and richer menus** | Mnemonics (`&File`), check and radio items, submenus and `Run` actions in `PopupMenu`; a `MenuBar` along the top opened with F10, Alt+mnemonic or a click, with ← → between menus; the palette lists its items. Backlog rank 4. | 13, 19 | §15 | 1.10.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -59,7 +60,7 @@ picked, as in §0 rule 3.
 | 1 | **Richer keyboard input** (Phase 18, §12). The kitty keyboard protocol (`CSI > 1 u`) and xterm `modifyOtherKeys` on Unix, and `win32-input-mode` (`?9001`) in Windows Terminal, all opt-in and detected. They report Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+Backspace as themselves, and tell Ctrl+I from Tab and Ctrl+M from Enter. | Today a text area has no natural submit key, and Ctrl+Enter, the usual answer, can't be told from Enter. Every input phase deferred this, and every app with a multi-line field runs into it. | §2.12, §4.14 | 8, 10 |
 | 2 | **Command palette and filterable select** (Phase 19, §13). A `CommandPalette` overlay (Ctrl+P or Ctrl+Shift+P) that fuzzy-filters `CommandRegistry` entries and key map actions as you type, with their key hints. The same filtering list makes a combo box `Select` you can type into. | The discoverability of keys and commands is the main usability gap in larger apps, and VS Code, Textual and lazygit all have a palette. It reuses `PopupMenu`, `TextFieldState` and `CommandRegistry`. | §7.12 | 7, 13 |
 | 3 | **Split panes and scrollbar dragging** (Phase 20, §14). A `Split` layout with draggable dividers (mouse and keyboard), dragging a scrollbar's thumb in lists, tables, paragraphs and text areas, and clicking a table header to sort (an event; the app sorts). | `MouseAction.Drag` (1.5) makes these cheap now. Resizable panes are standard in file managers, log viewers and dashboards. | §4.14, §10.12 | 10, 16 |
-| 4 | **Menu bar and richer menus.** A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
+| 4 | **Menu bar and richer menus** (Phase 21, §15). A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
 | 5 | **Text area as an editor.** An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
 | 6 | **Terminal queries** (Phase 18, §12). Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
 | 7 | **Hover and double-click.** Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
@@ -3384,3 +3385,217 @@ One PR:
 4. The Panes demo, README, CHANGELOG and the manual QA.
 
 Ships as 1.9.0 when released.
+
+---
+
+## 15. Menu bar and richer menus (Phase 21)
+
+### 15.1 Purpose
+
+Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander, Norton Commander, edit.com) put
+their commands in a menu bar along the top: F10 or Alt+letter opens a menu, the arrows move between menus,
+submenus group related commands, check and radio items show settings, and an underlined letter chooses an item
+without moving to it. `PopupMenu` (Phase 13) has none of that. Phase 21 adds it (backlog rank 4, §1.1):
+- **Richer menu items,** in `PopupMenu` and so in context menus too: mnemonics (`&File`), check and radio
+  marks, submenus, and an action to run when the item is chosen.
+- **`MenuBar`:** a row of menu titles at the top of the screen, opened with F10, Alt+mnemonic or a click.
+- **The palette lists the menu bar's items,** so every menu command is also searchable (§13).
+
+### 15.2 Public API
+
+```csharp
+public sealed record MenuItem(string Label)
+{
+    // Existing: Hint, Enabled, IsSeparator, Separator
+
+    /// Run on the UI thread after the menu (and every menu it was opened from) closes, when the item is chosen.
+    public Action? Run { get; init; }
+
+    /// A check mark (✓) when true, an empty mark column when false; null for an item without one. Default null.
+    public bool? Checked { get; init; }
+
+    /// Draw Checked as a radio mark (● / ○) instead of a check. Default false.
+    public bool Radio { get; init; }
+
+    /// The items of a submenu, opened to the side with → or Enter or a click (§15.4). Null for none. An item
+    /// with a submenu is never chosen itself, and its Hint isn't drawn (▸ is).
+    public IReadOnlyList<MenuItem>? Submenu { get; init; }
+
+    /// The mnemonic: the character after the first single & in Label (lowercase), or null. "&&" is a literal &,
+    /// and an & before a space or at the end is literal too.
+    public char? Mnemonic { get; }
+}
+
+public sealed class PopupMenu : Overlay
+{
+    // Existing: Result (the chosen top-level index), MinWidth, MaxRows
+
+    /// The chosen item, at any depth of submenus, or null when the menu was dismissed. Completes with Result.
+    public Task<MenuItem?> Chosen { get; }
+}
+
+/// A menu in a MenuBar.
+public sealed class Menu
+{
+    /// A menu with fixed items.
+    public Menu(string title, IReadOnlyList<MenuItem> items);
+
+    /// A menu whose items are built each time it opens, so Checked and Enabled can follow the app's state.
+    public Menu(string title, Func<IReadOnlyList<MenuItem>> items);
+
+    /// The title, with an optional & mnemonic: "&File".
+    public string Title { get; }
+
+    /// The items, built now.
+    public IReadOnlyList<MenuItem> Items();
+}
+
+/// A row of menus along the top of the screen (§15.5). Set it with App.WithMenuBar.
+public sealed class MenuBar
+{
+    public MenuBar(params Menu[] menus);
+
+    public IReadOnlyList<Menu> Menus { get; }
+
+    /// True while one of its menus is open.
+    public bool IsOpen { get; }
+
+    /// Open the menu at `index` (as F10 opens the first). Does nothing while one is open.
+    public void Open(int index = 0);
+}
+
+public partial class App
+{
+    /// Show `menuBar` on the top row of the screen, above the screens (§15.5). Null removes it.
+    public App WithMenuBar(MenuBar? menuBar);
+
+    /// The menu bar, or null.
+    public MenuBar? MenuBar { get; }
+}
+```
+
+- **Mnemonics** are parsed from the label, so existing code needs no new property. `MenuItem.Label` keeps the
+  `&` as written; the menus draw it without the `&`.
+- `Run` is optional: an app can still await `Result` or `Chosen` instead, or both.
+- `Menu` is a class rather than a record because it holds a factory.
+
+### 15.3 Item marks, mnemonics and drawing
+
+- **Rows** keep the Phase 13 layout (§7.4) and gain two optional columns:
+  - **A mark column** at the left, two cells wide, drawn only when some item in the menu has `Checked` set:
+    `✓ ` for a checked item, `● ` or `○ ` for a radio item, and blanks otherwise. Basic glyphs (conhost, §9):
+    `√`, `*` and `o`.
+  - **A submenu arrow** at the right, `▸` (basic: `►`), in place of the hint, for items with a `Submenu`.
+- **Mnemonics** are drawn underlined (`Modifiers.Underlined`, patched over the row's style, including the
+  selection). The legacy console backend can't draw underlines, so there the mnemonic still works but isn't
+  marked (§15.9).
+- **Width** counts the mark column and the arrow.
+
+### 15.4 Keys, submenus and choosing
+
+In a `PopupMenu` (and every menu of a `MenuBar`):
+- **A mnemonic** (a character typed without Ctrl, matching an enabled item's `Mnemonic`, ignoring case) chooses
+  that item at once, or opens its submenu. If several enabled items share it, the first press selects the next
+  one and doesn't choose, as Windows does. A character that's no item's mnemonic falls back to type-ahead
+  (§7.3). Alt+mnemonic works the same, so users who hold Alt from the menu bar still choose.
+- **→ or Enter** on an item with a submenu opens it as a `PopupMenu` beside the item: anchored to the item's row,
+  to the right of the menu, or to the left when it doesn't fit on the right. Its first enabled item is selected.
+- **← or Esc** in a submenu closes it, back to the parent menu. In a top-level popup they behave as before (Esc
+  dismisses, ← does nothing).
+- **Mouse:** a click on an item with a submenu opens it; a click on another item of the parent closes the
+  submenu first. A click outside every open menu closes them all.
+- **Choosing** an item (Enter, its mnemonic or a click) closes the menu and every menu it was opened from, then
+  completes `Result` (the top-level index: the index of the top-level item whose submenu holds the choice) and
+  `Chosen` (the item), then calls the item's `Run`, on the UI thread. As with the palette (§13.3), `Run` sees
+  the focus and overlays from before the menu opened.
+- **Check and radio items** don't toggle themselves (items are immutable records): `Run` changes the app's state,
+  and the next opening shows it (a `Menu` built by a factory, or a new item list for a context menu).
+- Submenus nest to any depth; each is its own overlay, so the keys go to the deepest one.
+
+### 15.5 The menu bar
+
+- **Where:** the top row of the screen, above the top screen, which gets the rows below it (the status bar
+  stays at the bottom). Overlays are placed in the same body, so a dialog never covers the menu bar.
+- **Drawing:** the row in `StatusBar`, then each title as ` Title ` from the left, with its mnemonic underlined.
+  The open menu's title is drawn in `Selection`. Titles that don't fit are left out (no scrolling).
+- **Opening:**
+  - **F10** opens the first menu.
+  - **Alt+mnemonic** opens the menu with that title mnemonic.
+  - **A click** on a title opens its menu, or closes it if it's the open one.
+  - These are checked after the focus chain and `App.Keys` (§9.4 step 4), so a focused component and the app's
+    own bindings keep their Alt+letter keys (the Tree demo's Alt+G). `App.Keys` gets an `f10` "Menu" entry
+    (hidden from the hints, listed in help and the palette).
+  - Opening does nothing while an overlay other than the bar's own menus is open, since overlays are modal.
+- **An open menu** is a `PopupMenu` of `Menu.Items()` anchored under its title.
+  - **← and →** in a top-level bar menu open the previous or next menu, wrapping. In a submenu, ← closes it (as
+    in §15.4), and → opens the selected item's submenu, or, on an item without one, moves to the next menu.
+  - **F10 or Esc** closes the open menus. A click on the bar row while a menu is open goes to the bar (switching
+    or closing), not to "outside".
+  - `IsOpen` is true while any of its menus is open.
+- **Hints and focus:** the status bar shows the open menu's hints, as for any overlay. The screen's focus doesn't
+  change, so closing a menu returns to where the user was.
+- **Resizing** keeps the open menu under its title.
+
+### 15.6 The palette
+
+`CommandPalette.ItemsFor` (§13.4) adds the menu bar's items after the key bindings and before the registry's
+commands: every enabled item with a `Run` and without a submenu, at any depth, in menu order. `Label` is the
+item's label without its `&`, `Detail` is its path (`File › Export`), and `Hint` is its `Hint`. Items are built
+when the palette opens, so factories run then. The help overlay doesn't list menus.
+
+### 15.7 Example
+
+- The example app gets a menu bar: **File** (New demo… as a submenu of the demos, Quit), **View** (Theme as radio
+  items: Auto, Default, Dark, Light, Monochrome; a "Debug overlay" check item), and **Help** (Keys, About).
+  Its items run the same code as the existing keys.
+- The Command Registry demo's right-click menu gains a "Sort" submenu with radio items and mnemonics.
+- README: "### Menu bar" under overlays, and the new `MenuItem` properties in the menu paragraph.
+
+### 15.8 Tests and acceptance
+
+Automated:
+- **Items:** mnemonic parsing (`&&`, `& `, trailing `&`, several `&`, non-ASCII), drawing without `&` and with
+  the underline, the mark column (only when some item has `Checked`), check and radio glyphs and their basic
+  forms, the submenu arrow replacing the hint, and widths.
+- **Keys:** mnemonics choosing, opening submenus, duplicates cycling, falling back to type-ahead, Alt+mnemonic;
+  →, Enter, ← and Esc with submenus at two depths; placement right and left; `Result`, `Chosen` and `Run`
+  ordering (after every menu closed, with the screen's focus chain); the mouse on submenus and outside.
+- **Menu bar:** layout (the screen's area starts one row lower, overlays below the bar), drawing and the open
+  title, F10, Alt+mnemonic after the chain and `App.Keys` (and not over a modal overlay), clicks on titles
+  (open, switch, close), ← → between menus and from submenus, factories run at each opening, `IsOpen`, resizing,
+  and `WithMenuBar(null)`.
+- **Palette:** menu items with paths and hints, disabled and submenu items left out, factories at opening.
+
+Manual QA (results in the PR): the example's menus with keys and the mouse in Windows Terminal, conhost and a
+Linux terminal, and in tmux; Alt+letters in each (some terminals send Alt as Esc-prefixed, and conhost needs
+"Use Alt as Meta" off for Alt+letter to arrive).
+
+### 15.9 Out of scope
+
+- Hover (a menu following the pointer, or a submenu opening on hover): no motion reports (backlog rank 7).
+- Showing mnemonics only while Alt is held, and Alt alone activating the bar: terminals don't report a lone Alt.
+- Underlined mnemonics on the legacy console backend.
+- Menus that scroll horizontally, a bar on another edge, and toolbars.
+- Keyboard accelerators bound from `Hint` (`Hint` stays display-only; the app binds keys in a `KeyMap`).
+- Mnemonics on buttons, tabs and labels.
+- Tear-off menus and menus that stay open after choosing a check item.
+
+### 15.10 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | F10: open the first menu at once, or only highlight the bar (Enter or ↓ opens), as Windows does? | **Open the first menu** (§15.5), as Turbo Vision and Midnight Commander do; it's one key fewer and needs no "bar focused" state. |
+| 2 | Alt+mnemonic priority: after the focus chain and `App.Keys` (the app's Alt bindings win), or before them (the menu bar wins)? | **After** (§15.5). Existing apps keep their Alt+letter keys, and a menu title can still be reached with F10. |
+| 3 | Mnemonic marker: `&` (Windows, WinForms, Terminal.Gui) or `~` (Turbo Vision's `~F~ile`)? | **`&`** (§15.2), the .NET convention. |
+| 4 | List the menu bar's items in the palette? | **Yes** (§15.6). It's what makes menu commands searchable, and costs nothing for apps without a bar. |
+
+### 15.11 Implementation order
+
+Two PRs, like Phase 18, because the first is useful on its own (context menus) and the second changes the screen
+layout:
+1. **21a** (richer menus): `Run`, `Checked`, `Radio`, `Submenu`, `Mnemonic` and `Chosen`; drawing, keys,
+   submenus and the mouse in `PopupMenu`; the Command Registry demo's Sort submenu; README; CHANGELOG.
+2. **21b** (menu bar): `Menu`, `MenuBar`, `WithMenuBar` and `App.MenuBar`; the layout, F10, Alt+mnemonics,
+   clicks and ← →; the palette items; the example's menu bar; README; CHANGELOG; the manual QA.
+
+Both go out in one release (1.10.0).

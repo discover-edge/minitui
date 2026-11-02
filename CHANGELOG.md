@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Richer menu items in `PopupMenu` (and so in context menus): mnemonics (`&` before a letter in `MenuItem.Label`, drawn underlined; typing it, or Alt+it, chooses the item, and items sharing one are cycled through), check and radio marks (`Checked`, `Radio`), submenus (`Submenu`, opened beside the item with → Enter or a click, to the left when there's no room, closed with ← or Esc; Tab or a click outside every menu closes them all), and `Run`, called after every open menu has closed. `MenuItem.Mnemonic` and `PopupMenu.Chosen` (the chosen item at any depth; `Result` is the top-level index).
+- Example: the Command Registry demo's right-click menu has mnemonics and a Sort submenu of radio items.
+- `docs/SPEC-1.x.md` §15: the menu bar and richer menus spec.
+
+### Changed
+- A `&` in a `MenuItem` label now marks a mnemonic and isn't drawn; write `&&` for a literal `&` (a `&` before a space or at the end stays as it is).
+- A click outside a menu that was opened from another menu closes both, unless it lands on the other menu.
+
 ## [1.9.0] - 2026-11-02
 
 MiniTui 1.9: split panes with draggable dividers, draggable scrollbars, and tables sorted by clicking their headers.
