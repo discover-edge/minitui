@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-02
+
+MiniTui 1.9: split panes with draggable dividers, draggable scrollbars, and tables sorted by clicking their headers.
+
 ### Added
 - `SplitState`, `SplitPane`, `SplitBuilder` and `Widget.Split(state)`: two panes side by side or stacked, with a one-cell divider the user drags with the mouse or moves with Alt+Shift+arrows (`HandleKey`, `MoveBy`). Sized by `Ratio`, or with one pane at a fixed size in cells (`SplitState.Fixed`, `FixedSize`, `FixedPane`) for sidebars; `MinFirst` and `MinSecond` limit how small the user can make each pane; `Changed` fires when they move it. Splits nest.
 - Scrollbar dragging: in lists, tables, trees and paragraphs, dragging the scrollbar's thumb scrolls, and a press on its track pages towards it. The selection stays where it is.
