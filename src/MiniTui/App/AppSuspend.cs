@@ -103,6 +103,7 @@ public partial class App
             Guard(() => _onEvent?.Invoke(resize));
         }
         Guard(() => _onEvent?.Invoke(new ResumeEvent()));
+        SendQueries(); // the user may have come back in another terminal
         RequestRedraw();
     }
 
@@ -116,6 +117,7 @@ public partial class App
         (run.Input as TerminalInputSource)?.CheckModeSoon();
         Invalidate();
         _onEvent?.Invoke(new ResumeEvent());
+        SendQueries();
     });
 
     private static bool IsConsole(ITerminalBackend backend) =>

@@ -96,7 +96,8 @@ public partial class App
             _terminal = run.Terminal;
             _activeColorMode = ColorModeOf(backend);
             _noColor = _activeColorMode == ColorMode.None;
-            _activeTheme = ResolveTheme(_theme);
+            StartTerminalInfo();
+            _activeTheme = ResolveTheme(StartTheme());
             _basicGlyphs = Glyphs.DetectBasic(backend);
             _clipboard = ClipboardTarget ?? Clipboard.For(backend);
             StartDebug();
@@ -113,6 +114,7 @@ public partial class App
             // An app started from inside another one on the same input gets the keys the outer one hasn't handled yet
             var outer = run.PreviousApp is { _running: true } app && ReferenceEquals(app._activeInput, input) ? app : null;
             if (outer?.RemoveQueuedKeys() is { Count: > 0 } inherited) _pendingKeys = [.. inherited];
+            SendQueries();
             StartTicker();
             run.Cancellation = cancellationToken.Register(Quit);
             TerminalSession.Resized += OnResizeSignal;
@@ -150,6 +152,7 @@ public partial class App
     {
         if (!_running || _run is not { Terminal: { } terminal } run) return false;
         if (!run.FirstFrame && wait) WaitForWork();
+        else if (wait && HoldFirstFrame(out var hold)) WaitForQueue(hold);
         var dirty = run.FirstFrame;
 
         // 1. Resize
@@ -173,6 +176,10 @@ public partial class App
                     dirty = true;
                     Guard(() => HandlePaste(text));
                     break;
+                case InputItem { Reply: { } reply }:
+                    dirty = true;
+                    Guard(() => HandleReply(reply));
+                    break;
                 case InputItem input:
                     dirty = true;
                     Guard(() => HandleKey(input.Key));
@@ -193,6 +200,9 @@ public partial class App
         }
 
         if (!_running) return false;
+
+        // With a theme pair, the first frame waits briefly for the terminal's background (1.x spec §12.3)
+        if (run.FirstFrame && HoldFirstFrame(out _)) return true;
 
         // 3–4. Update, render
         Guard(() => _onUpdate?.Invoke());
@@ -531,7 +541,9 @@ public partial class App
     /// A custom theme is used as is.
     /// </summary>
     private Theme ResolveTheme(Theme? theme) =>
-        _noColor && (theme is null || ReferenceEquals(theme, Theme.Default)) ? Theme.Monochrome : theme ?? Theme.Default;
+        _noColor && (theme is null || ReferenceEquals(theme, Theme.Default) || ReferenceEquals(theme, Theme.Light))
+            ? Theme.Monochrome
+            : theme ?? Theme.Default;
 
     private void StartTicker()
     {

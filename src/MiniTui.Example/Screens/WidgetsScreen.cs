@@ -21,7 +21,8 @@ internal sealed class WidgetsScreen : Screen
     private readonly TextInput _name;
     private readonly Toggle _agree;
     private readonly Component _greet;
-    private bool _monochrome;
+    private static readonly string[] ThemeNames = ["auto (by background)", "default", "light", "monochrome"];
+    private int _theme;
     private double _progress;
 
     public override string Title => "Widgets";
@@ -60,10 +61,10 @@ internal sealed class WidgetsScreen : Screen
         if (_samples.Count > 200) _samples.RemoveAt(0);
     });
 
-    // Leave the app's theme as we found it
+    // Leave the app's theme as we found it: picked by the terminal's background
     protected override void OnUnmount()
     {
-        if (_monochrome) App.WithTheme(Theme.Default);
+        if (_theme != 0) App.WithTheme(Theme.Default, Theme.Light);
     }
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
@@ -104,7 +105,7 @@ internal sealed class WidgetsScreen : Screen
                 "Box:      ┌─┬─┐ ╭─╮ ═══",
                 new Line("Long lines wrap at word boundaries, and words wider than the panel are broken.", ctx.Theme.TextMuted),
                 "",
-                new Line($"Theme: {(_monochrome ? "monochrome" : "default")} (t toggles)", ctx.Theme.TextMuted),
+                new Line($"Theme: {ThemeNames[_theme]} (t cycles)", ctx.Theme.TextMuted),
             ]))
             .Wrap(WrapMode.Word)
             .State(_unicode)
@@ -151,7 +152,8 @@ internal sealed class WidgetsScreen : Screen
 
     private void ToggleTheme()
     {
-        _monochrome = !_monochrome;
-        App.WithTheme(_monochrome ? Theme.Monochrome : Theme.Default);
+        _theme = (_theme + 1) % ThemeNames.Length;
+        if (_theme == 0) App.WithTheme(Theme.Default, Theme.Light);
+        else App.WithTheme(_theme switch { 1 => Theme.Default, 2 => Theme.Light, _ => Theme.Monochrome });
     }
 }

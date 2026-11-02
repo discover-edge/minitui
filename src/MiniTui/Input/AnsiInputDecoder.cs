@@ -13,6 +13,9 @@ internal interface IInputSink
 
     /// <summary>A mouse press, release or scroll.</summary>
     void Mouse(MouseEvent mouse);
+
+    /// <summary>A reply to one of the startup queries (1.x spec §12.3). Never a key.</summary>
+    void Reply(TerminalReply reply) { }
 }
 
 /// <summary>
@@ -267,9 +270,13 @@ internal sealed class AnsiInputDecoder
             return length;
         }
 
-        // Private (replies) and intermediate forms aren't keys
-        if (hasIntermediates || (!parameters.IsEmpty && parameters[0] is (byte)'<' or (byte)'=' or (byte)'>' or (byte)'?'))
+        // Private forms are replies (1.x spec §12.3), never keys; intermediate forms are neither
+        if (hasIntermediates) return length;
+        if (!parameters.IsEmpty && parameters[0] is (byte)'<' or (byte)'=' or (byte)'>' or (byte)'?')
+        {
+            if (TerminalQueries.ParseCsi(parameters, finalByte) is { } reply) sink.Reply(reply);
             return length;
+        }
 
         if (!TryParseParameters(parameters, out var first, out var modifierParam)) return length;
         var modifiers = ModifiersFrom(modifierParam) | (alt ? ConsoleModifiers.Alt : 0);
@@ -287,19 +294,31 @@ internal sealed class AnsiInputDecoder
         return length;
     }
 
-    /// <summary>OSC (ESC ]) and DCS (ESC P) strings, ended by BEL or ESC \. Dropped.</summary>
+    /// <summary>
+    /// OSC (ESC ]) and DCS (ESC P) strings, ended by BEL or ESC \. Replies to the startup queries are passed on
+    /// (1.x spec §12.3); the rest are dropped.
+    /// </summary>
     private static int DecodeString(ReadOnlySpan<byte> s, bool final, IInputSink sink)
     {
         for (var i = 2; i < s.Length; i++)
         {
-            if (s[i] == 0x07) return i + 1;
-            if (s[i] == Esc && i + 1 < s.Length && s[i + 1] == (byte)'\\') return i + 2;
+            if (s[i] == 0x07) return StringReply(s, i, sink) + 1;
+            if (s[i] == Esc && i + 1 < s.Length && s[i + 1] == (byte)'\\') return StringReply(s, i, sink) + 2;
             if (i >= MaxStringLength) return i;
         }
         if (!final) return 0;
 
         // Never terminated: it was Alt+] or Alt+P after all
         return 1 + DecodePlain(s[1..], final, alt: true, sink);
+    }
+
+    // The string's body is s[2..end]; returns end
+    private static int StringReply(ReadOnlySpan<byte> s, int end, IInputSink sink)
+    {
+        var body = s[2..end];
+        var reply = s[1] == (byte)']' ? TerminalQueries.ParseOsc(body) : TerminalQueries.ParseDcs(body);
+        if (reply is not null) sink.Reply(reply);
+        return end;
     }
 
     private static int DecodePlain(ReadOnlySpan<byte> s, bool final, bool alt, IInputSink sink)

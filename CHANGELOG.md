@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Terminal queries: at startup and after a resume, the app asks the terminal for its default colors (OSC 10 and 11), its name (XTVERSION), its keyboard protocol support and its Primary Device Attributes. The input decoder reads the replies and never turns them into keys. `App.TerminalInfo` (`Answered`, `Background`, `Foreground`, `IsDark`, `Keyboard`, `Name`) holds what the terminal said, and `TerminalInfoEvent` reports each change. `WithTerminalQueries(false)` or `MINITUI_QUERIES=0` turns them off.
+- `KeyboardProtocol` (`Legacy`, `Kitty`, `ModifyOtherKeys`, `Win32InputMode`), reported in `TerminalInfo.Keyboard`.
+- `Theme.Light`, for light backgrounds, and `App.WithTheme(dark, light)`, which picks one from the terminal's background (or `COLORFGBG`); the first frame waits up to 150 ms for the reply.
+- The debug overlay shows light or dark and the terminal's name. The Input demo shows what the terminal answered, the example app follows the terminal's background, and the Widgets demo's `t` cycles auto, default, light and monochrome.
+- `docs/SPEC-1.x.md` §12: the terminal queries and keyboard protocols spec.
+
+### Changed
+- In a real terminal, the app now writes its queries at startup and after a resume. Apps with their own `OnEvent` also see `TerminalInfoEvent`.
+
 ## [1.6.0] - 2026-11-01
 
 MiniTui 1.6: a tree view over your own nodes, with lazily read children.

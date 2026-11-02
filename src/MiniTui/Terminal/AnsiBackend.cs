@@ -145,6 +145,20 @@ public sealed class AnsiBackend : ITerminalBackend, IConsoleDevice
         }
     }
 
+    /// <summary>
+    /// Write the startup queries (1.x spec §12.3), only while the terminal is entered. Terminals answer through the
+    /// input, where the decoder reads the replies.
+    /// </summary>
+    internal void WriteQueries()
+    {
+        lock (_lock)
+        {
+            if (!_entered || _output is null) return;
+            _output.Write(TerminalQueries.Bytes);
+            _output.Flush();
+        }
+    }
+
     /// <summary>The bytes the last <see cref="Draw"/> wrote, for <see cref="FrameStats.BytesWritten"/>.</summary>
     internal long LastFrameBytes { get; private set; }
 

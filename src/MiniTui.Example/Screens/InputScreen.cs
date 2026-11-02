@@ -71,7 +71,7 @@ internal sealed class InputScreen : Screen
     {
         var inner = Widget.Block().Title(" Input ").Padding(new Margin(1, 0)).Draw(buf, area);
         var rows = Layout.Vertical(inner)
-            .Add("help", Constraint.Length(3))
+            .Add("help", Constraint.Length(4))
             .Add("keys", Constraint.Fill())
             .Build();
 
@@ -80,11 +80,21 @@ internal sealed class InputScreen : Screen
                 new Line("Press any key, paste or use the mouse to see how it was decoded. q goes back, Ctrl+C quits.", ctx.Theme.Text),
                 new Line("Ctrl+R runs a child process, then keys should still decode (QA check 6). Ctrl+E edits a file in "
                          + "$VISUAL or $EDITOR.", ctx.Theme.TextMuted),
+                new Line(DescribeTerminal(App.TerminalInfo), ctx.Theme.Info),
             ]))
             .Wrap(WrapMode.Word)
             .Draw(buf, rows["help"]);
 
         Widget.Paragraph().Text(new Text(_entries)).Draw(buf, rows["keys"]);
+    }
+
+    // What the terminal answered to the startup queries (1.x spec §12.3)
+    private static string DescribeTerminal(TerminalInfo info)
+    {
+        if (!info.Answered && info.Background is null) return "Terminal: no answer to the queries (yet)";
+        var background = info.Background is { } bg ? $"background {bg}" : "background unknown";
+        var shade = info.IsDark is { } dark ? (dark ? " (dark)" : " (light)") : "";
+        return $"Terminal: {info.Name ?? "unnamed"}, {background}{shade}, keyboard {info.Keyboard}";
     }
 
     private void Add(Line line)

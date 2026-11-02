@@ -5,7 +5,7 @@ namespace MiniTui;
 /// selections, so light and custom terminal themes show through.
 /// </summary>
 /// <remarks>
-/// Change a few slots with <c>Theme.Default with { Selection = ... }</c>, and apply a theme with <see cref="App.WithTheme"/>.
+/// Change a few slots with <c>Theme.Default with { Selection = ... }</c>, and apply a theme with <see cref="App.WithTheme(Theme)"/>.
 /// </remarks>
 public sealed record Theme
 {
@@ -113,6 +113,32 @@ public sealed record Theme
         Warning = new Style(Color.Yellow),
         Error = new Style(Color.Red),
         Info = new Style(Color.Cyan),
+    };
+
+    /// <summary>
+    /// A theme for light backgrounds (1.x spec §12.4): <see cref="Default"/> with darker colors where its yellow, cyan
+    /// and white-on-gray would fade on white. The selection stays black on cyan, which reads on both.
+    /// </summary>
+    public static Theme Light { get; } = Default with
+    {
+        BorderFocused = new Style(Color.DarkCyan),
+        Title = new Style(Color.DarkCyan),
+        TitleFocused = new Style(Color.DarkBlue),
+        TableHeader = new Style(Color.DarkBlue).Bold(),
+        Prompt = new Style(Color.DarkCyan),
+        StatusBar = new Style(Color.Black, Color.Gray),
+        Button = new Style(Color.Black, Color.Gray),
+        ModalTitle = new Style(Color.DarkCyan),
+        GaugeFilled = new Style(Color.DarkGreen),
+        Success = new Style(Color.DarkGreen),
+        Warning = new Style(Color.DarkYellow),
+        Error = new Style(Color.DarkRed),
+        Info = new Style(Color.DarkCyan),
+        ChartSeries =
+        [
+            new Style(Color.DarkCyan), new Style(Color.DarkYellow), new Style(Color.DarkMagenta),
+            new Style(Color.DarkGreen), new Style(Color.DarkBlue), new Style(Color.DarkRed),
+        ],
     };
 
     /// <summary>No colors, only modifiers. Used automatically when the terminal has no colors (<c>NO_COLOR</c>).</summary>
