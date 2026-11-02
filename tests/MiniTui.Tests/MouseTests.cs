@@ -391,7 +391,7 @@ public class MouseTests
     }
 
     [Fact]
-    public void List_BorderClicks_DontSelect_AndTheWheelMovesBySelectionByOne()
+    public void List_BorderClicks_DontSelect_AndTheWheelScrollsByOne_KeepingTheSelection()
     {
         var screen = new ListScreen();
         using var harness = new ComponentHarness(screen);
@@ -400,9 +400,11 @@ public class MouseTests
         Assert.Equal(0, screen.Selection.Selected);
 
         harness.Scroll(5, 6, 3);
-        Assert.Equal(3, screen.Selection.Selected);
+        Assert.Equal(3, screen.Selection.Offset);
         harness.Scroll(5, 6, -1);
-        Assert.Equal(2, screen.Selection.Selected);
+        Assert.Equal(2, screen.Selection.Offset);
+        Assert.Equal(0, screen.Selection.Selected);
+        Assert.DoesNotContain("item 0 ", harness.Lines[3], StringComparison.Ordinal);
     }
 
     [Fact]

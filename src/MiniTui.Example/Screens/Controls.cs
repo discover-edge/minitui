@@ -78,7 +78,12 @@ internal sealed class ListView(string title, Func<IReadOnlyList<string>> items) 
 {
     public SelectionState Selection { get; } = new();
     public override string KeysGroup => title.Trim();
-    public override bool HandleKey(ConsoleKeyInfo key) => Selection.HandleKey(key, items().Count);
+
+    /// <summary>Leave keys with Alt to the parent, such as a split's Alt+Shift+arrows.</summary>
+    public bool PassAltKeys { get; init; }
+
+    public override bool HandleKey(ConsoleKeyInfo key) =>
+        !(PassAltKeys && (key.Modifiers & ConsoleModifiers.Alt) != 0) && Selection.HandleKey(key, items().Count);
     public override bool HandleMouse(MouseEvent mouse) => Selection.HandleMouse(mouse, items().Count);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>

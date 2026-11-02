@@ -16,6 +16,7 @@ internal sealed class MenuScreen : Screen
         ("Command Registry", "A : command line and a right-click menu over notes", () => new CommandScreen()),
         ("Tabs", "A tab bar and a list in one focus scope", () => new TabsScreen()),
         ("Tree", "The file system as a tree, read a directory at a time", () => new TreeScreen()),
+        ("Panes", "Split panes with draggable dividers and scrollbars, and a table sorted by its headers", () => new PanesScreen()),
         ("Services (async)", "Loading, refresh, detail screens and confirm dialogs over a fake HTTP API", () => new ServicesScreen()),
         ("Widgets", "Every widget, a theme toggle and a Unicode panel", () => new WidgetsScreen()),
         ("Input", "Every key as MiniTui decodes it, for checking a terminal; Ctrl+E edits a file in your editor", () => new InputScreen()),
@@ -30,7 +31,7 @@ internal sealed class MenuScreen : Screen
 
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, Demos.Length);
 
-    // A click on a demo opens it; the wheel moves the selection
+    // A click on a demo opens it; the wheel scrolls the list when it doesn't fit
     public override bool HandleMouse(MouseEvent mouse)
     {
         if (!_selection.HandleMouse(mouse, Demos.Length)) return false;

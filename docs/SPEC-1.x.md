@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -42,6 +42,7 @@ or add to them:
 | **17. Tree view** | `Widget.Tree()` and `TreeState<T>` over the app's own nodes: expand and collapse, lazily read children, tree keys, type-ahead, the mouse and optional guide lines. | 10 | §11 | 1.6.0 |
 | **18. Terminal queries and richer keyboard input** | Ask the terminal about itself (DA1 as the sentinel, OSC 10/11 colors, XTVERSION, keyboard protocol support) with replies never leaked as keys; `TerminalInfo`; light and dark themes; the kitty keyboard protocol, modifyOtherKeys and win32-input-mode for Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+I. Backlog ranks 1 and 6. | 8, 10 | §12 | 1.7.0 |
 | **19. Command palette and filterable select** | A `CommandPalette` overlay that fuzzy-filters the key bindings in scope and a `CommandRegistry`'s commands and runs the chosen one; `Fuzzy.Match`; `SelectState.Filterable` for a dropdown you type into. Backlog rank 2. | 13 | §13 | 1.8.0 |
+| **20. Split panes, scrollbar dragging and sortable tables** | `SplitState` and `Widget.Split()`, by ratio or with a fixed-size pane, with a divider dragged by the mouse or moved with Alt+Shift+arrows; dragging the scrollbar thumbs of lists, tables, trees and paragraphs, and paging on a track press; clicking a table header to sort (`TableBuilder.Sortable`, `SelectionState.ToggleSort` and `SortChanged`). Backlog rank 3. | 10, 16 | §14 | 1.9.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -57,7 +58,7 @@ picked, as in §0 rule 3.
 |---|---|---|---|---|
 | 1 | **Richer keyboard input** (Phase 18, §12). The kitty keyboard protocol (`CSI > 1 u`) and xterm `modifyOtherKeys` on Unix, and `win32-input-mode` (`?9001`) in Windows Terminal, all opt-in and detected. They report Ctrl+Enter, Shift+Enter, Ctrl+Tab and Ctrl+Backspace as themselves, and tell Ctrl+I from Tab and Ctrl+M from Enter. | Today a text area has no natural submit key, and Ctrl+Enter, the usual answer, can't be told from Enter. Every input phase deferred this, and every app with a multi-line field runs into it. | §2.12, §4.14 | 8, 10 |
 | 2 | **Command palette and filterable select** (Phase 19, §13). A `CommandPalette` overlay (Ctrl+P or Ctrl+Shift+P) that fuzzy-filters `CommandRegistry` entries and key map actions as you type, with their key hints. The same filtering list makes a combo box `Select` you can type into. | The discoverability of keys and commands is the main usability gap in larger apps, and VS Code, Textual and lazygit all have a palette. It reuses `PopupMenu`, `TextFieldState` and `CommandRegistry`. | §7.12 | 7, 13 |
-| 3 | **Split panes and scrollbar dragging.** A `Split` layout with draggable dividers (mouse and keyboard), dragging a scrollbar's thumb in lists, tables, paragraphs and text areas, and clicking a table header to sort (an event; the app sorts). | `MouseAction.Drag` (1.5) makes these cheap now. Resizable panes are standard in file managers, log viewers and dashboards. | §4.14, §10.12 | 10, 16 |
+| 3 | **Split panes and scrollbar dragging** (Phase 20, §14). A `Split` layout with draggable dividers (mouse and keyboard), dragging a scrollbar's thumb in lists, tables, paragraphs and text areas, and clicking a table header to sort (an event; the app sorts). | `MouseAction.Drag` (1.5) makes these cheap now. Resizable panes are standard in file managers, log viewers and dashboards. | §4.14, §10.12 | 10, 16 |
 | 4 | **Menu bar and richer menus.** A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
 | 5 | **Text area as an editor.** An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
 | 6 | **Terminal queries** (Phase 18, §12). Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
@@ -812,7 +813,7 @@ A mouse event goes through these steps, stopping at the first that handles it:
 
 | Where | Behavior |
 |---|---|
-| `SelectionState.HandleMouse` (lists, tables) | Wheel over the widget's area: `Previous`/`Next`. Left press on a visible row: select it. Header and border presses aren't handled. |
+| `SelectionState.HandleMouse` (lists, tables) | Wheel over the widget's area: `Previous`/`Next` (since Phase 20, §14.4: scroll the view by one row, keeping the selection). Left press on a visible row: select it. Header and border presses aren't handled. |
 | `ScrollState.HandleMouse` (paragraphs, dialogs) | Wheel over the area: `ScrollBy(±3)`. |
 | `TabBarState.HandleMouse` | Left press on a tab's label: select it. |
 | `ConfirmDialog` | Left press on Yes or No: choose it and close, as Enter would. |
@@ -2234,7 +2235,7 @@ key) and quitting:
 - **Routing (pointer capture).** A drag goes to the component that was the target of the last press, then its
   ancestors, as long as it's still mounted under the current root; otherwise it's dropped. It doesn't go through
   click to focus. `App.OnEvent` and `App.OnMouse` see drags first, as they see every mouse event. Releases are
-  routed as before (to what's under the pointer).
+  routed as before (to what's under the pointer); since Phase 20 (§14.3) they go to the press target too.
 - **In the states** (positions from the last draw, as in §6.6):
   - Left press: move the cursor there and clear the selection (Phase 12 behavior; new for text fields).
   - Shift+left press: extend the selection to there (anchor at the old cursor). Many terminals keep Shift+click
@@ -3142,3 +3143,244 @@ selection and the row drawing), so they're built together:
 4. The example, README, CHANGELOG and the manual QA.
 
 Ships as 1.8.0 when released.
+
+---
+
+## 14. Split panes, scrollbar dragging and sortable tables (Phase 20)
+
+### 14.1 Purpose
+
+Phase 16 added `MouseAction.Drag` (presses, drags and releases, with drags sent to what the press hit), which
+makes three common mouse interactions cheap. Phase 20 adds them (backlog rank 3, §1.1):
+- **Split panes:** `SplitState` and `Widget.Split()` divide an area into two panes with a one-cell divider that
+  the user drags with the mouse or moves with keys. Splits nest, so file managers, log viewers and dashboards
+  get resizable layouts.
+- **Scrollbar dragging:** the thumbs of the scrollbars that `List`, `Table`, `Tree` and `Paragraph` already draw
+  can be dragged, and a press on the track pages towards it.
+- **Sortable tables:** a click on a table header cell sets `SelectionState.SortColumn` and flips
+  `SortDescending`, and raises an event. The app sorts its data; the table draws the ▲/▼ marker it already has.
+
+### 14.2 Public API
+
+```csharp
+/// The divider position of a split (§14.3), drawn with Widget.Split. The panes are sized either by Ratio, so
+/// they keep their proportions when the terminal is resized, or with one pane at a fixed size in cells (a
+/// sidebar), which keeps its width while the other pane takes the rest.
+public sealed class SplitState
+{
+    /// A proportional split. `direction` is the way the panes are laid out: Horizontal puts them side by side (a
+    /// vertical │ divider), Vertical one above the other (a horizontal ─ divider).
+    public SplitState(Direction direction, double ratio = 0.5);
+
+    /// A split with `pane` fixed at `cells` (FixedSize and FixedPane set).
+    public static SplitState Fixed(Direction direction, int cells, SplitPane pane = SplitPane.First);
+
+    public Direction Direction { get; }
+
+    /// The first pane's share of the space (the area minus the divider), from 0 to 1, when FixedSize is null.
+    /// Clamped to 0–1 when set.
+    public double Ratio { get; set; }
+
+    /// The fixed pane's size in cells, or null to size by Ratio. Negative values are clamped to 0 when set.
+    public int? FixedSize { get; set; }
+
+    /// Which pane FixedSize applies to. Default First.
+    public SplitPane FixedPane { get; set; }
+
+    /// The smallest size, in cells, the user can drag each pane to. Default 3 each. If the area is too small for
+    /// both, the space is shared by Ratio.
+    public int MinFirst { get; set; } = 3;
+    public int MinSecond { get; set; } = 3;
+
+    /// True from a press on the divider until the release.
+    public bool IsDragging { get; }
+
+    /// Move the divider by `cells` (negative: towards the start), within the minimums, as of the last draw.
+    public void MoveBy(int cells);
+
+    /// Alt+Shift+← → (side by side) or Alt+Shift+↑ ↓ (one above the other) move the divider a cell. Returns true
+    /// if it moved or was at a limit.
+    public bool HandleKey(ConsoleKeyInfo key);
+
+    /// A left press on the divider from the last draw starts a drag; drags move the divider under the pointer;
+    /// the release ends it. Returns true while the split handles the event.
+    public bool HandleMouse(MouseEvent mouse);
+
+    /// Raised on the UI thread when the user moves the divider (not when code sets Ratio or FixedSize).
+    public event EventHandler? Changed;
+}
+
+public enum SplitPane
+{
+    /// The left or top pane.
+    First,
+    /// The right or bottom pane.
+    Second,
+}
+
+public sealed class SplitBuilder
+{
+    /// Draw the divider in the focused border style, as while dragging. Default false.
+    public SplitBuilder Focused(bool focused = true);
+
+    /// A style patched over the theme's border style for the divider.
+    public SplitBuilder Style(Style style);
+
+    /// Draw the divider and return the two panes, for the app to draw into.
+    public (Rect First, Rect Second) Draw(Buffer buf, Rect area);
+}
+
+public static partial class Widget
+{
+    public static SplitBuilder Split(SplitState state);
+}
+
+public sealed partial class SelectionState
+{
+    /// Sort by `column`: ascending if it isn't the sort column yet, else flip SortDescending. Raises SortChanged.
+    public void ToggleSort(int column);
+
+    /// Raised on the UI thread when a header click or ToggleSort changes SortColumn or SortDescending.
+    public event EventHandler? SortChanged;
+}
+
+public sealed partial class TableBuilder
+{
+    /// Let a click on the header cells of `columns` (all columns when none are given) call ToggleSort (§14.5).
+    public TableBuilder Sortable(params int[] columns);
+}
+```
+
+- `SelectionState.HandleMouse`, `TreeState<T>.HandleMouse` and `ScrollState.HandleMouse` gain the scrollbar
+  handling (§14.4) with no signature change.
+- `ScrollbarBuilder` is unchanged; the widgets record where they drew the bar.
+
+### 14.3 Split panes
+
+- **Layout:** the divider takes one cell across the area. The space is the area's width (side by side) or height
+  minus 1.
+  - **By ratio** (`FixedSize` null): the first pane gets `round(Ratio × space)` cells.
+  - **Fixed** (`FixedSize` set): the `FixedPane` gets `FixedSize` cells, and the other pane the rest, so a
+    sidebar keeps its width when the terminal is resized.
+  - Either way the size is clamped so each pane keeps its minimum. If the space is smaller than both minimums,
+    the minimums are ignored and the space is shared by `Ratio` (or the fixed pane gets at most the space). An
+    area with no space (1 cell or less) gives the first pane everything and draws no divider.
+  - Clamping is only for drawing: `Ratio` and `FixedSize` keep their values, so a sidebar squeezed by a small
+    terminal comes back to its width when the terminal grows.
+- **Drawing:** `│` (side by side) or `─` along the divider in `Border`, or in `BorderFocused` while dragging or
+  with `Focused()`. The panes aren't cleared or drawn; the app draws into them, usually with `ctx.Render`.
+- **Mouse:** the component that draws the split passes its mouse events to `HandleMouse`. Children drawn into
+  the panes don't cover the divider, so a press on it reaches the parent.
+  - A left press on the divider starts a drag (`IsDragging`), keeping the offset between the pointer and the
+    divider, and returns true.
+  - Each drag moves the divider so it stays under the pointer, clamped to the minimums, and stores the new
+    position the way the split is sized: `Ratio` from the first pane's size, or `FixedSize` as the fixed pane's
+    new size. `Changed` is raised when the size changed. `MoveBy` stores it the same way. Drags go to what the press hit (§10.7),
+    so the pointer may leave the area.
+  - A release, or a press anywhere else, ends the drag.
+  - **Releases go to the press target** (changed from §10.7, where they went to what's under the pointer), as
+    drags do, so a drag that ends over another pane still ends. The press target is cleared by the release.
+  - Clicks and the wheel elsewhere return false, so they reach the panes' own handling.
+- **Keys:** `HandleKey` takes Alt+Shift with the arrows along the split's direction and calls `MoveBy(±1)`. The
+  app calls it from the parent component's `HandleKey` (or binds other keys to `MoveBy` in a `KeyMap`). Focused
+  children see the keys first, so a text field with Shift+arrow selection keeps them. `SelectionState`,
+  `ScrollState` and `TreeState` take the arrows with any modifiers, so a pane drawn with them passes Alt keys on
+  (`if ((key.Modifiers & ConsoleModifiers.Alt) != 0) return false;`), as the example's panes do.
+- **Nesting:** each split has its own state, and a pane can be split again; each `HandleMouse` only reacts to its
+  own divider. When two dividers meet, the outer one is drawn last and wins the crossing cell.
+
+### 14.4 Scrollbar dragging
+
+Applies to the scrollbars of `List` and `Table` (`SelectionState`), `Tree` (`TreeState<T>`) and `Paragraph`
+(`ScrollState`). Each widget records the scrollbar's rect, the content length and the viewport while drawing.
+- **The thumb:** a left press on it starts a drag, keeping where on the thumb it was pressed. Each drag moves the
+  thumb so that point stays under the pointer: the new offset is the one whose thumb starts there
+  (`ScrollbarBuilder.Thumb` inverted, rounded to the nearest), clamped to the content.
+- **The track:** a left press above or below the thumb scrolls one page towards it, as GUI scrollbars do. It
+  doesn't repeat while held.
+- **The selection stays put** (`SelectionState`, `TreeState<T>`; changed in Phase 20 QA): the scrollbar and the
+  wheel scroll the view, and the selection keeps its item even when it scrolls out of sight. The widgets bring
+  the selection back into view only when it moves: a key, a click on a row, or code setting `Selected`. The
+  wheel scrolls lists, tables and trees one row per event (Phase 10 decision 5 kept the step; it used to move
+  the selection by one).
+- **Release** ends the drag. The press focuses the widget's component, as any press does (§4.7).
+- Wheel scrolling and row clicks are unchanged. A press on the scrollbar never selects a row.
+- **Scrollbars on the border** (a block with a right border) are handled the same way: the recorded rect is
+  where the bar was drawn.
+
+### 14.5 Sortable tables
+
+- `Sortable(columns)` makes the table record each sortable header cell's rect while drawing. Without it, header
+  clicks do nothing, as before, so apps that don't sort don't get a ▲ they don't honor.
+- A left press on a sortable header cell calls `ToggleSort(column)`: a new column sorts ascending, the same
+  column flips the direction. `SortChanged` lets the app re-sort its items; the table shows the marker from
+  `SortColumn` and `SortDescending` as it does today.
+- Selection after a sort is the app's: `Selected` is an index, so an app that wants the same item selected finds
+  its new index in `SortChanged`.
+- Keys: none built in. Apps bind keys to `ToggleSort` (the example binds `s` to cycle columns).
+
+### 14.6 Example
+
+- A new **Panes** demo: a fixed-width list of log sources on the left (`SplitState.Fixed`, 24 cells), and on the right a sortable table of log entries
+  (about 200 rows) above a paragraph showing the selected entry, in two nested splits. Its hint line lists
+  dragging the dividers and scrollbars, Alt+Shift+arrows, clicking the headers and `s` to sort.
+- README: "### Split panes" under Layout, the scrollbar dragging in the mouse section, and `Sortable` in the
+  table reference.
+
+### 14.7 Tests and acceptance
+
+Automated:
+- **Split layout:** ratios, rounding, fixed first and second panes (kept across resizes, restored after a
+  squeeze), minimums, too-small areas (minimums ignored, 1-cell areas), both directions, and divider snapshots
+  in `Border` and `BorderFocused`.
+- **Split mouse and keys:** press on the divider, drags inside and outside the area, clamping, `Ratio` or
+  `FixedSize` updated by mode, and `Changed` (once per size change, not when code sets `Ratio`), release and a press elsewhere ending the drag,
+  presses off the divider returning false, nested splits, and Alt+Shift+arrows only along the direction.
+- **Scrollbars:** for each widget, dragging the thumb from its top, middle and bottom to every position, past
+  both ends, a track press paging each way, the selection kept while scrolling and revealed by a key (no
+  `SelectionChanged` for trees), the
+  scrollbar drawn inside and on a border, and wheel and row clicks unchanged.
+- **Sorting:** header clicks on sortable and unsortable columns, `Sortable()` with no columns, toggling,
+  `SortChanged`, the marker, and clicks without `Sortable` doing nothing.
+
+Manual QA (results in the PR): the Panes demo with the mouse in Windows Terminal, conhost and a Linux terminal
+(dragging both dividers and every scrollbar, header clicks), and in tmux.
+
+### 14.8 Migration impact
+
+- Additive API: `SplitState`, `SplitPane`, `SplitBuilder`, `Widget.Split`, `SelectionState.ToggleSort` and `SortChanged`, and
+  `TableBuilder.Sortable`.
+- "Changed": a press on a list, table, tree or paragraph scrollbar used to do nothing; it now scrolls. The wheel
+  over a list, table or tree scrolls the view instead of moving the selection, and the selection is only scrolled
+  back into view when it moves. A mouse release goes to the component the press hit, not the one under the
+  pointer. No key changes.
+
+### 14.9 Out of scope
+
+- Splits of more than two panes in one state (nest them instead), collapsing a pane, double-clicking the divider
+  to reset it, and saving the ratio between runs.
+- Splits as components that own their panes' children; the app draws into the rects.
+- Repeating track presses while the button is held, and horizontal scrollbars (no widget draws one).
+- Scrollbars of `PopupMenu`, the palette, and `TextArea` (which has none yet; backlog rank 5).
+- Multi-column sorting, sorting built into the table, and per-column sort keys.
+- Dragging rows, columns or list items, and resizing table columns.
+- Hover styles for the divider and thumb (backlog rank 7).
+
+### 14.10 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Store the divider as a ratio (panes scale when the terminal resizes) or as the first pane's size in cells (a sidebar keeps its width)? | **Decided: both** (§14.2, §14.3). `Ratio` by default; `SplitState.Fixed(direction, cells, pane)` or `FixedSize` keeps either pane at a size in cells, and dragging updates whichever the split uses. |
+| 2 | Keys to move the divider: Alt+Shift+arrows built into `HandleKey`, or no built-in keys (only `MoveBy`)? | **Decided: Alt+Shift+arrows** (§14.3). They're rarely bound, and every terminal and conhost report them; apps can still bind others to `MoveBy`. |
+| 3 | A press on the scrollbar track: page towards it, or jump the thumb there? | **Decided: page towards it** (§14.4), as Windows and most GUIs do; dragging covers jumping. |
+| 4 | Header clicks: opt in with `Sortable()`, or on for every table with a `SelectionState`? | **Decided: opt in** (§14.5), so a table whose app doesn't sort never shows a marker it doesn't honor. |
+
+### 14.11 Implementation order
+
+One PR:
+1. Scrollbar dragging in `SelectionState`, `TreeState<T>` and `ScrollState`, with the widgets recording the bar.
+2. `ToggleSort`, `SortChanged` and `TableBuilder.Sortable`.
+3. `SplitState` (ratio and fixed), `SplitPane`, `SplitBuilder` and `Widget.Split`.
+4. The Panes demo, README, CHANGELOG and the manual QA.
+
+Ships as 1.9.0 when released.

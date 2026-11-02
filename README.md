@@ -261,6 +261,31 @@ When the fixed sizes don't fit, `Length`, `Percentage` and `Ratio` shrink propor
 then `Min`. Space that nothing can grow into is placed by `.Flex(Flex.Start | End | Center |
 SpaceBetween)`. `.Margin(new Margin(1))` insets the area first.
 
+### Split panes
+
+`Widget.Split(state)` divides an area into two panes with a one-cell divider and returns them for you to draw
+into. The user drags the divider (with `WithMouse()`) or moves it with Alt+Shift and the arrows. A
+`SplitState` is sized by `Ratio` (the panes scale with the terminal) or, with `SplitState.Fixed(direction,
+cells, pane)`, keeps one pane at a size in cells, such as a sidebar. `MinFirst` and `MinSecond` (3 by default)
+limit how small the user can make each pane, and `Changed` fires when they move it. Splits nest:
+
+```csharp
+private readonly SplitState _sidebar = SplitState.Fixed(Direction.Horizontal, 24);
+
+public override bool HandleMouse(MouseEvent mouse) => _sidebar.HandleMouse(mouse);
+public override bool HandleKey(ConsoleKeyInfo key) => _sidebar.HandleKey(key);
+
+public override void Render(Buffer buf, Rect area, RenderContext ctx)
+{
+    var (left, right) = Widget.Split(_sidebar).Draw(buf, area);
+    ctx.Render(_files, buf, left);
+    ctx.Render(_preview, buf, right);
+}
+```
+
+Focused children see keys first, and the list, scroll and tree states take arrows with any modifier, so a pane
+built on them passes Alt keys on to keep Alt+Shift+arrows for the split.
+
 ## Widgets
 
 Factory for fluent widget builders. Every widget draws with `Theme.Current`, measures text by display
@@ -282,7 +307,7 @@ Widget.Table()
 | `Block()` | Borders (`Borders.All`, `Top`, …), `BorderType(BoxStyle)`, `Title`/`TitleBottom`, `Padding`, `Focused`. `Draw` returns the inner rect. |
 | `Paragraph()` | `Text` with `Wrap(WrapMode.None/Word/Char)`, `Alignment`, `Scroll(n)` or `State(ScrollState)`. `Paragraph.MeasureLines` measures without drawing. |
 | `List()` | `Items(list)` or `Items(list, format)` (only visible rows are formatted), `State(SelectionState)`, `HighlightSymbol("> ")`, `Title`. |
-| `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows`, `State` (▲/▼ on `SortColumn`), `HighlightSymbol`. 100,000 rows cost the same per frame as 100. |
+| `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows`, `State` (▲/▼ on `SortColumn`), `HighlightSymbol`, `Sortable(columns)` (a header click calls `SelectionState.ToggleSort`, and `SortChanged` tells you to re-sort). 100,000 rows cost the same per frame as 100. |
 | `Scrollbar()` | `Vertical`/`Horizontal`, `ContentLength`, `Position`, `ViewportLength`. Hidden when the content fits. |
 | `Gauge()` | `Ratio(0..1)` with eighth-cell precision and a percentage (or custom) `Label`. |
 | `Sparkline()` | `Data(values)` as `▁▂▃▄▅▆▇█`, newest at the right; optional `Max`. |
@@ -592,16 +617,18 @@ default because, while an app captures the mouse, selecting text in the terminal
 - **Routing:** `App.OnMouse` sees each `MouseEvent` first; then the component under the pointer gets
   `HandleMouse`, and if it returns false, its parent, up to the screen. With a dialog open, only the
   dialog can be clicked. Key bindings never fire from the mouse. `X` and `Y` are 0-based cells.
-- **Drags** (`MouseAction.Drag`, the pointer moving with a button held) go to the component the press
-  hit, even after the pointer leaves it, and are kept inside the screen. They don't move focus.
+- **Drags** (`MouseAction.Drag`, the pointer moving with a button held) and the release after them go to
+  the component the press hit, even after the pointer leaves it, and are kept inside the screen. They
+  don't move focus.
 - **Hit testing** uses where components were drawn in the last frame: the top screen, overlays, and
   children rendered with `ctx.Render(child, buf, rect)`, which also sets `child.Area`. A child rendered
   with `child.Render(buf, rect, ctx.For(child))` isn't a target; its clicks go to its parent.
-- **Built in:** `SelectionState.HandleMouse(mouse, count)` (lists and tables: the wheel moves the
-  selection, a click selects a row), `ScrollState.HandleMouse` (the wheel scrolls text by three rows),
-  `TabBarState.HandleMouse` (a click selects a tab), `TextFieldState.HandleMouse` and
-  `TextAreaState.HandleMouse` (a click places the cursor, Shift+click and dragging select, and a drag
-  past an edge scrolls). Confirm dialogs take clicks on Yes and No; message
+- **Built in:** `SelectionState.HandleMouse(mouse, count)` (lists and tables: the wheel scrolls by a
+  row without moving the selection, a click selects a row, and on a `Sortable()` table a header click sorts),
+  `ScrollState.HandleMouse` (the wheel scrolls text by three rows), `TabBarState.HandleMouse` (a click
+  selects a tab), `TextFieldState.HandleMouse` and `TextAreaState.HandleMouse` (a click places the
+  cursor, Shift+click and dragging select, and a drag past an edge scrolls). In lists, tables, trees and
+  paragraphs, dragging the scrollbar's thumb scrolls and a press on its track pages. Confirm dialogs take clicks on Yes and No; message
   and help dialogs scroll with the wheel.
 - **Your own controls** handle clicks themselves; `IsClick` is a left-button press:
 

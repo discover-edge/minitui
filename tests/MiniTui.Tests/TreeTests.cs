@@ -388,18 +388,22 @@ public class TreeTests
     // ---- Mouse ----
 
     [Fact]
-    public void Mouse_WheelMoves_PressSelects_ExpanderToggles()
+    public void Mouse_WheelScrolls_PressSelects_ExpanderToggles()
     {
         var state = State();
         Draw(state, 20, 6);
         var changes = 0;
         state.SelectionChanged += (_, _) => changes++;
 
+        // Four rows fit; the wheel scrolls them without moving the selection
         Assert.True(state.HandleMouse(new MouseEvent(MouseAction.ScrollDown, MouseButton.None, 5, 2)));
-        Assert.Equal("tests", state.Selected!.Name);
+        Assert.Equal("src", state.Selected!.Name);
+        Assert.Equal(0, changes);
+        Assert.True(state.HandleMouse(new MouseEvent(MouseAction.ScrollUp, MouseButton.None, 5, 2)));
+        Assert.Equal(0, state.Offset);
         Assert.True(state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 8, 3)));
         Assert.Equal("README", state.Selected!.Name);
-        Assert.Equal(2, changes);
+        Assert.Equal(1, changes);
 
         Assert.True(state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 1, 1)));
         Assert.True(state.IsExpanded(Find(state, "src")));

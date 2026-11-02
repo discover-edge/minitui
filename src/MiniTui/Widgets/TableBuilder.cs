@@ -45,6 +45,7 @@ public sealed class TableBuilder
     private Style? _headerStyle;
     private Style? _highlightStyle;
     private bool _headerSeparator;
+    private int[]? _sortable;
 
     /// <summary>The header cells.</summary>
     public TableBuilder Header(params Line[] cells) { _header = cells; return this; }
@@ -95,6 +96,12 @@ public sealed class TableBuilder
     /// <summary>A style patched over the theme's selection style.</summary>
     public TableBuilder HighlightStyle(Style style) { _highlightStyle = style; return this; }
 
+    /// <summary>
+    /// Let a click on the header cells of <paramref name="columns"/>, or of every column when none are given, sort
+    /// by that column with <see cref="SelectionState.ToggleSort"/> (1.x spec §14.5). Needs a <see cref="State"/>.
+    /// </summary>
+    public TableBuilder Sortable(params int[] columns) { _sortable = columns ?? []; return this; }
+
     // A ─ line under the header, as the 0.7 static Widgets.Table drew
     internal TableBuilder HeaderSeparator(bool separator = true) { _headerSeparator = separator; return this; }
 
@@ -137,7 +144,11 @@ public sealed class TableBuilder
         {
             var headerStyle = style.Patch(theme.TableHeader).Patch(_headerStyle ?? default);
             for (var c = 0; c < columns.Length && c < _header.Length; c++)
+            {
                 DrawHeaderCell(buf, x0 + columns[c].Offset, y, _header[c], columns[c].Size, headerStyle, c);
+                if (_sortable is { } sortable && (sortable.Length == 0 || Array.IndexOf(sortable, c) >= 0))
+                    _state?.TrackHeader(c, new Rect(x0 + columns[c].Offset, y, columns[c].Size, 1));
+            }
             y++;
             if (_headerSeparator && y < body.Bottom)
             {
@@ -165,6 +176,7 @@ public sealed class TableBuilder
             var top = body.Y + headerRows;
             var bar = scrollbarOnBorder ? new Rect(area.Right - 1, top, 1, viewport) : new Rect(body.Right, top, 1, viewport);
             new ScrollbarBuilder().ContentLength(_count).ViewportLength(viewport).Position(offset).Draw(buf, bar);
+            _state?.TrackScrollbar(bar, _count);
         }
     }
 

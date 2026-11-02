@@ -119,8 +119,9 @@ public class TreeBuilder<T> where T : class
         }
         _state.Track(area, rowArea with { Height = visible }, expanders);
 
-        if (overflow)
-            new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(viewport).Position(offset).Draw(buf, scrollbar);
+        if (!overflow) return;
+        new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(viewport).Position(offset).Draw(buf, scrollbar);
+        _state.TrackScrollbar(scrollbar);
     }
 
     private int IndexOfSelected(IReadOnlyList<TreeRow<T>> rows)

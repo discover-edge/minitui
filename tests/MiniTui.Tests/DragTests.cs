@@ -90,7 +90,7 @@ public class DragTests
     }
 
     [Fact]
-    public void Drags_GoToThePressTarget_EvenOverAnotherComponent()
+    public void DragsAndTheRelease_GoToThePressTarget_EvenOverAnotherComponent()
     {
         var log = new List<string>();
         var screen = new Panes(log);
@@ -101,7 +101,7 @@ public class DragTests
         h.Mouse(M(MouseAction.Drag, 15, 2));
         h.Mouse(M(MouseAction.Release, 15, 2));
 
-        Assert.Equal(["left Press 2,2", "left Drag 15,2", "right Release 15,2"], log);
+        Assert.Equal(["left Press 2,2", "left Drag 15,2", "left Release 15,2"], log);
         Assert.True(screen.FocusedLeft);
     }
 

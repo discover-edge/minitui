@@ -45,12 +45,19 @@ public sealed class ScrollState
     }
 
     /// <summary>
-    /// Handle the mouse over the text drawn last (1.x spec §4.8): the wheel scrolls by three rows.
+    /// Handle the mouse over the text drawn last (1.x spec §4.8, §14.4): the wheel scrolls by three rows, the
+    /// scrollbar's thumb drags and its track pages.
     /// </summary>
     /// <returns>True if it scrolled or tried to.</returns>
     public bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
+        var offset = Offset;
+        if (_bar.Handle(mouse, ref offset))
+        {
+            Offset = Clamp(offset);
+            return true;
+        }
         if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
         switch (mouse.Action)
         {
@@ -61,7 +68,14 @@ public sealed class ScrollState
     }
 
     /// <summary>Called by widgets while drawing: the area the text was drawn in.</summary>
-    internal void Track(Rect area) => _mouseArea = area;
+    internal void Track(Rect area)
+    {
+        _mouseArea = area;
+        _bar.Track(default, 0, 0);
+    }
+
+    /// <summary>Called by widgets while drawing, after <see cref="Fit"/>: where the scrollbar was drawn.</summary>
+    internal void TrackScrollbar(Rect bar) => _bar.Track(bar, ContentHeight, ViewportHeight);
 
     /// <summary>Called by widgets while drawing.</summary>
     internal void Fit(int contentHeight, int viewportHeight)
@@ -74,6 +88,7 @@ public sealed class ScrollState
     private const int WheelRows = 3;
 
     private Rect _mouseArea;
+    private readonly ScrollbarDrag _bar = new();
 
     private int MaxOffset => Math.Max(0, ContentHeight - ViewportHeight);
 

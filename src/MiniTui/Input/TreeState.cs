@@ -64,10 +64,17 @@ public sealed class TreeState<T> where T : class
     public T? Selected
     {
         get => _selected;
-        set => _selected = value;
+        set
+        {
+            _selected = value;
+            _reveal = true;
+        }
     }
 
-    /// <summary>The first visible row. Adjusted when drawn so <see cref="Selected"/> is visible.</summary>
+    /// <summary>
+    /// The first visible row. Adjusted when drawn so <see cref="Selected"/> is visible after the selection moves;
+    /// the wheel and the scrollbar scroll without moving the selection (1.x spec §14.4).
+    /// </summary>
     public int Offset { get; set; }
 
     /// <summary>How many rows were visible at the last draw. Used by PgUp and PgDn.</summary>
@@ -149,6 +156,13 @@ public sealed class TreeState<T> where T : class
     /// <returns>True if the key was one of these.</returns>
     public bool HandleKey(ConsoleKeyInfo key)
     {
+        var handled = HandleKeyCore(key);
+        if (handled) _reveal = true;
+        return handled;
+    }
+
+    private bool HandleKeyCore(ConsoleKeyInfo key)
+    {
         Refresh();
         var count = _rows.Count;
         switch (key.Key)
@@ -170,19 +184,26 @@ public sealed class TreeState<T> where T : class
     }
 
     /// <summary>
-    /// Handle the mouse over the tree drawn last: the wheel moves the selection by one row, and a left press on a
-    /// row selects it and, on its expander, also toggles it.
+    /// Handle the mouse over the tree drawn last: the wheel scrolls by one row, a left press on a row selects it
+    /// and, on its expander, also toggles it, and the scrollbar's thumb drags and its track pages (1.x spec §14.4).
+    /// Scrolling doesn't move the selection.
     /// </summary>
-    /// <returns>True if the event did either.</returns>
+    /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
+        var offset = Offset;
+        if (_bar.Handle(mouse, ref offset))
+        {
+            Offset = offset;
+            return true;
+        }
         if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
         Refresh();
         switch (mouse.Action)
         {
-            case MouseAction.ScrollUp: Move(_index - 1); return true;
-            case MouseAction.ScrollDown: Move(_index + 1); return true;
+            case MouseAction.ScrollUp: Offset = SelectionState.ClampOffset(Offset - 1, _rows.Count, ViewportHeight); return true;
+            case MouseAction.ScrollDown: Offset = SelectionState.ClampOffset(Offset + 1, _rows.Count, ViewportHeight); return true;
         }
 
         if (!mouse.IsClick || !_mouseRows.Contains(mouse.X, mouse.Y)) return false;
@@ -190,6 +211,7 @@ public sealed class TreeState<T> where T : class
         var index = Offset + visible;
         if (index >= _rows.Count) return false;
         Move(index);
+        _reveal = true;
         if (visible < _expanderColumns.Length && _expanderColumns[visible] == mouse.X && _rows[index].HasChildren)
             Toggle(_rows[index].Node);
         return true;
@@ -200,7 +222,10 @@ public sealed class TreeState<T> where T : class
     {
         Refresh();
         ViewportHeight = Math.Max(0, viewportHeight);
-        Offset = SelectionState.FitOffset(Offset, Math.Max(0, _index), _rows.Count, ViewportHeight);
+        Offset = _reveal
+            ? SelectionState.FitOffset(Offset, Math.Max(0, _index), _rows.Count, ViewportHeight)
+            : SelectionState.ClampOffset(Offset, _rows.Count, ViewportHeight);
+        _reveal = false;
     }
 
     /// <summary>
@@ -212,7 +237,16 @@ public sealed class TreeState<T> where T : class
         _mouseArea = area;
         _mouseRows = rows;
         _expanderColumns = expanderColumns;
+        _bar.Track(default, 0, 0);
     }
+
+    /// <summary>Called by the widget while drawing, after <see cref="Track"/>: where the scrollbar was drawn.</summary>
+    internal void TrackScrollbar(Rect bar) => _bar.Track(bar, _rows.Count, ViewportHeight);
+
+    private readonly ScrollbarDrag _bar = new();
+
+    // Set when the selection moves, so the next draw scrolls it into view
+    private bool _reveal = true;
 
     internal string TextOf(T node) => _text(node) ?? "";
 
@@ -260,6 +294,7 @@ public sealed class TreeState<T> where T : class
         var index = _selected is null ? (_rows.Count > 0 ? 0 : -1) : IndexOf(_selected);
         for (var i = 0; index < 0 && _selected is not null && i < _ancestors.Count; i++) index = IndexOf(_ancestors[i]);
         if (index < 0 && _rows.Count > 0) index = Math.Clamp(_index, 0, _rows.Count - 1);
+        if (index != _index) _reveal = true;
         SetIndex(index);
     }
 
