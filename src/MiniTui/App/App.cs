@@ -120,6 +120,29 @@ public partial class App
         return this;
     }
 
+    /// <summary>
+    /// Show <paramref name="menuBar"/> on the top row, above the screens (1.x spec §15.5): F10 opens its first menu,
+    /// Alt and a title's mnemonic opens that one. Null removes it.
+    /// </summary>
+    public App WithMenuBar(MenuBar? menuBar)
+    {
+        MenuBar?.Attach(null);
+        MenuBar = menuBar;
+        menuBar?.Attach(this);
+        if (menuBar is not null && !_menuKey)
+        {
+            Keys.Add("f10", "Menu", () => MenuBar?.Open(), showInHints: false);
+            _menuKey = true;
+        }
+        RequestRedraw();
+        return this;
+    }
+
+    /// <summary>The menu bar, or null.</summary>
+    public MenuBar? MenuBar { get; private set; }
+
+    private bool _menuKey;
+
     /// <summary>Quit when the last screen is popped. On by default.</summary>
     public App QuitWhenEmpty(bool quit = true)
     {

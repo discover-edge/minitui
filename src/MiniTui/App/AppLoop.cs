@@ -27,6 +27,12 @@ public partial class App
 
     // Mouse hit targets: those being recorded by the frame in progress, and those of the last frame drawn
     private List<MouseRouter.Hit> _hits = [];
+
+    // Where the menu bar was drawn in the last frame, for the mouse
+    private Rect _menuBarRow;
+
+    /// <summary>The menu bar's row from the last frame, or empty.</summary>
+    internal Rect MenuBarRow => _menuBarRow;
     private List<MouseRouter.Hit> _lastHits = [];
     private Rect _lastFrame;
 
@@ -417,6 +423,18 @@ public partial class App
         {
             var chrome = _chromeStatusBar && area.Height >= 2;
             if (chrome) body = area with { Height = area.Height - 1 };
+
+            // 1.x spec §15.5: the menu bar takes the top row; the screens and overlays get the rows below it
+            if (MenuBar is { } bar && body.Height >= 2)
+            {
+                _menuBarRow = body with { Height = 1 };
+                body = body with { Y = body.Y + 1, Height = body.Height - 1 };
+                bar.Draw(buf, _menuBarRow);
+            }
+            else
+            {
+                _menuBarRow = default;
+            }
             if (Screens.Top is { } top)
             {
                 RecordHit(top, body, body);

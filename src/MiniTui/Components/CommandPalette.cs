@@ -60,9 +60,9 @@ public sealed class CommandPalette : Overlay
     public override string? Title => " Commands ";
 
     /// <summary>
-    /// The items for the app's current state (1.x spec §13.4): the key bindings in scope, innermost first, as the
-    /// help overlay lists them (not the binding whose handler is running, which is the one opening the palette),
-    /// then each command of <paramref name="commands"/> and its subcommands, in add order. A command with a usage
+    /// The items for the app's current state (1.x spec §13.4, §15.6): the key bindings in scope, innermost first, as
+    /// the help overlay lists them (not the binding whose handler is running, which is the one opening the palette),
+    /// then the menu bar's items with a <see cref="MenuItem.Run"/>, with their paths, then each command of <paramref name="commands"/> and its subcommands, in add order. A command with a usage
     /// opens a <see cref="CommandLineOverlay"/> with its name typed; one without runs at once.
     /// </summary>
     public static IReadOnlyList<PaletteItem> ItemsFor(App app, CommandRegistry? commands = null)
@@ -78,6 +78,7 @@ public sealed class CommandPalette : Overlay
                 items.Add(new PaletteItem(entry.Description, entry.Handler) { Detail = group, Hint = keys.Split(", ")[0] });
             }
         }
+        if (app.MenuBar is { } bar) items.AddRange(bar.PaletteItems());
         if (commands is not null) AddCommands(items, app, commands, commands, "");
         return items;
     }

@@ -35,8 +35,9 @@ internal static class KeyRouter
         var chain = Chain(app);
         if (RouteChain(chain, key)) return true;
 
-        // 4. Global bindings
+        // 4. Global bindings, then the menu bar's Alt+mnemonics (1.x spec §15.5)
         if (app.Keys.Handle(key, skipPlainCharacters: chain[^1].CapturesText)) return true;
+        if (app.MenuBar?.HandleKey(key) == true) return true;
 
         // 5. Esc pops the screen
         if (key.Key == ConsoleKey.Escape && screen.PopOnEscape && app.Screens.Count > 1)

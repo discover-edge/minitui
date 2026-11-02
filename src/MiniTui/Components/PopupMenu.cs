@@ -174,6 +174,15 @@ public sealed class PopupMenu : Overlay
     /// <summary>Called with the result once the menu has closed, on the UI thread (for <see cref="SelectState"/>).</summary>
     internal Action<int?>? Closed { get; init; }
 
+    /// <summary>The menu bar this menu (or its root menu) was opened from, for ← → F10 and Alt+title (1.x spec §15.5).</summary>
+    internal MenuBar? Bar
+    {
+        get => _bar ?? _parent?.Bar;
+        init => _bar = value;
+    }
+
+    private readonly MenuBar? _bar;
+
     /// <summary>
     /// Below the anchor, or above it, shifted left to stay on the screen (1.x spec §7.4). A submenu goes to the right
     /// of its parent, or to the left when it doesn't fit, with its first row beside the parent's row (§15.4).
@@ -213,6 +222,22 @@ public sealed class PopupMenu : Overlay
     /// <inheritdoc/>
     public override bool HandleKey(ConsoleKeyInfo key)
     {
+        if (Bar is { } bar)
+        {
+            switch (key.Key)
+            {
+                case ConsoleKey.F10:
+                    bar.Close();
+                    return true;
+                case ConsoleKey.LeftArrow when _parent is null:
+                    bar.Step(-1);
+                    return true;
+                case ConsoleKey.RightArrow when _selected < 0 || !_items[_selected].HasSubmenu:
+                    bar.Step(1);
+                    return true;
+            }
+        }
+
         switch (key.Key)
         {
             case ConsoleKey.UpArrow: Move(-1, wrap: true); return true;
@@ -239,7 +264,9 @@ public sealed class PopupMenu : Overlay
         }
 
         if (KeyInput.HasControl(key) || char.IsControl(key.KeyChar) || key.KeyChar == '\0') return true;
-        if (!Mnemonic(key.KeyChar) && (key.Modifiers & ConsoleModifiers.Alt) == 0) TypeAhead(key.KeyChar);
+        if (Mnemonic(key.KeyChar)) return true;
+        if ((key.Modifiers & ConsoleModifiers.Alt) == 0) TypeAhead(key.KeyChar);
+        else Bar?.HandleKey(key); // Alt and another menu's title switches to it
         return true;
     }
 

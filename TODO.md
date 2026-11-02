@@ -27,11 +27,11 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Terminal queries, light and dark themes, keyboard protocols (Ctrl+Enter, Shift+Enter) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §12
 - [x] Command palette and filterable select (`CommandPalette`, `Fuzzy.Match`, `SelectState.Filterable`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §13
 - [x] Split panes, scrollbar dragging and sortable tables (`Widget.Split`, `TableBuilder.Sortable`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §14
+- [x] Menu bar and richer menus (`MenuBar`, mnemonics, check and radio items, submenus) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §15
 
 ## Backlog
 Ideas not specced yet, ranked by value in [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §1.1:
 
-- [ ] Menu bar, submenus, check/radio items, mnemonics
 - [ ] Text area editor features: Tab indent, auto-indent, line numbers, find
 - [ ] Hover (`?1003`) and double-click detection
 - [ ] Tree extras: reveal by path, filter, multi-select/checkboxes, async children
