@@ -140,8 +140,10 @@ public readonly record struct KeyBinding(ConsoleKey Key, char? Char, ConsoleModi
 
         if (key.Key == Key) return key.Modifiers == Modifiers;
 
-        // Terminals send Ctrl+letter as a control character, which some sources report without the key
+        // Terminals send Ctrl+letter as a control character, which some sources report without the key. Tab and
+        // Enter aren't Ctrl+I and Ctrl+M: the keyboard protocols tell them apart (1.x spec §12.5).
         return Key is >= ConsoleKey.A and <= ConsoleKey.Z
+            && key.Key is not (ConsoleKey.Tab or ConsoleKey.Enter)
             && Modifiers == ConsoleModifiers.Control
             && key.KeyChar == (char)(Key - ConsoleKey.A + 1);
     }

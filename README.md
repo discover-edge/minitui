@@ -541,8 +541,18 @@ terminal), so they never reach a test backend. `WithTerminalQueries(false)` or `
 MiniTui puts the terminal in raw mode (on Windows, the console in VT input mode) and decodes its input
 itself (`TerminalInputSource`, the default). Esc, Alt combinations, function keys and arrows with
 Shift/Ctrl/Alt arrive reliably and the same way on every platform, and a fast burst of keys never
-produces a stray Esc. Keys that terminals can't encode, such as Ctrl+Enter, Ctrl+Tab and Ctrl+digits,
-arrive without the Ctrl.
+produces a stray Esc.
+
+- **Keyboard protocols.** The classic encoding can't tell Ctrl+Enter or Shift+Enter from Enter, Ctrl+Tab
+  from Tab, or Ctrl+I from Tab. Where the terminal supports one, MiniTui turns on a richer encoding: the
+  kitty keyboard protocol (kitty, WezTerm, foot, Ghostty, Alacritty, iTerm2 and others), else xterm's
+  modifyOtherKeys, each only after the terminal said it supports it (see [Terminal queries](#terminal-queries)),
+  or win32-input-mode in Windows Terminal. Those keys then arrive as themselves and bindings such as
+  `ctrl+enter`, `shift+enter`, `ctrl+tab`, `ctrl+i` and `ctrl+1` match them; every other key arrives exactly
+  as before. In other terminals they arrive without the extra modifier, so give such bindings a fallback
+  (`Keys.Add("ctrl+s,ctrl+enter", "Submit", Submit)`). `app.TerminalInfo.Keyboard` says which protocol is in
+  use; `WithKeyboardProtocol(false)` or `MINITUI_KEYBOARD=legacy` turns them off. Built-in widgets treat
+  Shift+Enter as Enter (a text area inserts a line break) and leave Ctrl+Enter and Ctrl+Tab to the app.
 
 - **Esc** is recognized 50 ms after it's pressed, because terminals send other keys as sequences that
   start with Esc. Change it with `app.WithInput(new TerminalInputSource(TimeSpan.FromMilliseconds(100)))`.

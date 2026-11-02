@@ -311,6 +311,46 @@ public class TerminalInputSourceTests
     }
 
     /// <summary>A pseudo-terminal pair: write to the leader, and the follower reads it like a keyboard.</summary>
+    // The keyboard protocols (1.x spec §12.5)
+
+    [Fact]
+    public void KeyboardProtocol_IsWritten_AndRestoreTurnsItOff()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
+        ((IInputLifecycle)source).Activate();
+        Assert.Equal("\x1b[?2004h", pty.ReadEcho());
+
+        source.SetKeyboardProtocol(KeyboardProtocol.ModifyOtherKeys);
+        Assert.Equal("\x1b[>4;2m", pty.ReadEcho());
+        source.SetKeyboardProtocol(KeyboardProtocol.Kitty);
+        Assert.Equal("\x1b[>4;0m\x1b[>1u", pty.ReadEcho());
+        source.SetKeyboardProtocol(KeyboardProtocol.Kitty);
+        Assert.Equal("", pty.ReadEcho());
+
+        ((IInputLifecycle)source).Deactivate();
+        Assert.Equal("\x1b[<u\x1b[?2004l", pty.ReadEcho());
+    }
+
+    [Fact]
+    public void KeyboardProtocol_IsTurnedOffOnSuspend_AndNotBackOnResume()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
+        var lifecycle = (IInputLifecycle)source;
+        lifecycle.Activate();
+        source.SetKeyboardProtocol(KeyboardProtocol.Kitty);
+        pty.ReadEcho();
+
+        lifecycle.Suspend();
+        Assert.Equal("\x1b[<u\x1b[?2004l", pty.ReadEcho());
+        lifecycle.Resume();
+        Assert.Equal("\x1b[?2004h", pty.ReadEcho());
+        lifecycle.Deactivate();
+    }
+
     private sealed class Pty : IDisposable
     {
         private const int ORdwr = 2;

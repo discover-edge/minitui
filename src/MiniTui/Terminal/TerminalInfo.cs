@@ -63,6 +63,9 @@ internal abstract record TerminalReply
 
     /// <summary><c>CSI ? … c</c>: Primary Device Attributes, the last reply to arrive.</summary>
     public sealed record DeviceAttributes : TerminalReply;
+
+    /// <summary>A key arrived in win32-input-mode, so the console supports it (1.x spec §12.5).</summary>
+    public sealed record Win32InputMode : TerminalReply;
 }
 
 /// <summary>The startup queries and the parsing of their replies (1.x spec §12.3, §12.4).</summary>

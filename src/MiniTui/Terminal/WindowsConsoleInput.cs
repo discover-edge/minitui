@@ -32,6 +32,7 @@ internal static unsafe partial class WindowsConsoleInput
     private static uint s_savedMode;
     private static uint s_vtMode;
     private static bool s_mouse;
+    private static KeyboardProtocol s_keyboard;
     private static bool s_active;
     private static bool s_suspended;
     private static bool s_exitHooked;
@@ -112,6 +113,18 @@ internal static unsafe partial class WindowsConsoleInput
         }
     }
 
+    /// <summary>Switch the keyboard protocol (1.x spec §12.5), while in VT input mode. Turned off again on every restore path.</summary>
+    public static void SetKeyboard(KeyboardProtocol protocol)
+    {
+        lock (Gate)
+        {
+            if (!s_active || s_keyboard == protocol) return;
+            Write(KeyboardModes.Off(s_keyboard));
+            Write(KeyboardModes.On(protocol));
+            s_keyboard = protocol;
+        }
+    }
+
     /// <summary>The console window's top-left cell in buffer coordinates, which mouse records are relative to.</summary>
     public static Vec2 WindowOrigin()
     {
@@ -141,6 +154,7 @@ internal static unsafe partial class WindowsConsoleInput
             try
             {
                 if (s_mouse) Write("\e[?1006l\e[?1002l"u8);
+                Write(KeyboardModes.Off(s_keyboard));
                 Write("\e[?2004l"u8);
             }
             catch (Exception) { }
@@ -151,6 +165,7 @@ internal static unsafe partial class WindowsConsoleInput
             }
             catch (Exception) { }
             s_mouse = false;
+            s_keyboard = KeyboardProtocol.Legacy;
             s_active = false;
             s_suspended = keepSaved;
             s_output = 0;

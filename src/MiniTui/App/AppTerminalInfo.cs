@@ -4,6 +4,8 @@ namespace MiniTui;
 public partial class App
 {
     private bool _queries = true;
+    private bool _keyboardProtocol = true;
+    private bool _kittySeen;
     private (Theme Dark, Theme Light)? _themePair;
     private TerminalInfo _terminalInfo = new();
     private long? _queriedAt;
@@ -20,6 +22,20 @@ public partial class App
     public App WithTerminalQueries(bool enabled = true)
     {
         _queries = enabled;
+        return this;
+    }
+
+    /// <summary>
+    /// Turn on the best keyboard protocol the terminal supports (1.x spec §12.5): the kitty keyboard protocol, else
+    /// xterm's modifyOtherKeys, each only after the terminal said it supports it, or Windows Terminal's
+    /// win32-input-mode on Windows. Keys the classic encoding can't express, such as Ctrl+Enter, Shift+Enter,
+    /// Ctrl+Tab and Ctrl+I, then arrive as themselves; every other key arrives as before. On by default; the
+    /// <c>MINITUI_KEYBOARD=legacy</c> environment variable also turns it off. The protocol in use is
+    /// <see cref="TerminalInfo.Keyboard"/>.
+    /// </summary>
+    public App WithKeyboardProtocol(bool enabled = true)
+    {
+        _keyboardProtocol = enabled;
         return this;
     }
 
@@ -41,6 +57,12 @@ public partial class App
 
     /// <summary>Writes the queries instead of the backend; set by tests.</summary>
     internal Action? QueryWriter { get; set; }
+
+    /// <summary>Switches the keyboard protocol instead of the input source; set by tests.</summary>
+    internal Action<KeyboardProtocol>? KeyboardWriter { get; set; }
+
+    /// <summary>Whether this run is on Windows, for win32-input-mode; set by tests.</summary>
+    internal bool? WindowsOverride { get; set; }
 
     /// <summary>Queue a reply as if the input source had decoded it.</summary>
     internal void InjectReply(TerminalReply reply) => _queue.Writer.TryWrite(new KeyBatch([InputItem.FromReply(reply)]));
@@ -72,15 +94,63 @@ public partial class App
     {
         if (!_queries || GetEnvironment("MINITUI_QUERIES") == "0" || _run is not { Terminal: { } terminal } run) return;
         if (QueryWriter is { } writer) writer();
-        else if (terminal.Backend is AnsiBackend ansi && run.Input is TerminalInputSource { IsRaw: true }) ansi.WriteQueries();
+        else if (CanTalkToTerminal(run, terminal)) ((AnsiBackend)terminal.Backend).WriteQueries();
         else return;
         _queriedAt = _time.GetTimestamp();
+        _kittySeen = false;
+    }
+
+    private static bool CanTalkToTerminal(RunScope run, Terminal terminal) =>
+        terminal.Backend is AnsiBackend && run.Input is TerminalInputSource { IsRaw: true };
+
+    private bool IsWindows => WindowsOverride ?? OperatingSystem.IsWindows();
+
+    private bool KeyboardProtocolOn => _keyboardProtocol && GetEnvironment("MINITUI_KEYBOARD") != "legacy";
+
+    /// <summary>
+    /// Called by <see cref="StartRun"/> and after a resume: the protocol goes back to legacy until the replies say
+    /// otherwise, except win32-input-mode on Windows, which is asked for at once (1.x spec §12.5).
+    /// </summary>
+    private void StartKeyboard()
+    {
+        _terminalInfo = _terminalInfo with { Keyboard = KeyboardProtocol.Legacy };
+        if (KeyboardProtocolOn && IsWindows)
+            SetKeyboard(KeyboardProtocol.Win32InputMode, report: false);
+    }
+
+    private void SetKeyboard(KeyboardProtocol protocol, bool report)
+    {
+        if (_run is not { Terminal: { } terminal } run) return;
+        if (KeyboardWriter is { } writer) writer(protocol);
+        else if (CanTalkToTerminal(run, terminal) && run.Input is TerminalInputSource source) source.SetKeyboardProtocol(protocol);
+        else return;
+        if (report) _terminalInfo = _terminalInfo with { Keyboard = protocol };
+    }
+
+    // The kitty protocol is preferred: its reply comes before the XTQMODKEYS one
+    private void ChooseKeyboard(TerminalReply reply)
+    {
+        if (!KeyboardProtocolOn) return;
+        switch (reply)
+        {
+            case TerminalReply.KittyFlags:
+                _kittySeen = true;
+                if (_terminalInfo.Keyboard != KeyboardProtocol.Kitty) SetKeyboard(KeyboardProtocol.Kitty, report: true);
+                break;
+            case TerminalReply.ModifyOtherKeys when !_kittySeen && _terminalInfo.Keyboard is not KeyboardProtocol.Kitty:
+                if (_terminalInfo.Keyboard != KeyboardProtocol.ModifyOtherKeys) SetKeyboard(KeyboardProtocol.ModifyOtherKeys, report: true);
+                break;
+            case TerminalReply.Win32InputMode when _terminalInfo.Keyboard == KeyboardProtocol.Legacy && IsWindows:
+                _terminalInfo = _terminalInfo with { Keyboard = KeyboardProtocol.Win32InputMode };
+                break;
+        }
     }
 
     private void HandleReply(TerminalReply reply)
     {
         var before = _terminalInfo;
         _terminalInfo = TerminalQueries.Apply(before, reply);
+        ChooseKeyboard(reply);
 
         // The theme is picked once, when the background is first known
         if (_themePair is not null && !_themeChosen && reply is TerminalReply.DefaultColor { Which: 11 })

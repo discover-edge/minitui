@@ -1,5 +1,6 @@
 #nullable enable
 MiniTui.App.TerminalInfo.get -> MiniTui.TerminalInfo!
+MiniTui.App.WithKeyboardProtocol(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithTerminalQueries(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithTheme(MiniTui.Theme! dark, MiniTui.Theme! light) -> MiniTui.App!
 MiniTui.KeyboardProtocol
