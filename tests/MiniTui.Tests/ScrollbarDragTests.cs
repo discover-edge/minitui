@@ -35,7 +35,7 @@ public class ScrollbarDragTests
     }
 
     [Fact]
-    public void Dragging_MovesTheSelectionIntoView()
+    public void Dragging_KeepsTheSelection_UntilAKeyMovesIt()
     {
         var state = new SelectionState { Selected = 3 };
         DrawList(state);
@@ -44,12 +44,13 @@ public class ScrollbarDragTests
         state.HandleMouse(M(MouseAction.Drag, 19, 9), Items.Length);
         DrawList(state);
         Assert.Equal(30, state.Offset);
-        Assert.Equal(30, state.Selected);
+        Assert.Equal(3, state.Selected);
 
-        state.HandleMouse(M(MouseAction.Drag, 19, -20), Items.Length);
+        // A key moves the selection and brings it back into view
+        state.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false), Items.Length);
         DrawList(state);
-        Assert.Equal(0, state.Offset);
-        Assert.Equal(9, state.Selected);
+        Assert.Equal(4, state.Selected);
+        Assert.Equal(4, state.Offset);
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public class ScrollbarDragTests
         Assert.True(state.HandleMouse(M(MouseAction.Press, 19, 8), Items.Length));
         DrawList(state);
         Assert.Equal(10, state.Offset);
-        Assert.Equal(10, state.Selected);
+        Assert.Equal(0, state.Selected);
 
         // The thumb is now at row 3; a press above it pages back
         Assert.True(state.HandleMouse(M(MouseAction.Press, 19, 1), Items.Length));
@@ -99,15 +100,24 @@ public class ScrollbarDragTests
     }
 
     [Fact]
-    public void TheWheelAndRowClicks_AreUnchanged()
+    public void TheWheelScrolls_AndRowClicksSelect()
     {
         var state = new SelectionState();
         DrawList(state);
 
         state.HandleMouse(M(MouseAction.ScrollDown, 5, 5, MouseButton.None), Items.Length);
-        Assert.Equal(1, state.Selected);
+        DrawList(state);
+        Assert.Equal(1, state.Offset);
+        Assert.Equal(0, state.Selected);
+
         state.HandleMouse(M(MouseAction.Press, 5, 4), Items.Length);
-        Assert.Equal(3, state.Selected);
+        DrawList(state);
+        Assert.Equal(4, state.Selected);
+        Assert.Equal(1, state.Offset);
+
+        // Past the end, the wheel stops
+        for (var i = 0; i < 50; i++) state.HandleMouse(M(MouseAction.ScrollDown, 5, 5, MouseButton.None), Items.Length);
+        Assert.Equal(30, state.Offset);
     }
 
     [Fact]
@@ -146,7 +156,7 @@ public class ScrollbarDragTests
     private sealed record Node(string Name);
 
     [Fact]
-    public void ATreesThumb_Drags_AndTheSelectionFollows()
+    public void ATreesThumb_Drags_AndTheSelectionStays()
     {
         var state = new TreeState<Node>(_ => [], n => n.Name) { Roots = [.. Items.Select(i => new Node(i))] };
         var changes = 0;
@@ -159,8 +169,8 @@ public class ScrollbarDragTests
         Draw();
 
         Assert.Equal(30, state.Offset);
-        Assert.Equal("Item 30", state.Selected?.Name);
-        Assert.Equal(1, changes);
+        Assert.Equal("Item 0", state.Selected?.Name);
+        Assert.Equal(0, changes);
     }
 
     // Table

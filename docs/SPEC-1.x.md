@@ -813,7 +813,7 @@ A mouse event goes through these steps, stopping at the first that handles it:
 
 | Where | Behavior |
 |---|---|
-| `SelectionState.HandleMouse` (lists, tables) | Wheel over the widget's area: `Previous`/`Next`. Left press on a visible row: select it. Header and border presses aren't handled. |
+| `SelectionState.HandleMouse` (lists, tables) | Wheel over the widget's area: `Previous`/`Next` (since Phase 20, §14.4: scroll the view by one row, keeping the selection). Left press on a visible row: select it. Header and border presses aren't handled. |
 | `ScrollState.HandleMouse` (paragraphs, dialogs) | Wheel over the area: `ScrollBy(±3)`. |
 | `TabBarState.HandleMouse` | Left press on a tab's label: select it. |
 | `ConfirmDialog` | Left press on Yes or No: choose it and close, as Enter would. |
@@ -3298,9 +3298,11 @@ Applies to the scrollbars of `List` and `Table` (`SelectionState`), `Tree` (`Tre
   (`ScrollbarBuilder.Thumb` inverted, rounded to the nearest), clamped to the content.
 - **The track:** a left press above or below the thumb scrolls one page towards it, as GUI scrollbars do. It
   doesn't repeat while held.
-- **The selection** (`SelectionState`, `TreeState<T>`): dragging scrolls the view, and the selection moves into
-  it (to the nearest visible row), since the widgets keep the selection visible. `TreeState` raises
-  `SelectionChanged` when that moves it.
+- **The selection stays put** (`SelectionState`, `TreeState<T>`; changed in Phase 20 QA): the scrollbar and the
+  wheel scroll the view, and the selection keeps its item even when it scrolls out of sight. The widgets bring
+  the selection back into view only when it moves: a key, a click on a row, or code setting `Selected`. The
+  wheel scrolls lists, tables and trees one row per event (Phase 10 decision 5 kept the step; it used to move
+  the selection by one).
 - **Release** ends the drag. The press focuses the widget's component, as any press does (§4.7).
 - Wheel scrolling and row clicks are unchanged. A press on the scrollbar never selects a row.
 - **Scrollbars on the border** (a block with a right border) are handled the same way: the recorded rect is
@@ -3335,7 +3337,8 @@ Automated:
   `FixedSize` updated by mode, and `Changed` (once per size change, not when code sets `Ratio`), release and a press elsewhere ending the drag,
   presses off the divider returning false, nested splits, and Alt+Shift+arrows only along the direction.
 - **Scrollbars:** for each widget, dragging the thumb from its top, middle and bottom to every position, past
-  both ends, a track press paging each way, the selection moved into view (`SelectionChanged` for trees), the
+  both ends, a track press paging each way, the selection kept while scrolling and revealed by a key (no
+  `SelectionChanged` for trees), the
   scrollbar drawn inside and on a border, and wheel and row clicks unchanged.
 - **Sorting:** header clicks on sortable and unsortable columns, `Sortable()` with no columns, toggling,
   `SortChanged`, the marker, and clicks without `Sortable` doing nothing.
@@ -3347,8 +3350,10 @@ Manual QA (results in the PR): the Panes demo with the mouse in Windows Terminal
 
 - Additive API: `SplitState`, `SplitPane`, `SplitBuilder`, `Widget.Split`, `SelectionState.ToggleSort` and `SortChanged`, and
   `TableBuilder.Sortable`.
-- "Changed": a press on a list, table, tree or paragraph scrollbar used to do nothing; it now scrolls. A mouse
-  release goes to the component the press hit, not the one under the pointer. No key changes.
+- "Changed": a press on a list, table, tree or paragraph scrollbar used to do nothing; it now scrolls. The wheel
+  over a list, table or tree scrolls the view instead of moving the selection, and the selection is only scrolled
+  back into view when it moves. A mouse release goes to the component the press hit, not the one under the
+  pointer. No key changes.
 
 ### 14.9 Out of scope
 

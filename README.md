@@ -623,8 +623,8 @@ default because, while an app captures the mouse, selecting text in the terminal
 - **Hit testing** uses where components were drawn in the last frame: the top screen, overlays, and
   children rendered with `ctx.Render(child, buf, rect)`, which also sets `child.Area`. A child rendered
   with `child.Render(buf, rect, ctx.For(child))` isn't a target; its clicks go to its parent.
-- **Built in:** `SelectionState.HandleMouse(mouse, count)` (lists and tables: the wheel moves the
-  selection, a click selects a row, and on a `Sortable()` table a header click sorts),
+- **Built in:** `SelectionState.HandleMouse(mouse, count)` (lists and tables: the wheel scrolls by a
+  row without moving the selection, a click selects a row, and on a `Sortable()` table a header click sorts),
   `ScrollState.HandleMouse` (the wheel scrolls text by three rows), `TabBarState.HandleMouse` (a click
   selects a tab), `TextFieldState.HandleMouse` and `TextAreaState.HandleMouse` (a click places the
   cursor, Shift+click and dragging select, and a drag past an edge scrolls). In lists, tables, trees and

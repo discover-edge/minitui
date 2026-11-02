@@ -31,7 +31,7 @@ internal sealed class MenuScreen : Screen
 
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, Demos.Length);
 
-    // A click on a demo opens it; the wheel moves the selection
+    // A click on a demo opens it; the wheel scrolls the list when it doesn't fit
     public override bool HandleMouse(MouseEvent mouse)
     {
         if (!_selection.HandleMouse(mouse, Demos.Length)) return false;

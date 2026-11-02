@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `SplitState`, `SplitPane`, `SplitBuilder` and `Widget.Split(state)`: two panes side by side or stacked, with a one-cell divider the user drags with the mouse or moves with Alt+Shift+arrows (`HandleKey`, `MoveBy`). Sized by `Ratio`, or with one pane at a fixed size in cells (`SplitState.Fixed`, `FixedSize`, `FixedPane`) for sidebars; `MinFirst` and `MinSecond` limit how small the user can make each pane; `Changed` fires when they move it. Splits nest.
-- Scrollbar dragging: in lists, tables, trees and paragraphs, dragging the scrollbar's thumb scrolls, and a press on its track pages towards it. In lists, tables and trees the selection moves into view.
+- Scrollbar dragging: in lists, tables, trees and paragraphs, dragging the scrollbar's thumb scrolls, and a press on its track pages towards it. The selection stays where it is.
 - Sortable tables: `TableBuilder.Sortable(columns)` makes a header click call `SelectionState.ToggleSort(column)` (ascending on a new column, then flipping), and `SelectionState.SortChanged` tells the app to re-sort its rows.
 - Example: a Panes demo with a fixed sidebar of log sources, a sortable log table and a details pane in nested splits.
 - `docs/SPEC-1.x.md` §14: the split panes, scrollbar dragging and sortable tables spec.
@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - A mouse release goes to the component the press hit, as drags do, instead of the one under the pointer.
 - A press on a list, table, tree or paragraph scrollbar scrolls instead of doing nothing.
+- The wheel over a list, table or tree scrolls the view by a row instead of moving the selection, and scrolling (the wheel or the scrollbar) keeps the selection. Lists, tables and trees scroll the selection back into view when it moves: a key, a click, or setting `Selected`.
 
 ## [1.8.0] - 2026-11-02
 

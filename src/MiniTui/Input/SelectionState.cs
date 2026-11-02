@@ -6,10 +6,27 @@ namespace MiniTui;
 /// </summary>
 public sealed class SelectionState
 {
-    /// <summary>The selected index. Clamped to the item count when drawn.</summary>
-    public int Selected { get; set; }
+    private int _selected;
+    private bool _reveal = true;
 
-    /// <summary>The first visible index. Adjusted when drawn so <see cref="Selected"/> is visible.</summary>
+    /// <summary>
+    /// The selected index. Clamped to the item count when drawn. Setting it (or moving it with a key) scrolls it
+    /// into view at the next draw.
+    /// </summary>
+    public int Selected
+    {
+        get => _selected;
+        set
+        {
+            _selected = value;
+            _reveal = true;
+        }
+    }
+
+    /// <summary>
+    /// The first visible index. Adjusted when drawn so <see cref="Selected"/> is visible after the selection moves;
+    /// the wheel and the scrollbar scroll without moving the selection (1.x spec §14.4).
+    /// </summary>
     public int Offset { get; set; }
 
     /// <summary>How many rows were visible at the last draw. Used by <see cref="PageDown"/> and <see cref="PageUp"/>.</summary>
@@ -45,6 +62,13 @@ public sealed class SelectionState
     /// <returns>True if the key was a navigation key.</returns>
     public bool HandleKey(ConsoleKeyInfo key, int count)
     {
+        var handled = HandleKeyCore(key, count);
+        if (handled) _reveal = true;
+        return handled;
+    }
+
+    private bool HandleKeyCore(ConsoleKeyInfo key, int count)
+    {
         switch (key.Key)
         {
             case ConsoleKey.UpArrow: Previous(count); return true;
@@ -76,9 +100,9 @@ public sealed class SelectionState
     public event EventHandler? SortChanged;
 
     /// <summary>
-    /// Handle the mouse over the list or table drawn last (1.x spec §4.8, §14.4, §14.5): the wheel moves the
-    /// selection by one item, a left press on a visible row selects it, the scrollbar's thumb drags and its track
-    /// pages (the selection moves into view), and a press on a sortable header cell calls <see cref="ToggleSort"/>.
+    /// Handle the mouse over the list or table drawn last (1.x spec §4.8, §14.4, §14.5): the wheel scrolls by one
+    /// item, a left press on a visible row selects it, the scrollbar's thumb drags and its track pages, and a press
+    /// on a sortable header cell calls <see cref="ToggleSort"/>. Scrolling doesn't move the selection.
     /// </summary>
     /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse, int count)
@@ -88,8 +112,6 @@ public sealed class SelectionState
         if (_bar.Handle(mouse, ref offset))
         {
             Offset = offset;
-            if (ViewportHeight > 0 && count > 0)
-                Selected = Math.Clamp(Selected, offset, Math.Min(count - 1, offset + ViewportHeight - 1));
             return true;
         }
         if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
@@ -100,8 +122,8 @@ public sealed class SelectionState
         }
         switch (mouse.Action)
         {
-            case MouseAction.ScrollUp: Previous(count); return true;
-            case MouseAction.ScrollDown: Next(count); return true;
+            case MouseAction.ScrollUp: ScrollBy(-1, count); return true;
+            case MouseAction.ScrollDown: ScrollBy(1, count); return true;
         }
 
         if (!mouse.IsClick || !_mouseRows.Contains(mouse.X, mouse.Y)) return false;
@@ -133,9 +155,16 @@ public sealed class SelectionState
     internal void Fit(int count, int viewportHeight)
     {
         ViewportHeight = Math.Max(0, viewportHeight);
-        Selected = Clamp(Selected, count);
-        Offset = FitOffset(Offset, Selected, count, ViewportHeight);
+        _selected = Clamp(_selected, count);
+        Offset = _reveal ? FitOffset(Offset, _selected, count, ViewportHeight) : ClampOffset(Offset, count, ViewportHeight);
+        _reveal = false;
     }
+
+    /// <summary>An offset kept within the content, leaving the selection wherever it is.</summary>
+    internal static int ClampOffset(int offset, int count, int viewportHeight) =>
+        Math.Clamp(offset, 0, Math.Max(0, viewportHeight > 0 ? count - viewportHeight : count - 1));
+
+    private void ScrollBy(int rows, int count) => Offset = ClampOffset(Offset + rows, count, ViewportHeight);
 
     /// <summary>The offset that keeps <paramref name="selected"/> visible, moving as little as possible.</summary>
     internal static int FitOffset(int offset, int selected, int count, int viewportHeight)
