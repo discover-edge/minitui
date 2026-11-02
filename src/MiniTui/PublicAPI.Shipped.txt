@@ -760,10 +760,12 @@ MiniTui.SelectionState.Previous(int count) -> void
 MiniTui.SelectionState.Selected.get -> int
 MiniTui.SelectionState.Selected.set -> void
 MiniTui.SelectionState.SelectionState() -> void
+MiniTui.SelectionState.SortChanged -> System.EventHandler?
 MiniTui.SelectionState.SortColumn.get -> int?
 MiniTui.SelectionState.SortColumn.set -> void
 MiniTui.SelectionState.SortDescending.get -> bool
 MiniTui.SelectionState.SortDescending.set -> void
+MiniTui.SelectionState.ToggleSort(int column) -> void
 MiniTui.SelectionState.ViewportHeight.get -> int
 MiniTui.Span
 MiniTui.Span.Content.get -> string!
@@ -792,6 +794,31 @@ MiniTui.SpinnerFrames
 MiniTui.SpinnerFrames.Braille = 1 -> MiniTui.SpinnerFrames
 MiniTui.SpinnerFrames.Dots = 2 -> MiniTui.SpinnerFrames
 MiniTui.SpinnerFrames.Line = 0 -> MiniTui.SpinnerFrames
+MiniTui.SplitBuilder
+MiniTui.SplitBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> (MiniTui.Rect First, MiniTui.Rect Second)
+MiniTui.SplitBuilder.Focused(bool focused = true) -> MiniTui.SplitBuilder!
+MiniTui.SplitBuilder.Style(MiniTui.Style style) -> MiniTui.SplitBuilder!
+MiniTui.SplitPane
+MiniTui.SplitPane.First = 0 -> MiniTui.SplitPane
+MiniTui.SplitPane.Second = 1 -> MiniTui.SplitPane
+MiniTui.SplitState
+MiniTui.SplitState.Changed -> System.EventHandler?
+MiniTui.SplitState.Direction.get -> MiniTui.Direction
+MiniTui.SplitState.FixedPane.get -> MiniTui.SplitPane
+MiniTui.SplitState.FixedPane.set -> void
+MiniTui.SplitState.FixedSize.get -> int?
+MiniTui.SplitState.FixedSize.set -> void
+MiniTui.SplitState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.SplitState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.SplitState.IsDragging.get -> bool
+MiniTui.SplitState.MinFirst.get -> int
+MiniTui.SplitState.MinFirst.set -> void
+MiniTui.SplitState.MinSecond.get -> int
+MiniTui.SplitState.MinSecond.set -> void
+MiniTui.SplitState.MoveBy(int cells) -> void
+MiniTui.SplitState.Ratio.get -> double
+MiniTui.SplitState.Ratio.set -> void
+MiniTui.SplitState.SplitState(MiniTui.Direction direction, double ratio = 0.5) -> void
 MiniTui.StatusBarBuilder
 MiniTui.StatusBarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.StatusBarBuilder.Left(MiniTui.Line! text) -> MiniTui.StatusBarBuilder!
@@ -850,6 +877,7 @@ MiniTui.TableBuilder.HighlightStyle(MiniTui.Style style) -> MiniTui.TableBuilder
 MiniTui.TableBuilder.HighlightSymbol(string! symbol) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Rows(System.Collections.Generic.IReadOnlyList<MiniTui.Row!>! rows) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Rows<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Row!>! format) -> MiniTui.TableBuilder!
+MiniTui.TableBuilder.Sortable(params int[]! columns) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.State(MiniTui.SelectionState! state) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Style(MiniTui.Style style) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.TableBuilder() -> void
@@ -1404,6 +1432,7 @@ static MiniTui.ResumeEvent.operator ==(MiniTui.ResumeEvent? left, MiniTui.Resume
 static MiniTui.Span.implicit operator MiniTui.Span(string! content) -> MiniTui.Span
 static MiniTui.Span.operator !=(MiniTui.Span left, MiniTui.Span right) -> bool
 static MiniTui.Span.operator ==(MiniTui.Span left, MiniTui.Span right) -> bool
+static MiniTui.SplitState.Fixed(MiniTui.Direction direction, int cells, MiniTui.SplitPane pane = MiniTui.SplitPane.First) -> MiniTui.SplitState!
 static MiniTui.Style.Default.get -> MiniTui.Style
 static MiniTui.Style.operator !=(MiniTui.Style left, MiniTui.Style right) -> bool
 static MiniTui.Style.operator ==(MiniTui.Style left, MiniTui.Style right) -> bool
@@ -1461,6 +1490,7 @@ static MiniTui.Widget.Scrollbar() -> MiniTui.ScrollbarBuilder!
 static MiniTui.Widget.Select() -> MiniTui.SelectBuilder!
 static MiniTui.Widget.Sparkline() -> MiniTui.SparklineBuilder!
 static MiniTui.Widget.Spinner() -> MiniTui.SpinnerBuilder!
+static MiniTui.Widget.Split(MiniTui.SplitState! state) -> MiniTui.SplitBuilder!
 static MiniTui.Widget.StatusBar() -> MiniTui.StatusBarBuilder!
 static MiniTui.Widget.TabBar() -> MiniTui.TabBarBuilder!
 static MiniTui.Widget.Table() -> MiniTui.TableBuilder!
