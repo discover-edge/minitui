@@ -390,6 +390,9 @@ public partial class App
         try
         {
             var start = _time.GetTimestamp();
+
+            // A theme with its own background (Theme.Dark, Theme.Light) fills the screen with it (1.x spec §12.4)
+            if (Theme.Current.Text.Bg is not null) WidgetText.Clear(buf, area);
             RenderLayers(buf, area);
             var render = _time.GetElapsedTime(start);
             if (_showDebug) DrawDebug(buf, area, render);
@@ -541,7 +544,8 @@ public partial class App
     /// A custom theme is used as is.
     /// </summary>
     private Theme ResolveTheme(Theme? theme) =>
-        _noColor && (theme is null || ReferenceEquals(theme, Theme.Default) || ReferenceEquals(theme, Theme.Light))
+        _noColor && (theme is null || ReferenceEquals(theme, Theme.Default) || ReferenceEquals(theme, Theme.Dark)
+                     || ReferenceEquals(theme, Theme.Light))
             ? Theme.Monochrome
             : theme ?? Theme.Default;
 

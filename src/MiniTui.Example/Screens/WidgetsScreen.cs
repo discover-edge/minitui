@@ -21,7 +21,7 @@ internal sealed class WidgetsScreen : Screen
     private readonly TextInput _name;
     private readonly Toggle _agree;
     private readonly Component _greet;
-    private static readonly string[] ThemeNames = ["auto (by background)", "default", "light", "monochrome"];
+    private static readonly string[] ThemeNames = ["auto (dark or light by background)", "default (the terminal's palette)", "dark", "light", "monochrome"];
     private int _theme;
     private double _progress;
 
@@ -64,7 +64,7 @@ internal sealed class WidgetsScreen : Screen
     // Leave the app's theme as we found it: picked by the terminal's background
     protected override void OnUnmount()
     {
-        if (_theme != 0) App.WithTheme(Theme.Default, Theme.Light);
+        if (_theme != 0) App.WithTheme(Theme.Dark, Theme.Light);
     }
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
@@ -153,7 +153,7 @@ internal sealed class WidgetsScreen : Screen
     private void ToggleTheme()
     {
         _theme = (_theme + 1) % ThemeNames.Length;
-        if (_theme == 0) App.WithTheme(Theme.Default, Theme.Light);
-        else App.WithTheme(_theme switch { 1 => Theme.Default, 2 => Theme.Light, _ => Theme.Monochrome });
+        if (_theme == 0) App.WithTheme(Theme.Dark, Theme.Light);
+        else App.WithTheme(_theme switch { 1 => Theme.Default, 2 => Theme.Dark, 3 => Theme.Light, _ => Theme.Monochrome });
     }
 }

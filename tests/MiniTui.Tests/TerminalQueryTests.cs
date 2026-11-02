@@ -182,7 +182,8 @@ public class TerminalQueryTests
     {
         public Run(FakeTimeProvider time, Action<App>? configure = null, string? colorFgBg = null, bool queries = true, ITerminalBackend? backend = null)
         {
-            App = App.Create().WithBackend(backend ?? new TestBackend(20, 3)).WithInput(new ScriptedInputSource()).WithTickRate(null)
+            Backend = backend ?? new TestBackend(20, 3);
+            App = App.Create().WithBackend(Backend).WithInput(new ScriptedInputSource()).WithTickRate(null)
                 .CaptureConsoleOutput(false).WithTimeProvider(time);
             App.GetEnvironment = name => name == "COLORFGBG" ? colorFgBg : null;
             if (queries) App.QueryWriter = () => Sent++;
@@ -203,6 +204,7 @@ public class TerminalQueryTests
         }
 
         public App App { get; }
+        public ITerminalBackend Backend { get; }
         public int Sent { get; private set; }
         public int Frames { get; private set; }
         public Theme? ThemeSeen { get; private set; }
@@ -344,29 +346,90 @@ public class TerminalQueryTests
         Assert.Same(Theme.Monochrome, run.ThemeSeen);
     }
 
-    [Fact]
-    public void LightTheme_UnderNoColor_IsMonochrome()
+    public static TheoryData<string> FixedThemes => ["Dark", "Light"];
+
+    private static Theme Named(string name) => name == "Dark" ? Theme.Dark : Theme.Light;
+
+    private static IEnumerable<Style> Slots(Theme theme) =>
+        typeof(Theme).GetProperties().Where(p => p.PropertyType == typeof(Style)).Select(p => (Style)p.GetValue(theme)!)
+            .Concat(theme.ChartSeries);
+
+    [Theory]
+    [MemberData(nameof(FixedThemes))]
+    public void FixedThemes_UseOnlyRgbColors_AndSetABackground(string name)
     {
-        using var run = new Run(new FakeTimeProvider(), app => app.WithTheme(Theme.Light), backend: new AnsiBackend(ColorMode.None, new FakeConsoleHost(20, 3)));
-        Assert.Same(Theme.Monochrome, run.ThemeSeen);
+        var theme = Named(name);
+        Assert.NotNull(theme.Text.Fg);
+        Assert.NotNull(theme.Text.Bg);
+        Assert.All(Slots(theme), s =>
+        {
+            Assert.True(s.Fg is null || s.Fg.Value.Kind == ColorKind.Rgb);
+            Assert.True(s.Bg is null || s.Bg.Value.Kind == ColorKind.Rgb);
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(FixedThemes))]
+    public void FixedThemes_HaveReadableText(string name)
+    {
+        var theme = Named(name);
+        var bg = theme.Text.Bg!.Value;
+        Assert.True(Contrast(theme.Text.Fg!.Value, bg) >= 7);
+        foreach (var pair in new[] { theme.Selection, theme.SelectionUnfocused, theme.StatusBar, theme.Button, theme.ButtonFocused, theme.TabActive })
+            Assert.True(Contrast(pair.Fg ?? theme.Text.Fg!.Value, pair.Bg!.Value) >= 4.5, pair.ToString());
+        foreach (var accent in new[] { theme.TextMuted, theme.Title, theme.TitleFocused, theme.TableHeader, theme.Success, theme.Warning, theme.Error, theme.Info })
+            Assert.True(Contrast(accent.Fg!.Value, bg) >= 4, accent.ToString());
+        Assert.All(theme.ChartSeries, s => Assert.True(Contrast(s.Fg!.Value, bg) >= 4));
+    }
+
+    private static double Contrast(Color a, Color b)
+    {
+        static double Luminance(Color c)
+        {
+            var (r, g, b) = c.RgbValue;
+            static double Lin(byte v) => v / 255.0 <= 0.04045 ? v / 255.0 / 12.92 : Math.Pow((v / 255.0 + 0.055) / 1.055, 2.4);
+            return 0.2126 * Lin(r) + 0.7152 * Lin(g) + 0.0722 * Lin(b);
+        }
+        var (x, y) = (Luminance(a), Luminance(b));
+        return (Math.Max(x, y) + 0.05) / (Math.Min(x, y) + 0.05);
     }
 
     [Fact]
-    public void LightTheme_UsesDarkBlueForFocus_AndNoColorsThatFadeOnWhite()
+    public void ThemePair_PicksDarkOrLight_ByLuminance()
     {
-        var light = Theme.Light;
-        Assert.Equal(Theme.Default.Text, light.Text);
-        Assert.Equal(new Style(Color.White, Color.DarkBlue), light.Selection);
-        Assert.Equal(new Style(Color.Black, Color.Gray), light.SelectionUnfocused);
-        Assert.Equal(new Style(Color.Black, Color.Gray), light.StatusBar);
+        Assert.True(TerminalQueries.IsDark(Theme.Dark.Text.Bg!.Value));
+        Assert.False(TerminalQueries.IsDark(Theme.Light.Text.Bg!.Value));
+    }
 
-        // No light foregrounds anywhere except on a dark background
-        var slots = typeof(Theme).GetProperties().Where(p => p.PropertyType == typeof(Style)).Select(p => (Style)p.GetValue(light)!)
-            .Concat(light.ChartSeries);
-        Assert.DoesNotContain(slots, s => s.Fg is var c && (c == Color.Yellow || c == Color.Cyan || c == Color.Green || c == Color.White) && s.Bg != Color.DarkBlue);
+    [Fact]
+    public void AThemeWithABackground_FillsTheScreen_AndClearedAreas()
+    {
+        using var run = new Run(new FakeTimeProvider(), app => app.WithTheme(Theme.Dark), queries: false);
+        var backend = (TestBackend)run.Backend;
+        var bg = Theme.Dark.Text.Bg;
+        Assert.All(Enumerable.Range(0, 20), x => Assert.Equal(bg, backend.CellAt(x, 2).Bg));
 
-        var buf = new Buffer(20, 3);
-        using (Theme.Use(light)) Widget.Block().Title("T").Focused().Draw(buf, buf.Area);
-        Assert.Equal(Color.DarkBlue, buf.Get(0, 0).Fg);
+        var buf = new Buffer(6, 2);
+        using (Theme.Use(Theme.Light)) WidgetText.Clear(buf, buf.Area);
+        Assert.Equal(Theme.Light.Text.Bg, buf.Get(5, 1).Bg);
+        Assert.Equal(Theme.Light.Text.Fg, buf.Get(5, 1).Fg);
+    }
+
+    [Fact]
+    public void TheDefaultTheme_LeavesTheBackgroundToTheTerminal()
+    {
+        using var run = new Run(new FakeTimeProvider(), queries: false);
+        var backend = (TestBackend)run.Backend;
+        Assert.Equal(Color.Reset, backend.CellAt(19, 2).Bg);
+        Assert.Null(Theme.Default.Text.Bg);
+    }
+
+    [Theory]
+    [MemberData(nameof(FixedThemes))]
+    public void FixedThemes_UnderNoColor_AreMonochrome(string name)
+    {
+        using var run = new Run(new FakeTimeProvider(), app => app.WithTheme(Named(name)), queries: false,
+            backend: new AnsiBackend(ColorMode.None, new FakeConsoleHost(20, 3)));
+        Assert.Same(Theme.Monochrome, run.ThemeSeen);
     }
 }

@@ -41,4 +41,5 @@ static MiniTui.TerminalInfo.operator !=(MiniTui.TerminalInfo? left, MiniTui.Term
 static MiniTui.TerminalInfo.operator ==(MiniTui.TerminalInfo? left, MiniTui.TerminalInfo? right) -> bool
 static MiniTui.TerminalInfoEvent.operator !=(MiniTui.TerminalInfoEvent? left, MiniTui.TerminalInfoEvent? right) -> bool
 static MiniTui.TerminalInfoEvent.operator ==(MiniTui.TerminalInfoEvent? left, MiniTui.TerminalInfoEvent? right) -> bool
+static MiniTui.Theme.Dark.get -> MiniTui.Theme!
 static MiniTui.Theme.Light.get -> MiniTui.Theme!

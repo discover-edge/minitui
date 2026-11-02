@@ -2619,8 +2619,8 @@ supports. Phase 18 adds those questions (backlog ranks 1 and 6, §1.1):
 - **Terminal queries:** asked at startup, with the replies parsed by the input decoder and never leaked as keys.
   They report the background and foreground colors, the keyboard protocols the terminal supports, and its name
   and version.
-- **Light and dark themes:** `WithTheme(dark, light)` picks a theme from the background color, and a new
-  `Theme.Light` suits light terminals.
+- **Light and dark themes:** new `Theme.Dark` and `Theme.Light` with their own colors, and `WithTheme(dark,
+  light)` to pick one from the background color.
 - **Richer keyboard input:** the best protocol the terminal supports is turned on, so keys the legacy encoding
   can't express (Ctrl+Enter, Shift+Enter, Ctrl+Tab, Ctrl+I, Ctrl+digits and punctuation) arrive as themselves.
   Every key the legacy encoding can express still decodes exactly as before.
@@ -2683,12 +2683,14 @@ public partial class App
 
 public partial class Theme
 {
-    /// A theme for light backgrounds: Default's slots, with colors that stay readable on white (§12.4).
+    /// Themes with their own RGB colors, the same in every terminal whatever its palette, including the text and
+    /// background colors; the app fills the screen with the background (§12.4).
+    public static Theme Dark { get; }
     public static Theme Light { get; }
 }
 ```
 
-- `WithTheme(Theme)` from 1.0 is unchanged and wins over the pair if both are called (last call wins, as for
+- `WithTheme(Theme)` from 1.0 is unchanged and replaces the pair if called after it (last call wins, as for
   the other `With` options).
 - `KeyBinding.Parse` needs no new names: `ctrl+enter`, `shift+enter`, `ctrl+tab`, `ctrl+i`, `ctrl+1` and
   `ctrl+.` already parse. Until now they could only match when a terminal sent them by accident; now they match
@@ -2735,16 +2737,26 @@ public partial class Theme
   dark, and 7 or 9–15 is light. Otherwise it's null.
 - **`WithTheme(dark, light)`** uses `light` when `IsDark` is false, and `dark` otherwise (true or unknown). The
   theme is chosen once per run, when the background is first known, not on every reply.
-- **`Theme.Light`:** clearly a light theme, not only a fix for unreadable colors (QA of a first version that only
-  darkened the fading colors found it barely looked different):
-  - Dark blue for focus: the selection, focused buttons and the active tab are White on DarkBlue, and focused
-    borders, focused titles, prompts and table headers are DarkBlue.
-  - Black on Gray for the status bar, buttons, the unfocused selection and the active tab when unfocused.
-  - Darker variants where Default uses Yellow, Cyan or Green as a foreground: titles and info text DarkCyan,
-    warnings DarkYellow, success and gauges DarkGreen, errors DarkRed, and the chart series in their dark
-    colors.
-  - Text, muted text and borders are unchanged (the terminal's foreground and DarkGray).
-- Monochrome is unaffected (`NO_COLOR` still selects it).
+- **Three kinds of theme** (decided in 18a QA: a palette-based light theme looked different in every light
+  profile, because light profiles redefine the 16 colors heavily):
+  - `Theme.Default` uses the terminal's palette (the 16 named colors) and its default text and background, so it
+    fits the user's profile. Unchanged.
+  - `Theme.Dark` and `Theme.Light` use their own RGB colors in every slot, including `Text`'s foreground and
+    background, so they look the same in every terminal. The usual pair is `WithTheme(Theme.Dark, Theme.Light)`.
+  - `Theme.Monochrome` uses only modifiers. Unchanged.
+- **Filling the background:** when the theme's `Text` has a background, each frame starts by filling the screen
+  with `Text`, and `WidgetText.Clear` (used by dialogs, toasts, buttons, the status bar and the command line)
+  clears with `Text` instead of empty cells. Text drawn over it patches its style, so it keeps the background.
+  With `Theme.Default`, whose `Text` has no colors, nothing changes.
+- **The colors:**
+  - Dark: light gray text on a near-black blue background, a blue accent and focus, a yellow focused title, and
+    green, yellow, red, cyan and magenta accents.
+  - Light: near-black text on off-white, a dark blue accent, focus and selection (white text), light gray bars,
+    and dark accents.
+  - Text has a contrast of at least 7:1, selections, bars and buttons at least 4.5:1, and accents and chart
+    series at least 4:1 against the background. Tests check these.
+  - Terminals with 256 colors get the nearest palette entry; with 16, the nearest named color.
+- `NO_COLOR` selects Monochrome in place of Default, Dark and Light.
 
 ### 12.5 Keyboard protocols
 
@@ -2822,8 +2834,8 @@ Enter does.
   - Shows `TerminalInfo` (every field, and whether DA1 was answered).
   - Lists Ctrl+Enter, Shift+Enter and Ctrl+Tab in its "try these" line, so a terminal is quick to check.
   - Shows the raw sequence beside each decoded key, as it does now.
-- The example app uses `WithTheme(Theme.Default, Theme.Light)`. The Widgets demo's theme toggle cycles
-  Default, Light and Monochrome.
+- The example app uses `WithTheme(Theme.Dark, Theme.Light)`. The Widgets demo's theme toggle cycles auto (the
+  pair), Default, Dark, Light and Monochrome.
 - The Form demo binds Ctrl+Enter to Register, alongside the existing key, and says it needs a terminal with a
   keyboard protocol.
 
@@ -2858,7 +2870,7 @@ profile, and that no reply ever appears as typed text over SSH.
 ### 12.9 Migration impact
 
 - Additive API: `TerminalInfo`, `KeyboardProtocol`, `TerminalInfoEvent`, `App.TerminalInfo`,
-  `WithTerminalQueries`, `WithKeyboardProtocol`, `WithTheme(dark, light)` and `Theme.Light`.
+  `WithTerminalQueries`, `WithKeyboardProtocol`, `WithTheme(dark, light)`, `Theme.Dark` and `Theme.Light`.
 - "Changed": queries are written at startup and after resume; a protocol is turned on where supported, so
   Ctrl/Shift+Enter, Ctrl+Tab and Ctrl+I can arrive as themselves; apps with their own `OnEvent` see
   `TerminalInfoEvent`.
@@ -2880,7 +2892,7 @@ profile, and that no reply ever appears as typed text over SSH.
 
 Two PRs, like Phases 10 and 16, because the second changes key decoding on every platform:
 1. **18a** (queries): the query writes and reply decoding, `TerminalInfo`, `TerminalInfoEvent`, the DA1 sentinel
-   and cut-off, `IsDark` and `COLORFGBG`, `WithTheme(dark, light)` and `Theme.Light`, the debug overlay line and
+   and cut-off, `IsDark` and `COLORFGBG`, `WithTheme(dark, light)`, `Theme.Dark` and `Theme.Light`, the debug overlay line and
    the Input demo's info, README ("### Terminal queries and themes"), CHANGELOG, and manual QA of replies on every
    terminal in §12.8.
 2. **18b** (keyboard): the three protocol decoders, enabling and restoring, `WithKeyboardProtocol` and

@@ -10,11 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Terminal queries: at startup and after a resume, the app asks the terminal for its default colors (OSC 10 and 11), its name (XTVERSION), its keyboard protocol support and its Primary Device Attributes. The input decoder reads the replies and never turns them into keys. `App.TerminalInfo` (`Answered`, `Background`, `Foreground`, `IsDark`, `Keyboard`, `Name`) holds what the terminal said, and `TerminalInfoEvent` reports each change. `WithTerminalQueries(false)` or `MINITUI_QUERIES=0` turns them off.
 - `KeyboardProtocol` (`Legacy`, `Kitty`, `ModifyOtherKeys`, `Win32InputMode`), reported in `TerminalInfo.Keyboard`.
-- `Theme.Light`, for light backgrounds (dark blue selection and focus, black on light gray bars and buttons, darker accent colors), and `App.WithTheme(dark, light)`, which picks one from the terminal's background (or `COLORFGBG`); the first frame waits up to 150 ms for the reply.
-- The debug overlay shows light or dark and the terminal's name. The Input demo shows what the terminal answered, the example app follows the terminal's background, and the Widgets demo's `t` cycles auto, default, light and monochrome.
+- `Theme.Dark` and `Theme.Light`: themes with their own RGB colors, the same in every terminal whatever its palette. They set the text and background colors, and the app fills the screen with the background (`Theme.Default` still uses the terminal's palette and background). `App.WithTheme(dark, light)` picks one from the terminal's background (or `COLORFGBG`); the first frame waits up to 150 ms for the reply.
+- The debug overlay shows light or dark and the terminal's name. The Input demo shows what the terminal answered, the example app uses `Theme.Dark` or `Theme.Light` by the terminal's background, and the Widgets demo's `t` cycles auto, default, dark, light and monochrome.
 - `docs/SPEC-1.x.md` §12: the terminal queries and keyboard protocols spec.
 
 ### Changed
+- Widgets that clear an area before drawing (dialogs, toasts, buttons, the status bar) clear it with the theme's text style, so a theme with a background keeps it there. With `Theme.Default` nothing changes.
 - In a real terminal, the app now writes its queries at startup and after a resume. Apps with their own `OnEvent` also see `TerminalInfoEvent`.
 
 ## [1.6.0] - 2026-11-01

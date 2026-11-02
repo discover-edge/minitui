@@ -116,34 +116,86 @@ public sealed record Theme
     };
 
     /// <summary>
-    /// A theme for light backgrounds (1.x spec §12.4): <see cref="Default"/> with dark blue for the selection and
-    /// focus, black on light gray for bars, buttons and unfocused selections, and darker colors where its yellow,
-    /// cyan and green would fade on white.
+    /// A dark theme with its own colors (1.x spec §12.4): the same in every terminal, whatever its palette. It sets
+    /// the text and background colors too, and the app fills the screen with them.
     /// </summary>
-    public static Theme Light { get; } = Default with
+    public static Theme Dark { get; } = new()
     {
-        BorderFocused = new Style(Color.DarkBlue),
-        Title = new Style(Color.DarkCyan),
-        TitleFocused = new Style(Color.DarkBlue).Bold(),
-        Selection = new Style(Color.White, Color.DarkBlue),
-        SelectionUnfocused = new Style(Color.Black, Color.Gray),
-        TableHeader = new Style(Color.DarkBlue).Bold(),
-        Prompt = new Style(Color.DarkBlue),
-        StatusBar = new Style(Color.Black, Color.Gray),
-        Button = new Style(Color.Black, Color.Gray),
-        ButtonFocused = new Style(Color.White, Color.DarkBlue),
-        TabActive = new Style(Color.White, Color.DarkBlue),
-        TabActiveUnfocused = new Style(Color.Black, Color.Gray),
-        ModalTitle = new Style(Color.DarkBlue),
-        GaugeFilled = new Style(Color.DarkGreen),
-        Success = new Style(Color.DarkGreen),
-        Warning = new Style(Color.DarkYellow),
-        Error = new Style(Color.DarkRed),
-        Info = new Style(Color.DarkCyan),
+        Text = new Style(Rgb("#D4D7DD"), Rgb("#1C1F26")),
+        TextMuted = new Style(Rgb("#7D8590")),
+        Border = new Style(Rgb("#4A5160")),
+        BorderFocused = new Style(Rgb("#5FA8FF")),
+        Title = new Style(Rgb("#5FA8FF")),
+        TitleFocused = new Style(Rgb("#FFC66D")).Bold(),
+        Selection = new Style(Rgb("#10131A"), Rgb("#5FA8FF")),
+        SelectionUnfocused = new Style(Rgb("#D4D7DD"), Rgb("#353B46")),
+        TableHeader = new Style(Rgb("#FFC66D")).Bold(),
+        Input = Style.Default,
+        InputFocused = Style.Default,
+        Prompt = new Style(Rgb("#5FA8FF")),
+        Cursor = Style.Default.Reversed(),
+        StatusBar = new Style(Rgb("#D4D7DD"), Rgb("#2A2F38")),
+        Button = new Style(Rgb("#D4D7DD"), Rgb("#353B46")),
+        ButtonFocused = new Style(Rgb("#10131A"), Rgb("#5FA8FF")),
+        TabActive = new Style(Rgb("#10131A"), Rgb("#5FA8FF")),
+        TabActiveUnfocused = new Style(Rgb("#D4D7DD"), Rgb("#353B46")),
+        TabInactive = Style.Default,
+        ModalBorder = new Style(Rgb("#5C6370")),
+        ModalTitle = new Style(Rgb("#5FA8FF")),
+        ScrollbarTrack = new Style(Rgb("#353B46")),
+        ScrollbarThumb = new Style(Rgb("#7D8590")),
+        GaugeFilled = new Style(Rgb("#7EC699")),
+        GaugeEmpty = new Style(Rgb("#353B46")),
+        Success = new Style(Rgb("#7EC699")),
+        Warning = new Style(Rgb("#FFC66D")),
+        Error = new Style(Rgb("#F2777A")),
+        Info = new Style(Rgb("#66CCCC")),
         ChartSeries =
         [
-            new Style(Color.DarkCyan), new Style(Color.DarkYellow), new Style(Color.DarkMagenta),
-            new Style(Color.DarkGreen), new Style(Color.DarkBlue), new Style(Color.DarkRed),
+            new Style(Rgb("#66CCCC")), new Style(Rgb("#FFC66D")), new Style(Rgb("#C594C5")),
+            new Style(Rgb("#7EC699")), new Style(Rgb("#5FA8FF")), new Style(Rgb("#F2777A")),
+        ],
+    };
+
+    /// <summary>
+    /// A light theme with its own colors (1.x spec §12.4): the same in every terminal, whatever its palette. It sets
+    /// the text and background colors too, and the app fills the screen with them.
+    /// </summary>
+    public static Theme Light { get; } = new()
+    {
+        Text = new Style(Rgb("#24292F"), Rgb("#FAFAFA")),
+        TextMuted = new Style(Rgb("#6E7781")),
+        Border = new Style(Rgb("#B4BBC3")),
+        BorderFocused = new Style(Rgb("#0B5CAD")),
+        Title = new Style(Rgb("#0B5CAD")),
+        TitleFocused = new Style(Rgb("#0B5CAD")).Bold(),
+        Selection = new Style(Rgb("#FFFFFF"), Rgb("#0B5CAD")),
+        SelectionUnfocused = new Style(Rgb("#24292F"), Rgb("#D8DEE4")),
+        TableHeader = new Style(Rgb("#0B5CAD")).Bold(),
+        Input = Style.Default,
+        InputFocused = Style.Default,
+        Prompt = new Style(Rgb("#0B5CAD")),
+        Cursor = Style.Default.Reversed(),
+        StatusBar = new Style(Rgb("#24292F"), Rgb("#E4E7EB")),
+        Button = new Style(Rgb("#24292F"), Rgb("#D8DEE4")),
+        ButtonFocused = new Style(Rgb("#FFFFFF"), Rgb("#0B5CAD")),
+        TabActive = new Style(Rgb("#FFFFFF"), Rgb("#0B5CAD")),
+        TabActiveUnfocused = new Style(Rgb("#24292F"), Rgb("#D8DEE4")),
+        TabInactive = Style.Default,
+        ModalBorder = new Style(Rgb("#8C959F")),
+        ModalTitle = new Style(Rgb("#0B5CAD")),
+        ScrollbarTrack = new Style(Rgb("#D8DEE4")),
+        ScrollbarThumb = new Style(Rgb("#6E7781")),
+        GaugeFilled = new Style(Rgb("#1A7F37")),
+        GaugeEmpty = new Style(Rgb("#D8DEE4")),
+        Success = new Style(Rgb("#1A7F37")),
+        Warning = new Style(Rgb("#9A6700")),
+        Error = new Style(Rgb("#CF222E")),
+        Info = new Style(Rgb("#1B7C83")),
+        ChartSeries =
+        [
+            new Style(Rgb("#1B7C83")), new Style(Rgb("#9A6700")), new Style(Rgb("#8250DF")),
+            new Style(Rgb("#1A7F37")), new Style(Rgb("#0B5CAD")), new Style(Rgb("#CF222E")),
         ],
     };
 
@@ -181,6 +233,8 @@ public sealed record Theme
         Info = Style.Default,
         ChartSeries = [Style.Default],
     };
+
+    private static Color Rgb(string hex) => Color.FromHex(hex);
 
     /// <summary>
     /// The theme widgets draw with: the running app's theme on its UI thread, otherwise <see cref="Default"/>.

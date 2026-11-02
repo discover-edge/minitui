@@ -7,8 +7,8 @@ using MiniTui.Example;
 // The mouse works too: click to focus, select and toggle, and scroll lists with the wheel.
 // On Linux and macOS, Ctrl+Z suspends to the shell, and fg brings the demos back.
 
-// The theme follows the terminal's background: dark or light
-var app = App.Create().WithTheme(Theme.Default, Theme.Light).WithMouse().WithSuspendKey().WithDebugKey();
+// Fixed dark and light themes, picked by the terminal's background
+var app = App.Create().WithTheme(Theme.Dark, Theme.Light).WithMouse().WithSuspendKey().WithDebugKey();
 app.Keys.Add("q", "Back", () => app.Screens.Pop());   // popping the menu quits
 app.Screens.Push(new MenuScreen());
 app.Run();
