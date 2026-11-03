@@ -546,6 +546,7 @@ everything); typing, pasting or a delete key replaces the selection, and ‚Üê / ‚
   same read from code.
 - **Ctrl+Insert** copies (and never quits), **Shift+Insert** pastes and **Shift+Delete** cuts, as the CUA keys
   do. Terminals that keep Shift+Insert for their own paste send it as a paste, which works the same.
+- **Esc** clears the selection; without one it goes on as before (closing a dialog or going back).
 - **Ctrl+Z** undoes and **Ctrl+Y** redoes, by word while typing. Setting `Text` clears the history. A
   text field takes Ctrl+Z even with nothing to undo, so with `WithSuspendKey`, Ctrl+Z suspends only
   while focus isn't on text.

@@ -334,7 +334,8 @@ public class TextAreaState
     /// Ctrl+Home End, Ctrl+← →, Shift with the movement keys to select, Backspace, Delete, Ctrl+Backspace / Ctrl+W,
     /// Ctrl+U, Ctrl+K, Ctrl+A (select all), Ctrl+C / Ctrl+X (copy and cut, only with a selection), Ctrl+V (paste the
     /// clipboard), Ctrl+Z (undo) and Ctrl+Y (redo), and with <see cref="TabIndents"/>, Tab and Shift+Tab (§16.3). Esc
-    /// and other Ctrl or Alt keys aren't handled, nor is Tab without <see cref="TabIndents"/>.
+    /// clears a selection; without one it isn't handled, nor are other Ctrl or Alt keys, nor Tab without
+    /// <see cref="TabIndents"/>.
     /// </summary>
     /// <returns>True if the key was one of these.</returns>
     public virtual bool HandleKey(ConsoleKeyInfo key)
@@ -346,6 +347,12 @@ public class TextAreaState
         // 1.x spec §20.4: Ctrl+Insert copies (and never quits), Shift+Insert pastes, Shift+Delete cuts
         if (key.Key == ConsoleKey.Insert && !alt && ctrl != shift) return ctrl ? Copy() : MiniTui.Clipboard.PasteInto(Paste);
         if (key.Key == ConsoleKey.Delete && shift && !ctrl && Cut()) return true;
+        // Esc clears a selection, and without one goes on (to close or go back)
+        if (key.Key == ConsoleKey.Escape && HasSelection && !ctrl && !alt)
+        {
+            ClearSelection();
+            return true;
+        }
 
         if (FindEnabled && KeyInput.IsCtrl(key, 'F'))
         {

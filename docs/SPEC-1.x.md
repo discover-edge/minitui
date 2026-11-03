@@ -2167,6 +2167,7 @@ Added to the §8.4 (text field) and §6.3 (text area) keys, in both states unles
 | Ctrl+X | Cut the selection. Without one it isn't handled. |
 | Ctrl+V | Paste `Clipboard.GetText()`, replacing the selection. Handled even when the clipboard is empty. |
 | Ctrl+Z / Ctrl+Y | Undo / redo (§10.6). Always handled, even with nothing to undo, so the key never leaks. |
+| Esc | Clear the selection, keeping the cursor. Without one it isn't handled, so it still closes or goes back (added in 1.15, §20.5). In a command line, Esc without a selection clears the text, as before; in a text area with the find bar open, Esc closes the bar first. |
 
 - **Where these keys arrive.** Shift with the arrows, Home and End is decoded since Phase 8 (`CSI 1;2D` and so
   on). Some terminals keep Shift+PgUp/PgDn (xterm, GNOME Terminal: scrollback) or Ctrl+Shift+arrows (Windows
@@ -4561,6 +4562,9 @@ public class ScrollState
   `CapturesText` or `HasSelection`. A component around a selectable `ScrollState` overrides
   `HasSelection => State.HasSelection`. With nothing selected, Ctrl+C still quits.
 - **Built in:** the message and help dialogs' text is selectable, so an error message can be copied.
+- **Esc in the text states:** as in a paragraph, Esc clears a selection in a text field, text area or command
+  line (and the command line overlay), and goes on without one (§10.3). A "Changed" entry: Esc used to go on
+  with the selection left in place.
 
 ### 20.6 Example
 

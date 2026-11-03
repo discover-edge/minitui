@@ -33,7 +33,8 @@ public sealed class CommandLineOverlay : Overlay
     /// <inheritdoc/>
     public override bool HandleKey(ConsoleKeyInfo key)
     {
-        if (key.Key == ConsoleKey.Escape) return false; // closes the overlay
+        // Esc clears a selection first, then closes the overlay
+        if (key.Key == ConsoleKey.Escape && !_state.HasSelection) return false;
         if (key.Key != ConsoleKey.Enter) return _state.HandleKey(key);
 
         // Closing unmounts this overlay, so keep the app for the command's results

@@ -296,4 +296,69 @@ public sealed class ParagraphSelectionTests : IDisposable
         harness.Press("esc");
         Assert.DoesNotContain(harness.Lines, l => l.Contains("Disk on fire", StringComparison.Ordinal));
     }
+
+    // Esc in the text states (1.x spec §10.3)
+
+    [Fact]
+    public void InATextField_EscClearsTheSelection_KeepingTheCursor_ThenGoesOn()
+    {
+        var state = new TextFieldState { Text = "hello" };
+        state.Select(1, 4);
+
+        Assert.True(state.HandleKey(Key("esc")));
+        Assert.False(state.HasSelection);
+        Assert.Equal(4, state.Cursor);
+        Assert.Equal("hello", state.Text);
+        Assert.False(state.HandleKey(Key("esc")));
+    }
+
+    [Fact]
+    public void InATextArea_EscClearsTheSelection_ThenGoesOn()
+    {
+        var state = new TextAreaState("one\ntwo");
+        state.Select(new TextPosition(0, 1), new TextPosition(1, 2));
+
+        Assert.True(state.HandleKey(Key("esc")));
+        Assert.False(state.HasSelection);
+        Assert.Equal(new TextPosition(1, 2), state.Cursor);
+        Assert.False(state.HandleKey(Key("esc")));
+    }
+
+    [Fact]
+    public void InACommandLine_EscClearsTheSelection_ThenTheText()
+    {
+        var state = new CommandLineState { Text = ":open file" };
+        state.SelectAll();
+
+        Assert.True(state.HandleKey(Key("esc")));
+        Assert.Equal(":open file", state.Text);
+        Assert.True(state.HandleKey(Key("esc")));
+        Assert.Equal("", state.Text);
+    }
+
+    private sealed class Form : Screen
+    {
+        public TextFieldState State { get; } = new() { Text = "hello" };
+        public override bool CapturesText => true;
+        public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
+        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Widget.TextField().State(State).Focused().Draw(buf, area);
+    }
+
+    [Fact]
+    public void InAPushedScreen_EscClearsTheSelection_BeforeGoingBack()
+    {
+        using var harness = new ComponentHarness(new Log(), 20, 3);
+        harness.RunUntilIdle();
+        var form = new Form();
+        harness.App.Screens.Push(form);
+        harness.RunUntilIdle();
+        form.State.SelectAll();
+
+        harness.Press("esc");
+        Assert.Same(form, harness.App.Screens.Top);
+        Assert.False(form.State.HasSelection);
+
+        harness.Press("esc");
+        Assert.NotSame(form, harness.App.Screens.Top);
+    }
 }

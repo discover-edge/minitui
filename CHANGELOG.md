@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Ctrl+Insert and Shift+Insert used to be unhandled in the text states, and Shift+Delete deleted a cluster even with a selection.
+- Esc clears a selection in text fields, text areas, command lines and the command line overlay; without one it goes on as before (closing or going back, or clearing a command line). It used to go on with the selection left in place.
 - The message and help dialogs handle a press and drag (selecting) where they ignored them, and Esc clears a selection before it closes them.
 
 ## [1.14.0] - 2026-11-03

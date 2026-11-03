@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace MiniTui;
 
 /// <summary>
-/// A text field with command history: Enter submits, ↑/↓ recall history, Esc clears (§8.4).
+/// A text field with command history: Enter submits, ↑/↓ recall history, Esc clears a selection, or else the text (§8.4, 1.x spec §10.3).
 /// </summary>
 public sealed class CommandLineState : TextFieldState
 {
@@ -70,6 +70,10 @@ public sealed class CommandLineState : TextFieldState
                 else _historyIndex = History.Count;
                 Text = "";
                 submitted = ParsedCommand.Parse(line);
+                return true;
+
+            case ConsoleKey.Escape when HasSelection:
+                ClearSelection();
                 return true;
 
             case ConsoleKey.Escape:

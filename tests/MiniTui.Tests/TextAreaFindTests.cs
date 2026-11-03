@@ -150,6 +150,9 @@ public class TextAreaFindTests
         Assert.False(state.IsFinding);
         Assert.Equal((P(1, 0), P(1, 3)), Selection(state));
         Assert.Equal(P(1, 3), state.Cursor);
+        // The next Esc clears the match's selection (1.x spec §10.3), and the one after goes on
+        Assert.True(state.HandleKey(KeyBinding.Parse("esc").ToKeyInfo()));
+        Assert.False(state.HasSelection);
         Assert.False(state.HandleKey(KeyBinding.Parse("esc").ToKeyInfo()));
     }
 

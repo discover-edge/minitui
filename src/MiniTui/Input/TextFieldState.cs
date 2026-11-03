@@ -208,7 +208,7 @@ public class TextFieldState
     /// Handle an editing key (§8.4 and 1.x spec §10.3): text, ← → Home End, Ctrl+← →, Shift with those to select,
     /// Backspace, Delete, Ctrl+Backspace / Ctrl+W (delete word), Ctrl+U (delete to start), Ctrl+K (delete to end),
     /// Ctrl+A (select all), Ctrl+C / Ctrl+X (copy and cut, only with a selection), Ctrl+V (paste the clipboard),
-    /// Ctrl+Z (undo) and Ctrl+Y (redo).
+    /// Ctrl+Z (undo), Ctrl+Y (redo) and Esc (clear the selection, only with one).
     /// </summary>
     /// <returns>True if the key was an editing key.</returns>
     public virtual bool HandleKey(ConsoleKeyInfo key)
@@ -218,6 +218,12 @@ public class TextFieldState
         // 1.x spec §20.4: Ctrl+Insert copies (and never quits), Shift+Insert pastes, Shift+Delete cuts
         if (key.Key == ConsoleKey.Insert && ctrl != shift) return ctrl ? Copy() : MiniTui.Clipboard.PasteInto(Paste);
         if (key.Key == ConsoleKey.Delete && shift && !ctrl && Cut()) return true;
+        // Esc clears a selection, and without one goes on (to close or go back)
+        if (key.Key == ConsoleKey.Escape && HasSelection && !ctrl)
+        {
+            ClearSelection();
+            return true;
+        }
         switch (key.Key)
         {
             case ConsoleKey.LeftArrow:
