@@ -503,6 +503,20 @@ is shown as a leaf, so cycles can't hang it. Letters typed while a tree is focus
 label starts with them, so they don't reach plain-letter bindings such as `q`; bind tree commands to keys with
 Alt or Ctrl (Esc still goes back).
 
+`Reveal(path)` expands the nodes on a path from a root and selects the last one, scrolling to it; it returns
+false if the path doesn't match. `Filter` shows only the nodes a predicate matches and their ancestors, drawn
+open; it reads the children of collapsed nodes too, so keep filtered trees in memory (with a lazy source it
+searches what's loaded). Drive it from a text field:
+
+```csharp
+var text = filterField.State.Text;
+tree.Filter = text.Length == 0 ? null : f => f.Name.Contains(text, StringComparison.OrdinalIgnoreCase);
+tree.Reveal([root, src, app, appCs]);
+```
+
+While filtering, ← and the expander close and open rows without touching the expanded nodes, and clearing the
+filter selects the nearest node still shown.
+
 ### Selection and the clipboard
 
 Text fields, text areas and command lines select with Shift and the movement keys (or Ctrl+A for

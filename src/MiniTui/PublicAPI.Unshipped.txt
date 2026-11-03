@@ -1,1 +1,4 @@
 #nullable enable
+MiniTui.TreeState<T>.Filter.get -> System.Func<T!, bool>?
+MiniTui.TreeState<T>.Filter.set -> void
+MiniTui.TreeState<T>.Reveal(System.Collections.Generic.IReadOnlyList<T!>! path) -> bool

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -46,6 +46,7 @@ or add to them:
 | **21. Menu bar and richer menus** | Mnemonics (`&File`), check and radio items, submenus and `Run` actions in `PopupMenu`; a `MenuBar` along the top opened with F10, Alt+mnemonic or a click, with ← → between menus; the palette lists its items. Backlog rank 4. | 13, 19 | §15 | 1.10.0 |
 | **22. Text area as an editor** | Opt-in Tab-to-indent (Tab, Shift+Tab, Backspace by indent stops), auto-indent on Enter and `IndentSize`; a line number gutter; a draggable scrollbar on the block; a find bar (Ctrl+F, F3, Shift+F3) with smart case and highlighted matches (`Theme.SearchMatch`). Backlog rank 5. | 12, 16, 20 | §16 | 1.11.0 |
 | **23. Double-click and hover** | `MouseEvent.ClickCount` counted by the app (`WithDoubleClickTime`): double-click selects a word and triple-click a line in text states, and activates list, table and tree rows (`SelectionState.Activated`). Opt-in hover (`WithHover`, `?1003`, `MouseAction.Move`): `ctx.Hover` and `.Hover()` on rows, buttons, checkboxes and tabs (`Theme.Hover`), and menus that follow the pointer. Backlog rank 7. | 10, 16 | §17 | 1.12.0 |
+| **24. Tree extras** | `TreeState.Reveal(path)`; `Filter` showing matches and their ancestors, opened; tri-state `Checkboxes` (Space, a click, `CheckedNodes`, `CheckedChanged`); async children with a loader, `Loading…` and errors on the row, and `Reload`. Backlog rank 8. | 17 | §18 | 1.13.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -66,7 +67,7 @@ picked, as in §0 rule 3.
 | 5 | **Text area as an editor** (Phase 22, §16). An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
 | 6 | **Terminal queries** (Phase 18, §12). Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
 | 7 | **Hover and double-click** (Phase 23, §17). Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
-| 8 | **Tree extras.** Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
+| 8 | **Tree extras** (Phase 24, §18). Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
 | 9 | **Chart extras.** Grouped and stacked bar charts, time axes (`DateTime` and `TimeSpan`), tick marks and grid lines, and area charts. | Dashboards want them, but the 1.4 charts cover the common cases. | §8.11 | 14 |
 | 10 | **Clipboard and selection extras.** Reading the Unix clipboard through OSC 52 queries (needs rank 6), Ctrl+Insert, Shift+Insert and Shift+Delete, and selecting text in paragraphs and the log view. | Edge cases. Terminals' own Shift+drag already selects screen text. | §10.12 | 16 |
 
@@ -4049,3 +4050,187 @@ Two PRs, like Phase 22:
    the example turns hover on; README; CHANGELOG; the manual QA.
 
 Both go out in one release (1.12.0).
+
+---
+
+## 18. Tree extras (Phase 24)
+
+### 18.1 Purpose
+
+The 1.6 tree (§11) browses a hierarchy, but file pickers, settings trees and anything with more than a screenful
+of nodes need more. Today an app can't jump to a node it knows the path of, can't narrow a big tree to what
+matches, can't let the user pick several nodes, and has to write its own loading logic for slow children (§11.7).
+Phase 24 adds these (backlog rank 8, §1.1):
+- **Reveal:** expand the ancestors of a node and select it, from its path.
+- **Filter:** show only the nodes that match a predicate and their ancestors, opened to show them.
+- **Checkboxes:** a check mark on each row, toggled with Space or a click, with tri-state parents.
+- **Async children:** a loader that returns a `Task`, with "Loading…" shown while it runs and errors shown on the
+  row.
+
+### 18.2 Public API
+
+```csharp
+public sealed class TreeState<T> where T : class
+{
+    // Existing members unchanged
+
+    /// Children loaded asynchronously (§18.6), instead of the constructor's children function.
+    public TreeState(Func<T, CancellationToken, Task<IReadOnlyList<T>>> loadChildren, Func<T, string> text,
+        IEqualityComparer<T>? comparer = null);
+
+    /// Expand each node of path but the last, select the last and scroll it into view (§18.3).
+    /// path starts at a root. Returns false, changing nothing, when it doesn't match the tree.
+    public bool Reveal(IReadOnlyList<T> path);
+
+    /// Show only nodes that match and their ancestors (§18.4). Null shows everything.
+    public Func<T, bool>? Filter { get; set; }
+
+    /// Draw a check box on each row; Space and a click on it toggle it (§18.5). Off by default.
+    public bool Checkboxes { get; set; }
+
+    /// Whether a node is checked: true, false, or null for a parent with some descendants checked (§18.5).
+    public bool? IsChecked(T node);
+
+    /// Check or uncheck a node and its descendants.
+    public void SetChecked(T node, bool isChecked);
+
+    /// The checked nodes: every checked leaf, and every parent whose descendants are all checked.
+    public IReadOnlyList<T> CheckedNodes { get; }
+
+    /// Raised when the user (Space, a click) or SetChecked changes a check.
+    public event EventHandler<TreeNodeEventArgs<T>>? CheckedChanged;
+
+    /// Forget a node's loaded children, so the next expand loads them again (§18.6).
+    public void Reload(T node);
+}
+```
+
+- Everything is opt-in: a tree that uses none of these behaves as in 1.6.
+- No builder changes: the filter, the check boxes and the loading text are drawn by `TreeBuilder<T>` from the
+  state.
+
+### 18.3 Reveal
+
+- `Reveal(path)` checks that `path[0]` is a root and each later node is among the previous node's children (with
+  the state's comparer, reading children as the walk does). If one isn't, it returns false and changes nothing.
+- Otherwise it expands every node but the last (raising `Expanded` for each one that wasn't), selects the last,
+  raises `SelectionChanged` if it moved, and scrolls the selection into view at the next draw, as a key move does.
+- With a lazy source (§11.7, or async children before they load), a node's children may not be known yet. Reveal
+  walks what's known. To reveal deep in an unloaded tree, the app loads the path first. With async children
+  (§18.6), `RevealAsync` isn't offered: the app awaits the loads it needs, then calls `Reveal`.
+- With a `Filter` set, revealing a node the filter hides returns false.
+
+### 18.4 Filter
+
+- **Rows while filtering:** a node is shown if `Filter` matches it or any of its descendants. The walk reads the
+  children of every node, expanded or not, so that collapsed parents can be searched. With a lazy source it
+  searches what `children` returns now (what's loaded). Cycles are cut as in §11.4.
+- **Open and closed while filtering:** every shown node with shown children is drawn open, whatever the expanded
+  set says, so the matches are visible. ← and a click on the expander can still close one while the filter is
+  set. That's kept in a separate set, cleared whenever `Filter` changes, so the expanded set is never touched.
+- **Clearing the filter** (`Filter = null`) returns to the expanded set. If the selected node isn't visible
+  any more, its nearest visible ancestor is selected (§11.4), so the user lands where they were.
+- **Type-ahead** and the keys work on the filtered rows. The title's `[n]` counts the filtered rows.
+- **Matching text:** the filter is a predicate, so the app decides how to match. The README shows a text field
+  driving `Filter = n => n.Name.Contains(text, StringComparison.OrdinalIgnoreCase)`, and `Fuzzy.Match` (§13)
+  works too. Highlighting the matched characters is out of scope.
+- **Cost:** the walk is linear in the whole tree (not just the open part) each time the rows are computed. That's
+  fine for thousands of nodes. The README says to keep filtered trees in memory.
+
+### 18.5 Checkboxes
+
+- **Drawing:** with `Checkboxes`, each row gets `[✓] `, `[ ] ` or `[-] ` (partly checked) after the expander,
+  before the label. In basic glyph mode (§11.5) the check is `x`. The mark uses `Theme.Success`, as `Checkbox` does.
+- **State:** the state keeps the set of checked nodes. A parent's mark is computed from its children: all checked
+  is checked, none is unchecked, anything else is partly checked. A parent with no children (or none loaded) is a
+  leaf for this. So the marks read children of collapsed parents, as the filter does.
+- **Toggling:** Space on the selected row, or a left press on its check box, checks the node if it was unchecked
+  or partly checked, and unchecks it if it was checked. Checking or unchecking a node applies to it and all its
+  descendants. `CheckedChanged` is raised once, for the node toggled.
+- **`CheckedNodes`** lists, in tree order, the checked leaves and the parents that are fully checked, so an app
+  can read "these folders and these files" without listing everything under a folder. Nodes outside the tree
+  (removed since they were checked) are dropped from it.
+- Space is handled only with `Checkboxes` on. Without it, Space still reaches the bindings (§11.3).
+- Filtering doesn't change checks: checking a parent while filtering checks all its descendants, shown or not.
+
+### 18.6 Async children
+
+- **The loader:** with the new constructor, a node's children come from `loadChildren(node, token)`. They're loaded
+  when the node is first expanded (by any means: a key, a click, `Expand`, `Reveal`, `ExpandAll`) and cached.
+  Until it finishes, the node has no child rows, and its label is followed by `Loading…` in `Theme.TextMuted`.
+  When it finishes, the next frame shows the children.
+- **`HasChildren`** defaults to true for unloaded nodes with a loader (it can't be known without loading), and to
+  whether the loaded children are empty afterwards. An app that knows better (files are leaves) sets `HasChildren`.
+- **Errors:** a load that throws shows the exception's message after the label in `Theme.Error`, and the node
+  collapses. Expanding it again retries. A cancelled load shows nothing.
+- **Threads:** loads run through `App.RunTask` when an app is running (so `ComponentHarness.RunUntilIdle` waits for
+  them, and they're cancelled when the app stops), and their results are stored on the UI thread. Without an app,
+  the task is awaited on the caller's context.
+- **`Reload(node)`** drops the cached children of a node (not its descendants' caches, which stay until they're
+  reloaded or the node is reached again), cancels its load if one is running, and loads again at the next expand,
+  or at once if the node is expanded.
+- **Filters, checks and reveal** see only loaded children (§18.3 – §18.5). `ExpandAll` with a loader expands what's
+  loaded and starts loads for the rest, one level per frame as they arrive. It doesn't wait for them.
+
+### 18.7 Example
+
+The Tree demo:
+- A **Filter** field above the tree (Tab moves between them). Typing shows the loaded files and folders whose
+  names contain the text.
+- **Alt+R** reveals `src/MiniTui/App/App.cs` when the demo runs from the repository, loading the folders on the
+  way, and shows a toast otherwise.
+- **Check boxes** with Alt+X, and the footer shows how many files and folders are checked.
+- Directories load with the async loader, with a short delay so `Loading…` can be seen.
+
+### 18.8 Tests and acceptance
+
+Automated:
+- **Reveal:** a deep path expands its ancestors (events once each) and selects and scrolls to it; a path that
+  doesn't match, a wrong root and an empty path return false with no change; under a filter.
+- **Filter:** matches at several depths with their ancestors open; collapsed parents searched; the expanded set
+  untouched; closing a parent while filtering, and that set cleared on a new filter; clearing the filter keeps the
+  selection or selects the nearest ancestor; type-ahead, keys and the title count on filtered rows; cycles.
+- **Checkboxes:** Space and clicks; parents checked, unchecked and partly checked; toggling a partly checked parent
+  checks it; `CheckedNodes` in tree order with full parents and without their descendants; `CheckedChanged` once;
+  Space unhandled without `Checkboxes`; drawing in both glyph modes and with a highlight symbol.
+- **Async:** `Loading…` while a load runs and the children after (through `ComponentHarness`); one load per node;
+  errors shown and retried; cancellation when the app stops; `Reload` while collapsed and while expanded;
+  `HasChildren` defaults; `ExpandAll` starting loads.
+
+Manual QA (results in the PR): the Tree demo on Linux and Windows: filter, reveal, check boxes with keys and the
+mouse, and loading a large directory.
+
+### 18.9 Migration impact
+
+- New public API (§18.2) in `PublicAPI.Unshipped.txt`. No behavior changes for existing trees.
+- README: "### Trees" gets reveal, the filter with a text field, check boxes and async loading (replacing the
+  hand-written loader in §11.7's example).
+
+### 18.10 Out of scope
+
+- Multi-select by Shift and Ctrl clicks or keys (check boxes are the multi-select).
+- Highlighting the matched text in a filtered row.
+- A filter box drawn by the tree itself.
+- Drag and drop, editing, sorting, a tree table, icons (§11.10).
+- Paging or a limit for the filter's walk over huge trees.
+- Persisting the expanded and checked sets.
+
+### 18.11 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Reveal: from a path of nodes, or from a node with a `Parent` function the app supplies? | **A path** (§18.3): the state has no parent function, and apps with paths (files, settings keys) have them already. |
+| 2 | Filter: a predicate, or a string the tree matches (substring or fuzzy) and can highlight? | **A predicate** (§18.4): apps match on what they like (names, tags, paths). Highlighting is out of scope. |
+| 3 | Checkboxes: tri-state parents computed from children, or independent checks per node? | **Tri-state** (§18.5), as file pickers and installers do. |
+| 4 | Async loading: show `Loading…` after the parent's label, or as a placeholder row under it? | **After the label** (§18.6): no row that can't be selected, and nothing moves when it's replaced. |
+
+### 18.12 Implementation order
+
+Two PRs, like Phase 23:
+1. **24a** (reveal and filter): `Reveal`, `Filter` and the filtered rows; the demo's filter field and Alt+R; README;
+   CHANGELOG.
+2. **24b** (checkboxes and async): `Checkboxes`, `IsChecked`, `SetChecked`, `CheckedNodes`, `CheckedChanged`; the
+   async constructor, loading, errors and `Reload`; the demo's check boxes and async loading; README; CHANGELOG; the
+   manual QA.
+
+Both go out in one release (1.13.0).

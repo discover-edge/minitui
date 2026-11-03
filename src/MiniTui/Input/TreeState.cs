@@ -13,6 +13,8 @@ public sealed class TreeState<T> where T : class
     private readonly Func<T, string> _text;
     private readonly IEqualityComparer<T> _comparer;
     private readonly HashSet<T> _expanded;
+    private readonly HashSet<T> _filterClosed;
+    private Func<T, bool>? _filter;
     private IReadOnlyList<T> _roots = [];
     private List<TreeRow<T>> _rows = [];
     private T? _selected;
@@ -36,6 +38,7 @@ public sealed class TreeState<T> where T : class
         _text = text;
         _comparer = comparer ?? EqualityComparer<T>.Default;
         _expanded = new HashSet<T>(_comparer);
+        _filterClosed = new HashSet<T>(_comparer);
     }
 
     /// <summary>The top-level nodes. Setting them keeps the expanded nodes and the selection where they still match.</summary>
@@ -55,6 +58,50 @@ public sealed class TreeState<T> where T : class
     /// children aren't empty. Set it when reading children is slow, or to show an expander before they're loaded.
     /// </summary>
     public Func<T, bool>? HasChildren { get; set; }
+
+    /// <summary>
+    /// Show only the nodes this matches and their ancestors, drawn open so the matches show (1.x spec §18.4). The
+    /// children of every node are read, expanded or not. ← and the expander can still close a node while filtering;
+    /// that's forgotten when the filter changes, and the expanded nodes aren't touched. Null shows the whole tree.
+    /// </summary>
+    public Func<T, bool>? Filter
+    {
+        get => _filter;
+        set
+        {
+            _filter = value;
+            _filterClosed.Clear();
+            Refresh();
+        }
+    }
+
+    /// <summary>
+    /// Expand each node of <paramref name="path"/> but the last, select the last, and scroll it into view at the next
+    /// draw (1.x spec §18.3). The path starts at a root, and each node must be among the previous one's children.
+    /// </summary>
+    /// <returns>False, changing nothing, when the path doesn't match the tree or the filter hides its last node.</returns>
+    public bool Reveal(IReadOnlyList<T> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (path.Count == 0 || !_roots.Any(r => _comparer.Equals(r, path[0]))) return false;
+        for (var i = 1; i < path.Count; i++)
+        {
+            if (!_children(path[i - 1]).Any(c => _comparer.Equals(c, path[i]))) return false;
+        }
+        if (_filter is not null && !Shown(path[^1], [.. path.Take(path.Count - 1)])) return false;
+
+        var added = new List<T>();
+        for (var i = 0; i < path.Count - 1; i++)
+        {
+            _filterClosed.Remove(path[i]);
+            if (_expanded.Add(path[i])) added.Add(path[i]);
+        }
+        Refresh();
+        foreach (var node in added) Expanded?.Invoke(this, new TreeNodeEventArgs<T>(node));
+        _reveal = true;
+        Move(IndexOf(path[^1]));
+        return true;
+    }
 
     /// <summary>
     /// The selected node, or null for none (the first row is selected when the rows are next computed). Setting it
@@ -215,7 +262,7 @@ public sealed class TreeState<T> where T : class
         _reveal = true;
         var onExpander = visible < _expanderColumns.Length && _expanderColumns[visible] == mouse.X && _rows[index].HasChildren;
         // The first press of a double-click on the expander already toggled it; later presses don't toggle it back
-        if (onExpander && mouse.ClickCount <= 1) Toggle(_rows[index].Node);
+        if (onExpander && mouse.ClickCount <= 1) ToggleRow(_rows[index]);
         else if (!onExpander && mouse.ClickCount == 2) Enter();
         return true;
     }
@@ -265,7 +312,11 @@ public sealed class TreeState<T> where T : class
     {
         var rows = new List<TreeRow<T>>();
         var path = new List<T>();
-        foreach (var root in _roots) Walk(root, null, path, rows);
+        foreach (var root in _roots)
+        {
+            if (_filter is null) Walk(root, null, path, rows);
+            else WalkFiltered(root, null, path, rows);
+        }
         _rows = rows;
         KeepSelection();
     }
@@ -281,6 +332,47 @@ public sealed class TreeState<T> where T : class
         path.Add(node);
         foreach (var child in _children(node)) Walk(child, node, path, rows);
         path.RemoveAt(path.Count - 1);
+    }
+
+    // While filtering, opening and closing a row only changes what the filter shows (1.x spec §18.4)
+    private void ToggleRow(TreeRow<T> row)
+    {
+        if (_filter is null)
+        {
+            Toggle(row.Node);
+            return;
+        }
+        if (!_filterClosed.Remove(row.Node)) _filterClosed.Add(row.Node);
+        Refresh();
+    }
+
+    // Whether the filter shows a node: it matches, or something under it does
+    private bool Shown(T node, List<T> path)
+    {
+        if (_filter!(node)) return true;
+        if (path.Exists(ancestor => _comparer.Equals(ancestor, node))) return false;
+        path.Add(node);
+        var shown = _children(node).Any(child => Shown(child, path));
+        path.RemoveAt(path.Count - 1);
+        return shown;
+    }
+
+    // The filtered walk: a node's row, then its shown children's when it's open; false when nothing here is shown
+    private bool WalkFiltered(T node, T? parent, List<T> path, List<TreeRow<T>> rows)
+    {
+        if (path.Exists(ancestor => _comparer.Equals(ancestor, node))) return false;
+        var matches = _filter!(node);
+        var children = new List<TreeRow<T>>();
+        path.Add(node);
+        foreach (var child in _children(node)) WalkFiltered(child, node, path, children);
+        path.RemoveAt(path.Count - 1);
+        if (!matches && children.Count == 0) return false;
+
+        var hasChildren = children.Count > 0;
+        var open = hasChildren && !_filterClosed.Contains(node);
+        rows.Add(new TreeRow<T>(node, parent, path.Count, hasChildren, open));
+        if (open) rows.AddRange(children);
+        return true;
     }
 
     private void ExpandAll(T node, List<T> path, List<T> added)
@@ -332,7 +424,7 @@ public sealed class TreeState<T> where T : class
     {
         if (_index < 0) return;
         var row = _rows[_index];
-        if (row.HasChildren && !row.IsExpanded) Expand(row.Node);
+        if (row.HasChildren && !row.IsExpanded) ToggleRow(row);
         else if (row.IsExpanded && _index + 1 < _rows.Count && _rows[_index + 1].Depth > row.Depth) Move(_index + 1);
     }
 
@@ -340,7 +432,7 @@ public sealed class TreeState<T> where T : class
     {
         if (_index < 0) return;
         var row = _rows[_index];
-        if (row.IsExpanded) Collapse(row.Node);
+        if (row.IsExpanded) ToggleRow(row);
         else if (row.Parent is { } parent) Move(IndexOf(parent));
     }
 
@@ -348,7 +440,7 @@ public sealed class TreeState<T> where T : class
     {
         if (_index < 0) return;
         var row = _rows[_index];
-        if (row.HasChildren) Toggle(row.Node);
+        if (row.HasChildren) ToggleRow(row);
         else Activated?.Invoke(this, new TreeNodeEventArgs<T>(row.Node));
     }
 
