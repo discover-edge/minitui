@@ -12,7 +12,7 @@ title: Terminal UIs for .NET
   <div class="mt-actions">
     <a class="btn btn-primary btn-lg" href="guides/getting-started.md">Get started</a>
     <a class="btn btn-outline-secondary btn-lg" href="api/MiniTui.yml">API reference</a>
-    <a class="btn btn-outline-secondary btn-lg" href="https://github.com/discover-edge/minitui">GitHub</a>
+    <a class="btn btn-outline-secondary btn-lg" href="https://github.com/minitui-org/minitui">GitHub</a>
   </div>
 </div>
 

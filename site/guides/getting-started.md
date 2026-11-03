@@ -16,7 +16,7 @@ SSH sessions and Linux terminals. It's trim- and AOT-compatible.
 The repository has an example app with a demo of each feature:
 
 ```bash
-git clone https://github.com/discover-edge/minitui
+git clone https://github.com/minitui-org/minitui
 cd minitui
 dotnet run --project src/MiniTui.Example
 ```

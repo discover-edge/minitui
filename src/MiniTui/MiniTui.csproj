@@ -28,7 +28,7 @@
     <Copyright>Copyright (c) 2026 Discover Edge LLC</Copyright>
     <Description>A minimal, immediate-mode TUI framework for .NET inspired by ratatui</Description>
     <PackageTags>tui;terminal;console;ui;immediate-mode</PackageTags>
-    <RepositoryUrl>https://github.com/discover-edge/minitui</RepositoryUrl>
+    <RepositoryUrl>https://github.com/minitui-org/minitui</RepositoryUrl>
     <PackageProjectUrl>https://minitui.org</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

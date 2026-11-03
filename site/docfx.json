@@ -56,11 +56,11 @@
     "globalMetadata": {
       "_appName": "MiniTui",
       "_appTitle": "MiniTui",
-      "_appFooter": "© 2026 Discover Edge LLC · MIT licensed · <a href=\"https://www.nuget.org/packages/MiniTui\">NuGet</a> · <a href=\"https://github.com/discover-edge/minitui\">GitHub</a>",
+      "_appFooter": "© 2026 Discover Edge LLC · MIT licensed · <a href=\"https://www.nuget.org/packages/MiniTui\">NuGet</a> · <a href=\"https://github.com/minitui-org/minitui\">GitHub</a>",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
-        "repo": "https://github.com/discover-edge/minitui",
+        "repo": "https://github.com/minitui-org/minitui",
         "branch": "main"
       },
       "pdf": false,

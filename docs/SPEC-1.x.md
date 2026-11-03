@@ -4717,16 +4717,20 @@ Generated from the example app, not captured by hand, so they never drift from t
 
 ### 21.6 What the maintainer sets up (outside the repository)
 
+The repository moved from `discover-edge/minitui` to `minitui-org/minitui` before the site's first deploy, so the
+Pages hostname is `minitui-org.github.io`. Published packages up to 1.15.0 link to the old address, which GitHub
+redirects; nuget.org's trusted publishing policy names the new owner.
+
 At the registrar for minitui.org:
 
 | Type | Name | Value |
 |---|---|---|
 | A | `@` | `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153` |
 | AAAA | `@` | `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`, `2606:50c0:8003::153` |
-| CNAME | `www` | `discover-edge.github.io` |
-| TXT | `_github-pages-challenge-discover-edge` | the value GitHub shows when verifying the domain |
+| CNAME | `www` | `minitui-org.github.io` |
+| TXT | `_github-pages-challenge-minitui-org` | the value GitHub shows when verifying the domain |
 
-- **Verify the domain** for the discover-edge organization (Settings → Pages → Add a domain) first, so no other
+- **Verify the domain** for the minitui-org organization (Settings → Pages → Add a domain) first, so no other
   repository can claim it.
 - In the repository: Settings → Pages → Source: GitHub Actions; Custom domain `minitui.org`; Enforce HTTPS once
   the certificate is issued (it can take up to an hour after DNS resolves).
