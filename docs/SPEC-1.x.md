@@ -4177,7 +4177,7 @@ public sealed class TreeState<T> where T : class
 The Tree demo:
 - A **Filter** field above the tree (Tab moves between them). Typing shows the loaded files and folders whose
   names contain the text.
-- **Alt+R** reveals `src/MiniTui/App/App.cs` when the demo runs from the repository, loading the folders on the
+- **Ctrl+G** ("go to") reveals `src/MiniTui/App/App.cs` when the demo runs from the repository, loading the folders on the
   way, and shows a toast otherwise.
 - **Check boxes** with Alt+X, and the footer shows how many files and folders are checked.
 - Directories load with the async loader, with a short delay so `Loading…` can be seen.
@@ -4227,7 +4227,7 @@ mouse, and loading a large directory.
 ### 18.12 Implementation order
 
 Two PRs, like Phase 23:
-1. **24a** (reveal and filter): `Reveal`, `Filter` and the filtered rows; the demo's filter field and Alt+R; README;
+1. **24a** (reveal and filter): `Reveal`, `Filter` and the filtered rows; the demo's filter field and Ctrl+G; README;
    CHANGELOG.
 2. **24b** (checkboxes and async): `Checkboxes`, `IsChecked`, `SetChecked`, `CheckedNodes`, `CheckedChanged`; the
    async constructor, loading, errors and `Reload`; the demo's check boxes and async loading; README; CHANGELOG; the

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `TreeState.Reveal(path)`: expands the nodes on a path from a root (raising `Expanded` for each one that opens), selects the last and scrolls it into view. Returns false, changing nothing, when the path doesn't match the tree or the filter hides its node.
 - `TreeState.Filter`: shows only the nodes a predicate matches and their ancestors, drawn open, searching collapsed nodes too. ← and the expander still close and open rows while filtering, without changing the expanded nodes; clearing the filter selects the nearest node still shown. Type-ahead, the keys and the title's count work on the filtered rows.
-- Example: the Tree demo has a filter field above the tree and reveals `src/MiniTui/App/App.cs` with Alt+R.
+- Example: the Tree demo has a filter field above the tree and reveals `src/MiniTui/App/App.cs` with Ctrl+G.
 - `docs/SPEC-1.x.md` §18: the tree extras spec.
 
 ## [1.12.0] - 2026-11-03

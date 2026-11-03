@@ -5,7 +5,7 @@ namespace MiniTui.Example;
 
 /// <summary>
 /// The file system from the current directory, read a directory at a time as it's expanded, with a filter field
-/// above it and Alt+R to reveal a file deep in the repository (1.x spec §18.7).
+/// above it and Ctrl+G to reveal a file deep in the repository (1.x spec §18.7).
 /// </summary>
 internal sealed class TreeScreen : Screen
 {
@@ -40,7 +40,7 @@ internal sealed class TreeScreen : Screen
         Keys.Add("alt+g", "Guides", () => _guides = !_guides)
             .Add("alt+e", "Expand all below", () => Walk(_tree.Selected, _tree.Expand))
             .Add("alt+c", "Collapse all below", () => Walk(_tree.Selected, _tree.Collapse))
-            .Add("alt+r", "Reveal App.cs", Reveal);
+            .Add("ctrl+g", "Go to App.cs", Reveal);
     }
 
     // Load each directory on the way to src/MiniTui/App/App.cs, then reveal it
@@ -78,7 +78,7 @@ internal sealed class TreeScreen : Screen
 
         var lines = new List<Line>
         {
-            new("←/→ collapse and expand, Enter toggles or opens, type a name to jump. Tab moves to the filter; Alt+R reveals App.cs", ctx.Theme.TextMuted),
+            new("←/→ collapse and expand, Enter toggles or opens, type a name to jump. Tab moves to the filter; Ctrl+G goes to App.cs", ctx.Theme.TextMuted),
             "",
         };
         if (_tree.Selected is { } selected)
