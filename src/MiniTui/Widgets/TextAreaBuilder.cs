@@ -61,6 +61,14 @@ public sealed class TextAreaBuilder
         }
         buf.SetStyle(inner, style);
 
+        // 1.x spec §16.5: the find bar takes the last row
+        var finding = state.IsFinding && inner.Height >= 2;
+        if (finding)
+        {
+            DrawFindBar(buf, inner with { Y = inner.Bottom - 1, Height = 1 }, state, style, theme);
+            inner = inner with { Height = inner.Height - 1 };
+        }
+
         // 1.x spec §16.4: as wide as the last line's number, at least 2 digits, then a space
         var gutterWidth = _lineNumbers ? Math.Max(2, Digits(state.Lines.Count)) + 1 : 0;
         if (gutterWidth >= inner.Width) gutterWidth = 0;
@@ -91,15 +99,21 @@ public sealed class TextAreaBuilder
         {
             var left = _wrap == WrapMode.None ? state.HorizontalOffset : 0;
             var selection = _focused ? theme.Selection : theme.SelectionUnfocused;
+            var matches = finding ? state.Matches : [];
             for (var y = 0; y < inner.Height && state.ScrollOffset + y < rows.Count; y++)
             {
                 var visible = rows[state.ScrollOffset + y];
                 DrawRow(buf, inner.X, inner.Y + y, state.Lines, visible, left, inner.Width, style);
+                foreach (var match in matches)
+                {
+                    if (match.Start.Line == visible.Line)
+                        DrawRange(buf, inner, inner.Y + y, state, visible, left, match.Start, match.End, theme.SearchMatch);
+                }
                 if (state.HasSelection) DrawSelection(buf, inner, inner.Y + y, state, visible, left, selection);
             }
         }
 
-        if (!_focused) return;
+        if (!_focused || finding) return;
         var x = inner.X + cursorColumn - (_wrap == WrapMode.None ? state.HorizontalOffset : 0);
         var row = cursorRow - state.ScrollOffset;
         if (row < 0 || row >= inner.Height) return;
@@ -108,6 +122,30 @@ public sealed class TextAreaBuilder
         x = Math.Min(x, inner.Right - 1);
         buf.SetStyle(new Rect(x, inner.Y + row, 1, 1), theme.Cursor);
         buf.SetCursor(x, inner.Y + row);
+    }
+
+    // "Find: " and the field, with "3 of 12", "12 matches" or "No matches" on the right
+    private static void DrawFindBar(Buffer buf, Rect bar, TextAreaState state, Style style, Theme theme)
+    {
+        const string Label = "Find: ";
+        var count = state.FindText.Length == 0 ? ""
+            : state.MatchCount == 0 ? "No matches"
+            : state.MatchIndex >= 0 ? $"{state.MatchIndex + 1} of {state.MatchCount}"
+            : $"{state.MatchCount} matches";
+        var countWidth = count.Length == 0 ? 0 : count.Length + 1;
+        var x = bar.X;
+        if (bar.Width > Label.Length + countWidth)
+        {
+            buf.SetString(x, bar.Y, Label, style.Patch(theme.Prompt));
+            x += Label.Length;
+        }
+        else
+        {
+            countWidth = 0;
+        }
+        if (countWidth > 0) buf.SetString(bar.Right - count.Length, bar.Y, count, style.Patch(theme.TextMuted));
+        var field = new Rect(x, bar.Y, Math.Max(0, bar.Right - x - countWidth), 1);
+        TextFieldRenderer.Draw(buf, field, state.FindField, true, style, null);
     }
 
     private static int Digits(int n) => n < 10 ? 1 : 1 + Digits(n / 10);
@@ -151,9 +189,12 @@ public sealed class TextAreaBuilder
     }
 
     // 1.x spec §10.8: the selected part of a row, and a cell for a selected line break when the row has room
-    private static void DrawSelection(Buffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, Style style)
+    private static void DrawSelection(Buffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, Style style) =>
+        DrawRange(buf, inner, y, state, row, left, state.SelectionStart, state.SelectionEnd, style);
+
+    // Patch the part of a row between two positions; a line break inside them shows as a cell after the line
+    private static void DrawRange(Buffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, TextPosition start, TextPosition end, Style style)
     {
-        var (start, end) = (state.SelectionStart, state.SelectionEnd);
         if (row.Line < start.Line || row.Line > end.Line) return;
         var line = state.Lines[row.Line];
         var from = Math.Max(row.Line == start.Line ? start.Index : 0, row.Start);

@@ -2,7 +2,7 @@ using MiniTui;
 
 namespace MiniTui.Example;
 
-/// <summary>A text area set up as an editor (1.x spec §16): indentation, line numbers and a scrollbar.</summary>
+/// <summary>A text area set up as an editor (1.x spec §16): indentation, line numbers, a scrollbar and find.</summary>
 internal sealed class EditorScreen : Screen
 {
     private const string Sample = """
@@ -57,7 +57,7 @@ internal sealed class EditorScreen : Screen
             .Add("help", Constraint.Length(1))
             .Build();
         ctx.Render(_editor, buf, rows["editor"]);
-        buf.SetString(rows["help"].X, rows["help"].Y, "Tab / Shift+Tab indent · Enter keeps the indent · Ctrl+S save · Esc back", ctx.Theme.TextMuted);
+        buf.SetString(rows["help"].X, rows["help"].Y, "Tab / Shift+Tab indent · Ctrl+F find, F3 / Shift+F3 again · Ctrl+S save · Esc back", ctx.Theme.TextMuted);
     }
 
     private sealed class EditorField(string text) : Component

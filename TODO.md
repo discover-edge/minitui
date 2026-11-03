@@ -28,11 +28,11 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Command palette and filterable select (`CommandPalette`, `Fuzzy.Match`, `SelectState.Filterable`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §13
 - [x] Split panes, scrollbar dragging and sortable tables (`Widget.Split`, `TableBuilder.Sortable`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §14
 - [x] Menu bar and richer menus (`MenuBar`, mnemonics, check and radio items, submenus) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §15
+- [x] Text area as an editor (`TabIndents`, `AutoIndent`, `LineNumbers`, a scrollbar, Ctrl+F find) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §16
 
 ## Backlog
 Ideas not specced yet, ranked by value in [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §1.1:
 
-- [ ] Text area editor features: Tab indent, auto-indent, line numbers, find
 - [ ] Hover (`?1003`) and double-click detection
 - [ ] Tree extras: reveal by path, filter, multi-select/checkboxes, async children
 - [ ] Chart extras: grouped/stacked bars, time axes, grid lines, area charts

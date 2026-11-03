@@ -33,6 +33,8 @@ public sealed record Theme
     public Style Selection { get; init; }
     /// <summary>The selected row of an unfocused list or table.</summary>
     public Style SelectionUnfocused { get; init; }
+    /// <summary>Matches of a text area's find text other than the current one, which is the selection (1.x spec §16.5).</summary>
+    public Style SearchMatch { get; init; }
     /// <summary>Table header cells.</summary>
     public Style TableHeader { get; init; }
     /// <summary>Text in an unfocused input.</summary>
@@ -92,6 +94,7 @@ public sealed record Theme
         TitleFocused = new Style(Color.Yellow),
         Selection = new Style(Color.Black, Color.Cyan),
         SelectionUnfocused = new Style(Color.Black, Color.DarkGray),
+        SearchMatch = new Style(Color.Black, Color.Yellow),
         TableHeader = new Style(Color.Yellow).Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,
@@ -129,6 +132,7 @@ public sealed record Theme
         TitleFocused = new Style(Rgb("#FFC66D")).Bold(),
         Selection = new Style(Rgb("#10131A"), Rgb("#5FA8FF")),
         SelectionUnfocused = new Style(Rgb("#D4D7DD"), Rgb("#353B46")),
+        SearchMatch = new Style(Rgb("#10131A"), Rgb("#E5C07B")),
         TableHeader = new Style(Rgb("#FFC66D")).Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,
@@ -171,6 +175,7 @@ public sealed record Theme
         TitleFocused = new Style(Rgb("#0B5CAD")).Bold(),
         Selection = new Style(Rgb("#FFFFFF"), Rgb("#0B5CAD")),
         SelectionUnfocused = new Style(Rgb("#24292F"), Rgb("#D8DEE4")),
+        SearchMatch = new Style(Rgb("#24292F"), Rgb("#FFF2A8")),
         TableHeader = new Style(Rgb("#0B5CAD")).Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,
@@ -210,6 +215,7 @@ public sealed record Theme
         TitleFocused = Style.Default.Bold(),
         Selection = Style.Default.Reversed(),
         SelectionUnfocused = Style.Default.Underlined(),
+        SearchMatch = Style.Default.Underlined(),
         TableHeader = Style.Default.Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,

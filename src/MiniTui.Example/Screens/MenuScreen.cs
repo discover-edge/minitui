@@ -13,7 +13,7 @@ internal sealed class MenuScreen : Screen
         ("Form", "Text fields, a select and a checkbox; Tab moves focus", () => new FormScreen()),
         ("Dashboard", "Layout, live logs, gauges and a sparkline", () => new DashboardScreen()),
         ("Charts", "Line chart, bar charts and a canvas", () => new ChartsScreen()),
-        ("Editor", "A text area as an editor: Tab indents, auto-indent, line numbers and a scrollbar", () => new EditorScreen()),
+        ("Editor", "A text area as an editor: Tab indents, auto-indent, line numbers, a scrollbar and Ctrl+F find", () => new EditorScreen()),
         ("Command Registry", "A : command line and a right-click menu over notes", () => new CommandScreen()),
         ("Tabs", "A tab bar and a list in one focus scope", () => new TabsScreen()),
         ("Tree", "The file system as a tree, read a directory at a time", () => new TreeScreen()),

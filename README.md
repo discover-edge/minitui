@@ -383,6 +383,8 @@ even if you chose `Theme.Default` explicitly, so the selection stays visible; cu
 app.WithTheme(Theme.Default with { Selection = new Style(Color.Black, Color.Yellow) });
 ```
 
+`Theme.SearchMatch` highlights a text area's find matches other than the current one, which is the selection.
+
 `Theme.ChartSeries` lists the styles of chart datasets that don't set their own (cyan, yellow, magenta,
 green, blue, red; Monochrome has one plain style, so datasets differ by marker).
 
@@ -412,7 +414,7 @@ size, scroll offset) back into it while drawing.
 | `ScrollState` | ↑ ↓ j k PgUp PgDn Home End | Paragraph, MessageDialog |
 | `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end); Shift with the moves selects, Ctrl+A selects all, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste, Ctrl+Z / Ctrl+Y undo and redo (see [Selection and the clipboard](#selection-and-the-clipboard)) | TextField |
 | `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
-| `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls; opt-in `TabIndents` (Tab and Shift+Tab indent and outdent the selected lines, Backspace deletes an indent level), `AutoIndent` (Enter keeps the indentation) and `IndentSize` | TextArea |
+| `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls; opt-in `TabIndents` (Tab and Shift+Tab indent and outdent the selected lines, Backspace deletes an indent level), `AutoIndent` (Enter keeps the indentation) and `IndentSize`; Ctrl+F opens a find bar on the last row (smart case, Enter/↓/F3 next, Shift+Enter/↑/Shift+F3 previous, Esc closes; `FindText`, `FindNext`, `MatchCount`, `FindEnabled = false` to leave Ctrl+F and F3 to the app) | TextArea |
 | `SelectState` | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the `App`: `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option. With `Filterable`, a typed letter opens it too, and typing in it narrows the options | Select |
 | `TabBarState` | ← → h l | TabBar |
 | `TreeState<T>` | ↑ ↓ PgUp PgDn Home End, → (expand, then first child), ← (collapse, then parent), Enter (toggle, or `Activated` on a leaf), letters jump by name; `HandleMouse` selects, toggles on the expander and scrolls | Tree |
