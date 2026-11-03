@@ -537,6 +537,14 @@ everything); typing, pasting or a delete key replaces the selection, and ‚Üê / ‚
   Windows through the clipboard API, and on Linux and macOS through the terminal (OSC 52; in tmux, with
   `set -s set-clipboard on`). It's also kept in the app, so copy and paste within it always work. In
   Windows Terminal and conhost, Ctrl+V is the terminal's paste, which pastes the system clipboard.
+- **Reading the system clipboard on Linux and macOS:** `app.WithClipboardRead()` makes Ctrl+V ask the terminal
+  for its clipboard (an OSC 52 query) and paste the answer. It works in xterm (with `allowWindowOps`), kitty
+  (which may ask the user), WezTerm, foot, iTerm2 (with "Applications in terminal may access clipboard") and tmux
+  3.3+ (`set -s set-clipboard on`); GNOME Terminal and Windows Terminal don't answer. A refusal pastes the
+  in-app text; no answer within 500 ms does too, and the app stops asking. `Clipboard.GetTextAsync()` does the
+  same read from code.
+- **Ctrl+Insert** copies (and never quits), **Shift+Insert** pastes and **Shift+Delete** cuts, as the CUA keys
+  do. Terminals that keep Shift+Insert for their own paste send it as a paste, which works the same.
 - **Ctrl+Z** undoes and **Ctrl+Y** redoes, by word while typing. Setting `Text` clears the history. A
   text field takes Ctrl+Z even with nothing to undo, so with `WithSuspendKey`, Ctrl+Z suspends only
   while focus isn't on text.

@@ -37,6 +37,7 @@ public partial class App
     private IInputSource? _input;
     private ColorMode? _colorMode;
     private bool _captureConsole = true;
+    private bool _clipboardRead;
     private Theme? _theme;
     private CancellationTokenSource _stopping = new();
 
@@ -190,6 +191,17 @@ public partial class App
     public App WithMouse(bool enabled = true)
     {
         _mouse = enabled;
+        return this;
+    }
+
+    /// <summary>
+    /// Read the system clipboard through the terminal (an OSC 52 query) when Ctrl+V or Shift+Insert pastes on Linux and
+    /// macOS (1.x spec §20.3). Off by default: many terminals refuse, some ask the user each time, and one that
+    /// doesn't answer costs a 500 ms wait, after which the app stops asking. Windows reads its clipboard anyway.
+    /// </summary>
+    public App WithClipboardRead(bool enabled = true)
+    {
+        _clipboardRead = enabled;
         return this;
     }
 

@@ -66,6 +66,9 @@ internal abstract record TerminalReply
 
     /// <summary>A key arrived in win32-input-mode, so the console supports it (1.x spec §12.5).</summary>
     public sealed record Win32InputMode : TerminalReply;
+
+    /// <summary><c>OSC 52 ; c ; base64</c>: the terminal's clipboard, decoded (1.x spec §20.3).</summary>
+    public sealed record ClipboardText(string Text) : TerminalReply;
 }
 
 /// <summary>The startup queries and the parsing of their replies (1.x spec §12.3, §12.4).</summary>

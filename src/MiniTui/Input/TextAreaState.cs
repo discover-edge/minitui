@@ -343,6 +343,10 @@ public class TextAreaState
         var alt = (key.Modifiers & ConsoleModifiers.Alt) != 0;
         var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
         if (IsFinding) return HandleFindKey(key, ctrl, alt, shift);
+        // 1.x spec §20.4: Ctrl+Insert copies (and never quits), Shift+Insert pastes, Shift+Delete cuts
+        if (key.Key == ConsoleKey.Insert && !alt && ctrl != shift) return ctrl ? Copy() : MiniTui.Clipboard.PasteInto(Paste);
+        if (key.Key == ConsoleKey.Delete && shift && !ctrl && Cut()) return true;
+
         if (FindEnabled && KeyInput.IsCtrl(key, 'F'))
         {
             OpenFind();
@@ -421,7 +425,7 @@ public class TextAreaState
         }
         if (KeyInput.IsCtrlC(key)) return Copy();
         if (KeyInput.IsCtrl(key, 'X')) return Cut();
-        if (KeyInput.IsCtrl(key, 'V')) return Paste(MiniTui.Clipboard.GetText() ?? "");
+        if (KeyInput.IsCtrl(key, 'V')) return MiniTui.Clipboard.PasteInto(Paste);
         if (KeyInput.IsCtrlZ(key))
         {
             Undo();

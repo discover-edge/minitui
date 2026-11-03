@@ -79,7 +79,6 @@ public class TerminalQueryTests
     [InlineData("\e]11;rgb:gg/00/00\a")]
     [InlineData("\e]11;#ffffff\a")]
     [InlineData("\e]12;rgb:ff/ff/ff\a")]
-    [InlineData("\e]52;c;aGk=\a")]
     [InlineData("\eP>|\e\\")]
     [InlineData("\eP1$r0m\e\\")]
     [InlineData("\e[?1;2$y")]

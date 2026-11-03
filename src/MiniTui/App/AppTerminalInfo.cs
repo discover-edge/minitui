@@ -148,6 +148,11 @@ public partial class App
 
     private void HandleReply(TerminalReply reply)
     {
+        if (reply is TerminalReply.ClipboardText clipboard)
+        {
+            AnswerClipboard(clipboard.Text);
+            return;
+        }
         var before = _terminalInfo;
         _terminalInfo = TerminalQueries.Apply(before, reply);
         ChooseKeyboard(reply);
