@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -47,6 +47,7 @@ or add to them:
 | **22. Text area as an editor** | Opt-in Tab-to-indent (Tab, Shift+Tab, Backspace by indent stops), auto-indent on Enter and `IndentSize`; a line number gutter; a draggable scrollbar on the block; a find bar (Ctrl+F, F3, Shift+F3) with smart case and highlighted matches (`Theme.SearchMatch`). Backlog rank 5. | 12, 16, 20 | §16 | 1.11.0 |
 | **23. Double-click and hover** | `MouseEvent.ClickCount` counted by the app (`WithDoubleClickTime`): double-click selects a word and triple-click a line in text states, and activates list, table and tree rows (`SelectionState.Activated`). Opt-in hover (`WithHover`, `?1003`, `MouseAction.Move`): `ctx.Hover` and `.Hover()` on rows, buttons, checkboxes and tabs (`Theme.Hover`), and menus that follow the pointer. Backlog rank 7. | 10, 16 | §17 | 1.12.0 |
 | **24. Tree extras** | `TreeState.Reveal(path)`; `Filter` showing matches and their ancestors, opened; tri-state `Checkboxes` (Space, a click, `CheckedNodes`, `CheckedChanged`); async children with a loader, `Loading…` and errors on the row, and `Reload`. Backlog rank 8. | 17 | §18 | 1.13.0 |
+| **25. Chart extras** | Grouped and stacked bar charts (`BarGroup`, `Groups`, `Stacked`, `GroupGap`) with a series legend; time and duration axes (`Axis.Time`, `Axis.Duration`, `ChartTime`, `Formatter`, `LabelCount`); tick marks and grid lines (`Ticks`, `Grid`); area charts (`GraphType.Area`). Backlog rank 9. | 14 | §19 | 1.14.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -68,7 +69,7 @@ picked, as in §0 rule 3.
 | 6 | **Terminal queries** (Phase 18, §12). Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
 | 7 | **Hover and double-click** (Phase 23, §17). Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
 | 8 | **Tree extras** (Phase 24, §18). Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
-| 9 | **Chart extras.** Grouped and stacked bar charts, time axes (`DateTime` and `TimeSpan`), tick marks and grid lines, and area charts. | Dashboards want them, but the 1.4 charts cover the common cases. | §8.11 | 14 |
+| 9 | **Chart extras** (Phase 25, §19). Grouped and stacked bar charts, time axes (`DateTime` and `TimeSpan`), tick marks and grid lines, and area charts. | Dashboards want them, but the 1.4 charts cover the common cases. | §8.11 | 14 |
 | 10 | **Clipboard and selection extras.** Reading the Unix clipboard through OSC 52 queries (needs rank 6), Ctrl+Insert, Shift+Insert and Shift+Delete, and selecting text in paragraphs and the log view. | Edge cases. Terminals' own Shift+drag already selects screen text. | §10.12 | 16 |
 
 Ranks 1 and 6 share the reply parser, so they could be one phase, with rank 6 first. Ranks 3 and 7 both build on
@@ -4245,3 +4246,199 @@ Two PRs, like Phase 23:
    manual QA.
 
 Both go out in one release (1.13.0).
+
+---
+
+## 19. Chart extras (Phase 25)
+
+### 19.1 Purpose
+
+The 1.4 charts (§8) cover a single series of bars and line or scatter plots with three numeric labels per axis.
+Dashboards want more (backlog rank 9, §1.1):
+- **Grouped and stacked bars:** several values per category, side by side or on top of each other, with a legend.
+- **Time axes:** an X axis of timestamps or durations, labelled `12:05:30` or `-30s` instead of raw numbers.
+- **Tick marks and grid lines:** marks on the axes at the labels, and faint lines across the plot behind the data.
+- **Area charts:** a line with the space under it filled.
+
+### 19.2 Public API
+
+```csharp
+/// Several bars under one label: side by side, or stacked into one bar (§19.3).
+public sealed record BarGroup(string Label, IReadOnlyList<Bar> Bars);
+
+public sealed class BarChartBuilder
+{
+    // Existing members unchanged
+
+    /// Draw groups instead of single bars. Each group's bars are its series: bar i of every group is series i.
+    public BarChartBuilder Groups(IReadOnlyList<BarGroup> groups);
+    public BarChartBuilder Groups(params BarGroup[] groups);
+
+    /// Stack each group's bars into one bar instead of drawing them side by side. Off by default.
+    public BarChartBuilder Stacked(bool stacked = true);
+
+    /// The space between groups, in cells. Default 2. BarGap stays the space between bars in a group.
+    public BarChartBuilder GroupGap(int gap);
+
+    /// Where the series legend goes, for groups. Default TopRight; None hides it.
+    public BarChartBuilder Legend(LegendPosition position);
+}
+
+public enum GraphType
+{
+    Line,
+    Scatter,
+    /// A line with the dots under it filled down to the X axis (§19.6).
+    Area,
+}
+
+public sealed record Axis
+{
+    // Existing members unchanged
+
+    /// How many labels to spread along the axis when Labels is null. Default 3; at least 2.
+    public int LabelCount { get; init; }
+
+    /// Formats a label's value, instead of LabelFormat. Null uses LabelFormat.
+    public Func<double, string>? Formatter { get; init; }
+
+    /// Draw a tick mark on the axis line at each label (§19.5). Off by default.
+    public bool Ticks { get; init; }
+
+    /// Draw a grid line across the plot at each label, behind the data (§19.5). Off by default.
+    public bool Grid { get; init; }
+
+    /// An axis whose values are times: seconds since the Unix epoch (ChartTime), labelled in local time with a
+    /// DateTime format (§19.4).
+    public static Axis Time(string format = "HH:mm:ss");
+
+    /// An axis whose values are durations in seconds, labelled with a TimeSpan format, with "-" for negatives (§19.4).
+    public static Axis Duration(string format = @"m\:ss");
+}
+
+/// Converting times to and from chart values: seconds since the Unix epoch (§19.4).
+public static class ChartTime
+{
+    public static double ToValue(DateTimeOffset time);
+    public static DateTimeOffset FromValue(double value);
+    public static double ToValue(TimeSpan duration);    // seconds
+}
+```
+
+- Everything is additive: a chart or bar chart that sets none of these looks as it does in 1.4.
+- `Bars` and `Groups` replace each other: the last one set is drawn.
+
+### 19.3 Grouped and stacked bars
+
+**Grouped (side by side):**
+- Each group is its bars `BarWidth` wide with `BarGap` between them, and `GroupGap` between groups. The group's
+  label is centered under the group (truncated with `…` to the group's width). Bar labels aren't drawn under the
+  bars: they name the series, in the legend.
+- A bar without its own `Style` takes `Theme.ChartSeries[i]`, its index in the group (wrapping around), so series
+  have the same color in every group. Value texts are drawn as for single bars, when they fit.
+- **Horizontal:** each group is its bars on consecutive rows, `GroupGap` empty rows between groups; the group's
+  label is on the first bar's row, in the label column.
+- `Max` (or the largest bar in any group) is a full bar.
+
+**Stacked:**
+- Each group is one bar, `BarWidth` wide, made of its bars' segments from the bottom up (from the left when
+  horizontal), in order. `Max` defaults to the largest group total. Stacked bars are spaced as single bars are,
+  by `BarGap`, and labelled as single bars are, with the group's label.
+- **Segment boundaries:** each segment ends at the nearest whole cell (by its cumulative total), so a cell is
+  never split between two colors; only the top of the stack uses eighths. A segment that rounds to zero cells
+  isn't drawn, but still counts in the total.
+- The value text is the group's total (formatted with `ValueFormat`) in the top segment's color reversed, in the
+  bar's top cell when the bar is at least one cell tall, and when it fits. Negative and NaN values count as 0.
+
+**The legend** (groups only): a bordered box in the chosen corner, as `Chart`'s (§8.4), one row per series: `█`
+in the series' style, then the label of that bar in the first group. It's drawn over the bars, and left out
+when it would cover more than half the area's width or height, or when no first-group bar has a label.
+
+### 19.4 Time axes
+
+- **Values:** chart data stays `double`. `ChartTime.ToValue` turns a `DateTimeOffset` into seconds since the Unix
+  epoch, so a dataset of timestamps is `(ChartTime.ToValue(t), value)`. Durations are seconds
+  (`ChartTime.ToValue(span)` or a plain number), which suits sliding windows ("the last 60 s" as −60 .. 0).
+- **`Axis.Time(format)`** sets `Formatter` to the local time of the value, formatted with `format` (invariant
+  culture). **`Axis.Duration(format)`** formats `TimeSpan.FromSeconds(|v|)` with `format`, with `-` before
+  negatives. Both are ordinary `Axis` values, so `with { Title = "Time", Min = ... }` works on them.
+- **Labels** are still spread evenly between the bounds (`LabelCount` of them). Rounding them to "nice" times
+  (whole minutes) is out of scope (§19.9); an app that wants that sets `Labels` itself.
+- The Y label column's width and the X labels' spreading use the formatted text, as now.
+
+### 19.5 Tick marks and grid lines
+
+- **Positions:** at each label position, as `Chart` spreads them now (§8.4): with `Labels` set, one per label; with
+  `LabelCount`, that many.
+- **Ticks** (`Ticks`): on the X axis line, `┬` at each tick's column (`┴` would point into the plot); on the Y axis
+  line, `┤` at each tick's row. The corner stays `└`. In `Theme.Border`.
+- **Grid** (`Grid`): across the plot at each tick, `┈` rows for a Y axis grid and `┊` columns for an X axis grid,
+  `┼` where they cross, in `Theme.Border` patched with `Theme.TextMuted`. Grid lines are drawn before the datasets,
+  and a cell with any dot shows the dot, so the data is always on top. A grid line on the plot's edge (the first
+  and last ticks are at the axes) isn't drawn, since the axis line is there.
+- Basic glyph mode keeps the box-drawing characters, as borders do.
+
+### 19.6 Area charts
+
+- `GraphType.Area` draws the line as `Line` does, then fills every dot column under it down to the bottom of the
+  plot (the Y axis' minimum), with the same marker and style. Between two points, the line's height at each dot
+  column is interpolated, so the fill follows the line.
+- Several area datasets draw in order, so later ones cover earlier ones; drawing the larger series first keeps
+  both visible. The README says so.
+- Points outside the bounds clip the fill at the plot's edges; NaN and infinite points break the area, as they
+  break a line.
+- The legend's sample for an area dataset is `█` (`⣿` for braille), as for a line.
+
+### 19.7 Example
+
+The Charts demo:
+- **Line chart:** the X axis becomes a duration axis (`Axis.Duration()`, −10 s .. 0) with ticks and a Y grid;
+  `a` toggles the datasets between `Line` and `Area` (as `s` toggles `Scatter`).
+- **Bar chart:** `g` cycles single, grouped and stacked: requests per service split into GET, POST and DELETE as
+  groups, with a legend.
+- The footer lists the new keys.
+
+### 19.8 Tests and acceptance
+
+Automated (buffer snapshots):
+- **Grouped:** layout with `BarWidth`, `BarGap` and `GroupGap`; group labels; series colors from the theme and a
+  bar's own style; value texts; horizontal; groups that don't fit are dropped; `Max`.
+- **Stacked:** segments rounding to whole cells, the top in eighths, zero-cell segments, totals as value text,
+  `Max` from the totals, negatives and NaN as 0, horizontal.
+- **Legend:** each corner, `None`, too big, no labels.
+- **Axes:** `LabelCount`; `Formatter` over `LabelFormat`; `Axis.Time` and `Axis.Duration` (negatives, hours) with
+  a fixed time zone; `ChartTime` round trips.
+- **Ticks and grid:** positions with `Labels` and with `LabelCount`; the corner; grid under the data; crossings;
+  the edges left to the axes.
+- **Area:** the fill under a rising and a falling line, interpolation between points, clipping at the edges, NaN
+  gaps, two overlapping areas, each marker.
+- No widget throws for any area size, with and without groups.
+
+Manual QA (results in the PR): the Charts demo in Windows Terminal, conhost (half blocks) and a Linux terminal.
+
+### 19.9 Out of scope
+
+- Negative bars below a baseline, and bars on a canvas.
+- "Nice" tick steps (round numbers, whole minutes) and logarithmic or category axes.
+- A second Y axis, and annotations (markers, bands).
+- Filling between two datasets, or down to a baseline other than the axis minimum.
+- Hover and interaction (a cursor, tooltips), and caching between frames (§8.11).
+
+### 19.10 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Time values: keep `double` data with `ChartTime` to convert (Unix seconds), or add a `DateTime` dataset type? | **`double` with `ChartTime`** (§19.4): one data type, and durations and times share an axis kind. |
+| 2 | Stacked segment boundaries: whole cells (never two colors in a cell), or eighths with the cell's background in the next segment's color? | **Whole cells** (§19.3): simpler, and correct in every terminal; the top still uses eighths. |
+| 3 | Grid lines: dotted box-drawing (`┈ ┊`) behind the data, or braille dots on the canvas? | **Box-drawing behind the data** (§19.5): readable in every glyph mode, and never mixed into a series' dots. |
+| 4 | Grouped bars' colors: by series index from `Theme.ChartSeries`, or `Theme.GaugeFilled` as single bars use? | **By series** (§19.3): otherwise the series can't be told apart. Single bars keep `GaugeFilled`. |
+
+### 19.11 Implementation order
+
+Two PRs:
+1. **25a** (bars): `BarGroup`, `Groups`, `Stacked`, `GroupGap` and the bar chart legend, both directions; the demo's
+   `g`; README; CHANGELOG.
+2. **25b** (axes and areas): `LabelCount`, `Formatter`, `Axis.Time`, `Axis.Duration`, `ChartTime`, `Ticks`, `Grid`
+   and `GraphType.Area`; the demo's duration axis, grid and `a`; README; CHANGELOG; the manual QA.
+
+Both go out in one release (1.14.0).

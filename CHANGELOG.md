@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Grouped and stacked bar charts: `BarChartBuilder.Groups(new BarGroup(label, bars), ...)` draws each group's bars side by side, with `GroupGap` between groups and the group's label under them, or, with `Stacked()`, as one bar of segments from the bottom up (left to right), whole cells between segments and eighths at the top, with the group's total in its top cell. Bar i of each group is series i, colored from `Theme.ChartSeries` unless it has its own style. `Max` defaults to the largest bar, or the largest total when stacked.
+- `BarChartBuilder.Legend(position)`: a legend of the groups' series (the first group's bar labels), in a corner as `Chart`'s.
+- Example: `g` in the Charts demo cycles the requests chart between single, grouped and stacked bars (GET, POST and DELETE).
+- `docs/SPEC-1.x.md` §19: the chart extras spec.
+
 ## [1.13.0] - 2026-11-03
 
 MiniTui 1.13: trees you can filter, reveal a node in, check nodes in, and load in the background.
