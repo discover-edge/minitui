@@ -174,8 +174,8 @@ internal sealed class FakeServicesHandler : HttpMessageHandler
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        await Task.Delay(Random.Shared.Next(300, 1500), cancellationToken);
-        if (Random.Shared.Next(5) == 0) return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+        await Task.Delay(Demo.Random.Next(300, 1500), cancellationToken);
+        if (Demo.Random.Next(5) == 0) return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
 
         var path = request.RequestUri!.AbsolutePath.Trim('/').Split('/');
         lock (_lock)
@@ -198,8 +198,8 @@ internal sealed class FakeServicesHandler : HttpMessageHandler
 
     private static ServiceDto Create(int i)
     {
-        var healthy = Random.Shared.Next(10) != 0;
+        var healthy = Demo.Random.Next(10) != 0;
         return new ServiceDto(i, $"{Teams[i % Teams.Length]}-{i:000}", healthy ? "healthy" : "degraded",
-            $"v{1 + i % 4}.{i % 13}.{Random.Shared.Next(20)}", healthy, Random.Shared.Next(2, healthy ? 120 : 900));
+            $"v{1 + i % 4}.{i % 13}.{Demo.Random.Next(20)}", healthy, Demo.Random.Next(2, healthy ? 120 : 900));
     }
 }

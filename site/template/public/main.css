@@ -35,3 +35,13 @@
 
 /* Room between the logo and the name */
 .navbar-brand img { margin-right: 0.5rem; }
+
+/* The tour and the screenshots (1.x spec §21.3, §21.4) */
+.mt-tour { max-width: 60rem; margin: 0 auto 3rem; padding: 0 1rem; }
+.mt-tour .ap-wrapper { border-radius: 0.75rem; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35); }
+.mt-caption { text-align: center; color: var(--bs-secondary-color); font-size: 0.9rem; margin-top: 0.75rem; }
+.mt-feature img { display: block; width: 100%; height: auto; margin: -0.25rem 0 1rem; border-radius: 0.5rem; }
+.mt-test { margin: -0.25rem 0 1rem; padding: 0.75rem; border-radius: 0.5rem; font-size: 0.7rem; background: #1C1F26;
+  color: #D4D7DD; aspect-ratio: 868 / 562; display: flex; align-items: center; overflow: hidden; }
+.mt-test code { color: inherit; white-space: pre; }
+.mt-counter { display: block; max-width: 22rem; width: 100%; height: auto; margin: 1rem 0; }

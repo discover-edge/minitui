@@ -97,21 +97,16 @@ internal static class Animation
     /// Call <paramref name="step"/> every <paramref name="interval"/> on the UI thread until <paramref name="lifetime"/>
     /// ends (the screen is popped), redrawing after each step.
     /// </summary>
-    public static void Every(App app, TimeSpan interval, CancellationToken lifetime, Action step) =>
-        app.RunTask(async ct =>
+    public static void Every(App app, TimeSpan interval, CancellationToken lifetime, Action step)
+    {
+        // A timer on the demos' clock, not an app task: a loop that never ends would keep the app busy, and the site's
+        // recordings (tools/SiteMedia) wait for app tasks to finish
+        var timer = Demo.Time.CreateTimer(_ => app.Post(() =>
         {
-            using var both = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime);
-            try
-            {
-                while (true)
-                {
-                    await Task.Delay(interval, both.Token);
-                    step();
-                    app.RequestRedraw();
-                }
-            }
-            catch (OperationCanceledException) when (both.IsCancellationRequested)
-            {
-            }
-        });
+            if (lifetime.IsCancellationRequested) return;
+            step();
+            app.RequestRedraw();
+        }), null, interval, interval);
+        lifetime.Register(timer.Dispose);
+    }
 }

@@ -13,7 +13,7 @@ internal sealed class ChartsScreen : Screen
     private readonly List<(double X, double Y)> _sin = [];
     private readonly List<(double X, double Y)> _cos = [];
     private readonly double[] _requests = new double[Services.Length];
-    private readonly System.Diagnostics.Stopwatch _clock = new();
+    private long _start;
     private double _time;
     private int _marker;
     private bool _scatter;
@@ -34,16 +34,16 @@ internal sealed class ChartsScreen : Screen
 
     protected override void OnMount()
     {
-        _clock.Start();
+        _start = Demo.Time.GetTimestamp();
         Animation.Every(App, TimeSpan.FromMilliseconds(100), Lifetime, () =>
         {
-            _time = _clock.Elapsed.TotalSeconds;
+            _time = Demo.Time.GetElapsedTime(_start).TotalSeconds;
             _sin.Add((_time, Math.Sin(_time) + Noise()));
             _cos.Add((_time, Math.Cos(_time * 0.7) * 0.8 + Noise()));
             _sin.RemoveAll(p => p.X < _time - Window);
             _cos.RemoveAll(p => p.X < _time - Window);
             for (var i = 0; i < _requests.Length; i++)
-                _requests[i] = Math.Max(0, 50 + 40 * Math.Sin(_time / 2 + i) + Random.Shared.Next(-5, 6));
+                _requests[i] = Math.Max(0, 50 + 40 * Math.Sin(_time / 2 + i) + Demo.Random.Next(-5, 6));
         });
     }
 
@@ -101,5 +101,5 @@ internal sealed class ChartsScreen : Screen
             .Draw(buf, bottom["canvas"]);
     }
 
-    private static double Noise() => (Random.Shared.NextDouble() - 0.5) * 0.1;
+    private static double Noise() => (Demo.Random.NextDouble() - 0.5) * 0.1;
 }

@@ -177,7 +177,7 @@ internal sealed class DashboardScreen : Screen
 
     private readonly List<string> _logs = ["System started", "Connected to database", "Cache initialized"];
     private readonly List<double> _requests = [];
-    private readonly System.Diagnostics.Stopwatch _uptime = new();
+    private long _start;
     private readonly ScrollState _logScroll = new() { Selectable = true, Offset = int.MaxValue };
     private readonly LogView _logView;
     private double _elapsed;
@@ -193,17 +193,17 @@ internal sealed class DashboardScreen : Screen
 
     protected override void OnMount()
     {
-        _uptime.Start();
+        _start = Demo.Time.GetTimestamp();
         Animation.Every(App, TimeSpan.FromMilliseconds(100), Lifetime, () =>
         {
-            _elapsed = _uptime.Elapsed.TotalSeconds;
-            _requests.Add(20 + 15 * Math.Sin(_elapsed) + Random.Shared.Next(10));
+            _elapsed = Demo.Time.GetElapsedTime(_start).TotalSeconds;
+            _requests.Add(20 + 15 * Math.Sin(_elapsed) + Demo.Random.Next(10));
             if (_requests.Count > 200) _requests.RemoveAt(0);
-            if (Random.Shared.NextDouble() < 0.1)
+            if (Demo.Random.NextDouble() < 0.1)
             {
                 // At the end, stay there as the line arrives; the draw clamps the offset
                 if (_logScroll.Offset >= _logScroll.ContentHeight - _logScroll.ViewportHeight) _logScroll.Offset = int.MaxValue;
-                _logs.Add($"{DateTime.Now:HH:mm:ss} - {Messages[Random.Shared.Next(Messages.Length)]}");
+                _logs.Add($"{Demo.Now:HH:mm:ss} - {Messages[Demo.Random.Next(Messages.Length)]}");
                 if (_logs.Count > 50) _logs.RemoveAt(0);
             }
         });
@@ -270,7 +270,7 @@ internal sealed class CommandScreen : Screen
                 .Handler(cmd =>
                 {
                     if (string.IsNullOrWhiteSpace(cmd.ArgsAsString)) return CommandResult.Error("Usage: :add <text>");
-                    _notes.Insert(0, $"[{DateTime.Now:HH:mm}] {cmd.ArgsAsString}");
+                    _notes.Insert(0, $"[{Demo.Now:HH:mm}] {cmd.ArgsAsString}");
                     return CommandResult.Ok("Note added");
                 })
             .Add("delete", "d", "rm").Usage("<index>").Description("Delete note by index")

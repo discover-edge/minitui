@@ -42,7 +42,7 @@ internal sealed class WidgetsScreen : Screen
         Focus.Focus(_items);
 
         Keys.Add("t", "Theme", ToggleTheme)
-            .Add("n", "Toast", () => App.Toasts.Push($"Toast at {DateTime.Now:HH:mm:ss}", (ToastLevel)(_samples.Count % 4)));
+            .Add("n", "Toast", () => App.Toasts.Push($"Toast at {Demo.Now:HH:mm:ss}", (ToastLevel)(_samples.Count % 4)));
     }
 
     // The tab bar, list and button are inline components, so their clicks come here
@@ -57,7 +57,7 @@ internal sealed class WidgetsScreen : Screen
     protected override void OnMount() => Animation.Every(App, TimeSpan.FromMilliseconds(200), Lifetime, () =>
     {
         _progress = (_progress + 0.013) % 1.0;
-        _samples.Add(50 + 40 * Math.Sin(_samples.Count / 4.0) + Random.Shared.Next(-10, 10));
+        _samples.Add(50 + 40 * Math.Sin(_samples.Count / 4.0) + Demo.Random.Next(-10, 10));
         if (_samples.Count > 200) _samples.RemoveAt(0);
     });
 

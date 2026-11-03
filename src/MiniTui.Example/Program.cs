@@ -10,8 +10,6 @@ using MiniTui.Example;
 
 // Fixed dark and light themes, picked by the terminal's background
 var app = App.Create().WithTheme(Theme.Dark, Theme.Light).WithHover().WithClipboardRead().WithSuspendKey().WithDebugKey();
-app.Keys.Add("q", "Back", () => app.Screens.Pop());   // popping the menu quits
-app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette());
-app.WithMenuBar(AppMenu.Create(app));                  // F10 or Alt+F/V/H
+Demo.Configure(app);                                   // q goes back, Ctrl+P, and the menu bar (F10 or Alt+F/V/H)
 app.Screens.Push(new MenuScreen());
 app.Run();
