@@ -14,6 +14,7 @@ public sealed class TextAreaBuilder
     private BlockBuilder? _block;
     private Style? _style;
     private WrapMode _wrap = WrapMode.Word;
+    private bool _lineNumbers;
 
     /// <summary>The text and cursor.</summary>
     public TextAreaBuilder State(TextAreaState state) { _state = state; return this; }
@@ -36,7 +37,16 @@ public sealed class TextAreaBuilder
     /// </summary>
     public TextAreaBuilder Wrap(WrapMode wrap) { _wrap = wrap; return this; }
 
-    /// <summary>Draw the text area inside its block (or area).</summary>
+    /// <summary>
+    /// Show line numbers in a gutter on the left (1.x spec §16.4). The text wraps in the width left over; the gutter
+    /// isn't drawn when that would leave no room for text.
+    /// </summary>
+    public TextAreaBuilder LineNumbers(bool show = true) { _lineNumbers = show; return this; }
+
+    /// <summary>
+    /// Draw the text area inside its block (or area). With a block that has a right border, a scrollbar is drawn on it
+    /// when the text doesn't fit.
+    /// </summary>
     public void Draw(Buffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
@@ -51,13 +61,26 @@ public sealed class TextAreaBuilder
         }
         buf.SetStyle(inner, style);
 
+        // 1.x spec §16.4: as wide as the last line's number, at least 2 digits, then a space
+        var gutterWidth = _lineNumbers ? Math.Max(2, Digits(state.Lines.Count)) + 1 : 0;
+        if (gutterWidth >= inner.Width) gutterWidth = 0;
+        var gutter = inner with { Width = gutterWidth };
+        inner = inner with { X = inner.X + gutterWidth, Width = inner.Width - gutterWidth };
+
         var width = _wrap == WrapMode.None ? int.MaxValue : inner.Width;
         var rows = TextAreaLayout.Build(state.Lines, width, _wrap, state.Cursor);
-        state.Track(inner, _wrap, rows.Count);
+        state.Track(inner, _wrap, rows.Count, gutter);
         var cursor = state.Cursor;
         var cursorRow = TextAreaLayout.RowOf(rows, cursor);
         var cursorColumn = TextAreaState.ColumnIn(state.Lines[cursor.Line], rows[cursorRow], cursor.Index);
         Scroll(state, rows.Count, cursorRow, cursorColumn, inner);
+        if (_block?.HasRightBorder == true && rows.Count > inner.Height)
+        {
+            var bar = new Rect(area.Right - 1, inner.Y, 1, inner.Height);
+            new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(inner.Height).Position(state.ScrollOffset).Draw(buf, bar);
+            state.TrackScrollbar(bar);
+        }
+        if (gutterWidth > 0) DrawGutter(buf, gutter, rows, state, style, theme);
 
         var empty = state.Lines.Count == 1 && state.Lines[0].Length == 0;
         if (empty && !string.IsNullOrEmpty(_placeholder))
@@ -85,6 +108,21 @@ public sealed class TextAreaBuilder
         x = Math.Min(x, inner.Right - 1);
         buf.SetStyle(new Rect(x, inner.Y + row, 1, 1), theme.Cursor);
         buf.SetCursor(x, inner.Y + row);
+    }
+
+    private static int Digits(int n) => n < 10 ? 1 : 1 + Digits(n / 10);
+
+    // A line's number on its first row, blank on the rest; the cursor's line in the text style, the others muted
+    private static void DrawGutter(Buffer buf, Rect gutter, List<TextAreaLayout.Row> rows, TextAreaState state, Style style, Theme theme)
+    {
+        for (var y = 0; y < gutter.Height && state.ScrollOffset + y < rows.Count; y++)
+        {
+            var row = rows[state.ScrollOffset + y];
+            if (row.Start != 0) continue;
+            var number = (row.Line + 1).ToString(CultureInfo.InvariantCulture);
+            var numberStyle = style.Patch(row.Line == state.Cursor.Line ? theme.Text : theme.TextMuted);
+            buf.SetString(gutter.X + gutter.Width - 1 - number.Length, gutter.Y + y, number, numberStyle);
+        }
     }
 
     // Follow the cursor unless the wheel moved the view, then keep the last row from rising above the bottom

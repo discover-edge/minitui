@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Text area editor features: `TextAreaState.TabIndents` (Tab inserts spaces to the next indent stop, or indents every selected line; Shift+Tab outdents; Backspace in the indentation deletes back to the previous stop; Tab no longer moves focus out of the text area), `AutoIndent` (Enter starts the new line with the current line's indentation) and `IndentSize` (the indent stop width, 1–8, also used to expand tabs; 4 by default). Each indent or outdent is one undo step.
+- `TextAreaBuilder.LineNumbers()`: a gutter of line numbers, the cursor's line highlighted. Clicking in it moves the cursor to the start of that row.
+- Example: an Editor demo, a YAML file in a text area with indentation, auto-indent, line numbers and a scrollbar.
+- `docs/SPEC-1.x.md` §16: the text area as an editor spec.
+
+### Changed
+- A text area in a block with a right border shows a scrollbar on that border when its text doesn't fit. Dragging the thumb or pressing the track scrolls without moving the cursor.
+
 ## [1.10.0] - 2026-11-02
 
 MiniTui 1.10: a menu bar, and menus with mnemonics, check and radio items, and submenus.
