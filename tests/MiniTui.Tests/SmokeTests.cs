@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -7,7 +6,7 @@ public class SmokeTests
     [Fact]
     public void Buffer_SetString_WritesCells()
     {
-        var buf = new Buffer(10, 2);
+        var buf = new CellBuffer(10, 2);
 
         buf.SetString(1, 0, "hi", new Style(Color.Green));
 
@@ -19,7 +18,7 @@ public class SmokeTests
     [Fact]
     public void Block_UsesBoxDrawingGlyphs()
     {
-        var buf = new Buffer(3, 3);
+        var buf = new CellBuffer(3, 3);
 
         Widget.Block().Draw(buf, buf.Area);
 

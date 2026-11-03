@@ -36,7 +36,7 @@ app.OnSetup(a => services.Load(a, ct => api.ListAsync(ct)))
     })
     .Run();
 
-void DrawTable(Buffer buf, Rect area, IReadOnlyList<ServiceDto>? list) =>
+void DrawTable(CellBuffer buf, Rect area, IReadOnlyList<ServiceDto>? list) =>
     Widget.Table()
         .Block(Widget.Block().Title(" Services "))
         .Header("Name", "Status", "Version")

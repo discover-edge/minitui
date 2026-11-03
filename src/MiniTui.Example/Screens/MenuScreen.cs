@@ -42,7 +42,7 @@ internal sealed class MenuScreen : Screen
 
     private void Open() => App.Screens.Push(Demos[_selection.Selected].Create());
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var inner = Widget.Block().Title(" MiniTui Demos ").Padding(new Margin(1, 0)).Draw(buf, area);
         var layout = Layout.Vertical(inner)
@@ -76,5 +76,5 @@ internal sealed class CrashScreen : Screen
 {
     protected override void OnMount() => throw new InvalidOperationException("Forced exception from the Example's QA screen.");
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
 }

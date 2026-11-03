@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -14,7 +13,7 @@ public class CommandPaletteTests
             Keys.Add("ctrl+o", "Open File", () => log.Add("open"));
             return this;
         }
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private sealed class Home : Screen
@@ -30,7 +29,7 @@ public class CommandPaletteTests
 
         public Child Inner { get; }
         public override string Title => "Home";
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => ctx.Render(Inner, buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => ctx.Render(Inner, buf, area);
     }
 
     private static (ComponentHarness Harness, List<string> Log) Start(CommandRegistry? commands = null, int width = 60, int height = 24)
@@ -405,14 +404,14 @@ public class CommandPaletteTests
         public SelectField Field { get; }
         public int Went { get; private set; }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => ctx.Render(Field, buf, new Rect(2, 1, 24, 3));
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => ctx.Render(Field, buf, new Rect(2, 1, 24, 3));
     }
 
     private sealed class SelectField(SelectState state) : Component
     {
         public override bool HandleKey(ConsoleKeyInfo key) => state.HandleKey(key, App);
         public override bool HandleMouse(MouseEvent mouse) => state.HandleMouse(mouse, App);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.Select().State(state).Placeholder("Pick").Block(Widget.Block().Title(" Country ")).Focused(ctx.Focused).Draw(buf, area);
     }
 
@@ -559,7 +558,7 @@ public class CommandPaletteTests
             Focus.Add(_field);
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => ctx.Render(_field, buf, new Rect(2, 20, 24, 3));
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => ctx.Render(_field, buf, new Rect(2, 20, 24, 3));
     }
 
     [Fact]

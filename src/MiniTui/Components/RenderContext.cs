@@ -43,7 +43,7 @@ public sealed class RenderContext
     /// Render a child: records its <see cref="Component.Area"/> so the mouse can hit it (1.x spec §4.7), then
     /// calls <c>child.Render(buf, area, For(child))</c>.
     /// </summary>
-    public void Render(Component child, Buffer buf, Rect area)
+    public void Render(Component child, CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(child);
         App.RecordHit(child, area, area);

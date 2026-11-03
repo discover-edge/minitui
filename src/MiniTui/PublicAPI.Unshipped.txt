@@ -1,1 +1,103 @@
 #nullable enable
+*REMOVED*MiniTui.App.Render(System.Action<MiniTui.Buffer!, MiniTui.Rect>! render) -> MiniTui.App!
+*REMOVED*MiniTui.BarChartBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.BlockBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> MiniTui.Rect
+*REMOVED*MiniTui.Buffer
+*REMOVED*MiniTui.Buffer.Area.get -> MiniTui.Rect
+*REMOVED*MiniTui.Buffer.Buffer(int width, int height) -> void
+*REMOVED*MiniTui.Buffer.Clear() -> void
+*REMOVED*MiniTui.Buffer.CursorRequest.get -> (int X, int Y)?
+*REMOVED*MiniTui.Buffer.DrawHLine(int x, int y, int length, char c = '─', MiniTui.Style style = default(MiniTui.Style)) -> void
+*REMOVED*MiniTui.Buffer.DrawVLine(int x, int y, int length, char c = '│', MiniTui.Style style = default(MiniTui.Style)) -> void
+*REMOVED*MiniTui.Buffer.Fill(MiniTui.Cell cell) -> void
+*REMOVED*MiniTui.Buffer.FillRect(MiniTui.Rect rect, MiniTui.Cell cell) -> void
+*REMOVED*MiniTui.Buffer.Get(int x, int y) -> MiniTui.Cell
+*REMOVED*MiniTui.Buffer.Height.get -> int
+*REMOVED*MiniTui.Buffer.Set(int x, int y, MiniTui.Cell cell) -> void
+*REMOVED*MiniTui.Buffer.SetCursor(int x, int y) -> void
+*REMOVED*MiniTui.Buffer.SetLine(int x, int y, MiniTui.Line! line, int maxWidth) -> int
+*REMOVED*MiniTui.Buffer.SetString(int x, int y, System.ReadOnlySpan<char> text, MiniTui.Style style, int maxWidth = 2147483647) -> int
+*REMOVED*MiniTui.Buffer.SetStyle(MiniTui.Rect area, MiniTui.Style style) -> void
+*REMOVED*MiniTui.Buffer.ToLines() -> string![]!
+*REMOVED*MiniTui.Buffer.Width.get -> int
+*REMOVED*MiniTui.ButtonBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.CanvasBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.ChartBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.CheckboxBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.CommandLineBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.GaugeBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.ListBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.ParagraphBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.RenderContext.Render(MiniTui.Component! child, MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.ScrollbarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.SelectBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.SparklineBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.SpinnerBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.SplitBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> (MiniTui.Rect First, MiniTui.Rect Second)
+*REMOVED*MiniTui.StatusBarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.TabBarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.TableBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.Terminal.Draw(System.Action<MiniTui.Buffer!>! render) -> void
+*REMOVED*MiniTui.TextAreaBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.TextFieldBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.ToastsBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*MiniTui.TreeBuilder<T>.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+*REMOVED*abstract MiniTui.Component.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+*REMOVED*override MiniTui.CommandLineOverlay.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+*REMOVED*override MiniTui.CommandPalette.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+*REMOVED*override MiniTui.ConfirmDialog.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+*REMOVED*override MiniTui.HelpOverlay.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+*REMOVED*override MiniTui.MessageDialog.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+*REMOVED*override MiniTui.PopupMenu.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+*REMOVED*static MiniTui.Component.From(System.Action<MiniTui.Buffer!, MiniTui.Rect, MiniTui.RenderContext!>! render, System.Func<System.ConsoleKeyInfo, bool>? handleKey = null, bool capturesText = false) -> MiniTui.Component!
+MiniTui.App.Render(System.Action<MiniTui.CellBuffer!, MiniTui.Rect>! render) -> MiniTui.App!
+MiniTui.BarChartBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.BlockBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> MiniTui.Rect
+MiniTui.ButtonBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.CanvasBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.CellBuffer
+MiniTui.CellBuffer.Area.get -> MiniTui.Rect
+MiniTui.CellBuffer.CellBuffer(int width, int height) -> void
+MiniTui.CellBuffer.Clear() -> void
+MiniTui.CellBuffer.CursorRequest.get -> (int X, int Y)?
+MiniTui.CellBuffer.DrawHLine(int x, int y, int length, char c = '─', MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CellBuffer.DrawVLine(int x, int y, int length, char c = '│', MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CellBuffer.Fill(MiniTui.Cell cell) -> void
+MiniTui.CellBuffer.FillRect(MiniTui.Rect rect, MiniTui.Cell cell) -> void
+MiniTui.CellBuffer.Get(int x, int y) -> MiniTui.Cell
+MiniTui.CellBuffer.Height.get -> int
+MiniTui.CellBuffer.Set(int x, int y, MiniTui.Cell cell) -> void
+MiniTui.CellBuffer.SetCursor(int x, int y) -> void
+MiniTui.CellBuffer.SetLine(int x, int y, MiniTui.Line! line, int maxWidth) -> int
+MiniTui.CellBuffer.SetString(int x, int y, System.ReadOnlySpan<char> text, MiniTui.Style style, int maxWidth = 2147483647) -> int
+MiniTui.CellBuffer.SetStyle(MiniTui.Rect area, MiniTui.Style style) -> void
+MiniTui.CellBuffer.ToLines() -> string![]!
+MiniTui.CellBuffer.Width.get -> int
+MiniTui.ChartBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.CheckboxBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.CommandLineBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.GaugeBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.ListBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.ParagraphBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.RenderContext.Render(MiniTui.Component! child, MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.ScrollbarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.SelectBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.SparklineBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.SpinnerBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.SplitBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> (MiniTui.Rect First, MiniTui.Rect Second)
+MiniTui.StatusBarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.TabBarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.TableBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.Terminal.Draw(System.Action<MiniTui.CellBuffer!>! render) -> void
+MiniTui.TextAreaBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.TextFieldBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.ToastsBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.TreeBuilder<T>.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+abstract MiniTui.Component.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.CommandLineOverlay.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.CommandPalette.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.ConfirmDialog.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.HelpOverlay.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.MessageDialog.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.PopupMenu.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+static MiniTui.Component.From(System.Action<MiniTui.CellBuffer!, MiniTui.Rect, MiniTui.RenderContext!>! render, System.Func<System.ConsoleKeyInfo, bool>? handleKey = null, bool capturesText = false) -> MiniTui.Component!

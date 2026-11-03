@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -19,9 +18,9 @@ public class TextAreaFindTests
 
     private static (TextPosition Start, TextPosition End) Selection(TextAreaState state) => (state.SelectionStart, state.SelectionEnd);
 
-    private static Buffer Draw(TextAreaState state, int width, int height, bool focused = true)
+    private static CellBuffer Draw(TextAreaState state, int width, int height, bool focused = true)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         Widget.TextArea().State(state).Focused(focused).Draw(buf, buf.Area);
         return buf;
     }

@@ -112,7 +112,7 @@ public sealed class TableBuilder
     internal TableBuilder HeaderSeparator(bool separator = true) { _headerSeparator = separator; return this; }
 
     /// <summary>Draw the table.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var theme = Theme.Current;
@@ -187,7 +187,7 @@ public sealed class TableBuilder
         }
     }
 
-    private void DrawHeaderCell(Buffer buf, int x, int y, Line cell, int width, Style style, int column)
+    private void DrawHeaderCell(CellBuffer buf, int x, int y, Line cell, int width, Style style, int column)
     {
         if (_state?.SortColumn != column || width < 3)
         {

@@ -67,7 +67,7 @@ internal sealed class InputScreen : Screen
         return true;
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var inner = Widget.Block().Title(" Input ").Padding(new Margin(1, 0)).Draw(buf, area);
         var rows = Layout.Vertical(inner)

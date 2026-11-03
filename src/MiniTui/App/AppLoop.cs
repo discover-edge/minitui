@@ -503,7 +503,7 @@ public partial class App
     /// bottom to top, and toasts.
     /// </summary>
     /// <returns>The time taken, without the debug overlay.</returns>
-    private TimeSpan RenderFrame(Buffer buf, Rect area)
+    private TimeSpan RenderFrame(CellBuffer buf, Rect area)
     {
         _hits.Clear();
         _hoverTarget = HoverTarget();
@@ -529,7 +529,7 @@ public partial class App
         }
     }
 
-    private void RenderLayers(Buffer buf, Rect area)
+    private void RenderLayers(CellBuffer buf, Rect area)
     {
         var body = area;
         if (_onRender is not null)
@@ -585,7 +585,7 @@ public partial class App
     }
 
     // Hints on the left; the breadcrumb (screen titles, truncated from the left) on the right
-    private void DrawStatusBar(Buffer buf, Rect row)
+    private void DrawStatusBar(CellBuffer buf, Rect row)
     {
         var crumb = _chromeBreadcrumb ? string.Join(" › ", Screens.All.Select(s => s.Title)) : "";
         crumb = WidgetText.TruncateStart(crumb, row.Width / 2);

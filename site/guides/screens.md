@@ -6,7 +6,6 @@ A larger app is a stack of screens built from components:
 
 ```csharp
 using MiniTui;
-using Buffer = MiniTui.Buffer;                     // System.Buffer has the same name (see Getting started)
 
 var app = App.Create();                            // screens get a status bar with key hints and a breadcrumb
 app.Keys.Add("q", "Quit", app.Quit);               // global; "?" help and "ctrl+c" quit are built in
@@ -33,7 +32,7 @@ sealed class ServicesScreen : Screen
 
     public override bool HandleKey(ConsoleKeyInfo key) => selection.HandleKey(key, services.Value?.Count ?? 0);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Table().Header("Name", "Status").Rows(services.Value ?? [], s => new Row(s.Name, s.Status))
             .State(selection).Focused(ctx.Focused).Draw(buf, area);
 
@@ -59,7 +58,7 @@ sealed class SearchBox : Component
     public override bool CapturesText => true;           // typing "q" here doesn't trigger global "q"
     public override bool HandleKey(ConsoleKeyInfo key) => text.HandleKey(key);
     public override bool HandlePaste(string pasted) => text.Paste(pasted);
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.TextField().State(text).Focused(ctx.Focused).Block(Widget.Block().Title(" Search ")).Draw(buf, area);
 }
 
@@ -76,7 +75,7 @@ sealed class FilesScreen : Screen
         Keys.Add("ctrl+r", "Reload", Reload);
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var rows = Layout.Split(area, Direction.Vertical, Constraint.Length(3), Constraint.Fill());
         ctx.Render(search, buf, rows[0]);
@@ -179,7 +178,7 @@ sealed class NameDialog : Overlay
 
     public override bool HandlePaste(string text) => name.Paste(text);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.TextField().State(name).Focused().Draw(buf, area);
 
     protected override void OnUnmount() => result.TrySetResult(null);   // Esc closes it without a name

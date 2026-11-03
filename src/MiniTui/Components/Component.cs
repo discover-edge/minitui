@@ -62,7 +62,7 @@ public abstract class Component
     public Rect Area { get; internal set; }
 
     /// <summary>Draw the component. Called every frame its parent renders it.</summary>
-    public abstract void Render(Buffer buf, Rect area, RenderContext ctx);
+    public abstract void Render(CellBuffer buf, Rect area, RenderContext ctx);
 
     /// <summary>The app, from mount to unmount.</summary>
     /// <exception cref="InvalidOperationException">The component isn't mounted.</exception>
@@ -127,7 +127,7 @@ public abstract class Component
     /// <summary>
     /// An inline component, for small apps that want focus handling without writing a class.
     /// </summary>
-    public static Component From(Action<Buffer, Rect, RenderContext> render,
+    public static Component From(Action<CellBuffer, Rect, RenderContext> render,
                                  Func<ConsoleKeyInfo, bool>? handleKey = null, bool capturesText = false)
     {
         ArgumentNullException.ThrowIfNull(render);
@@ -192,12 +192,12 @@ public abstract class Component
         OnDeactivated();
     }
 
-    private sealed class InlineComponent(Action<Buffer, Rect, RenderContext> render, Func<ConsoleKeyInfo, bool>? handleKey, bool capturesText)
+    private sealed class InlineComponent(Action<CellBuffer, Rect, RenderContext> render, Func<ConsoleKeyInfo, bool>? handleKey, bool capturesText)
         : Component
     {
         public override bool CapturesText => capturesText;
         public override string KeysGroup => "Component";
         public override bool HandleKey(ConsoleKeyInfo key) => handleKey?.Invoke(key) == true;
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => render(buf, area, ctx);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => render(buf, area, ctx);
     }
 }

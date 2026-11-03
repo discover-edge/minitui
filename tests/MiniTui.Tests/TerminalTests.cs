@@ -2,7 +2,7 @@ namespace MiniTui.Tests;
 
 public class TerminalTests
 {
-    private static void DrawStatic(MiniTui.Buffer buf)
+    private static void DrawStatic(CellBuffer buf)
     {
         buf.SetString(0, 0, "Hello, world", new Style(Color.Green).Bold());
         buf.SetString(2, 1, "status: ok", new Style(Bg: Color.Blue));
@@ -15,7 +15,7 @@ public class TerminalTests
     {
         var host = new FakeConsoleHost(80, 24);
         using var terminal = new Terminal(new AnsiBackend(ColorMode.TrueColor, host));
-        Action<MiniTui.Buffer> render = DrawStatic;
+        Action<CellBuffer> render = DrawStatic;
         for (var i = 0; i < 3; i++) terminal.Draw(render);
         var length = host.Output.Length;
 

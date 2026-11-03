@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -15,7 +14,7 @@ public class MenuBarTests
             if (bindAltE) Keys.Add("alt+e", "Mine", () => Log.Add("screen alt+e"));
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Drawn = area;
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Drawn = area;
     }
 
     private static (ComponentHarness Harness, MenuBar Bar, Home Home, List<string> Log) Start(bool bindAltE = false, Func<IReadOnlyList<MenuItem>>? view = null)

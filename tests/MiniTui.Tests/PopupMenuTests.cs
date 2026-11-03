@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Time.Testing;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -14,7 +13,7 @@ public class PopupMenuTests
             return true;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private static readonly MenuItem[] Fruit =
@@ -377,7 +376,7 @@ public class PopupMenuTests
         public Rect Drawn;
         public override bool Framed => framed;
         public override Rect Placement(Rect screen) => new(10, 5, 10, 4);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Drawn = area;
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Drawn = area;
     }
 
     [Fact]
@@ -459,7 +458,7 @@ public class PopupMenuTests
         public SelectField Field { get; }
         public SelectField Other { get; }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             ctx.Render(Field, buf, new Rect(2, 1, 20, 3));
             ctx.Render(Other, buf, new Rect(2, 10, 20, 3));
@@ -472,7 +471,7 @@ public class PopupMenuTests
         public override bool HandleKey(ConsoleKeyInfo key) => state.HandleKey(key, App);
         public override bool HandleMouse(MouseEvent mouse) => state.HandleMouse(mouse, App);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.Select().State(state).Placeholder("Pick one").Block(Widget.Block().Title(" Plan ")).Focused(ctx.Focused).Draw(buf, area);
     }
 
@@ -634,7 +633,7 @@ public class PopupMenuTests
     public void TheField_DrawsThePlaceholderOrTheValue_AndTheArrow()
     {
         var state = new SelectState(["A very long option name"]);
-        var buf = new Buffer(12, 1);
+        var buf = new CellBuffer(12, 1);
 
         Widget.Select().State(state).Placeholder("Pick one").Draw(buf, buf.Area);
         Assert.Equal("Pick one   ▼", buf.ToLines()[0]);

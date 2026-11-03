@@ -1,6 +1,6 @@
 # Widgets
 
-The built-in widgets, each a builder that draws into a [`Buffer`](xref:MiniTui.Buffer).
+The built-in widgets, each a builder that draws into a [`CellBuffer`](xref:MiniTui.CellBuffer).
 
 Factory for fluent widget builders. Every widget draws with `Theme.Current`, measures text by display
 width (truncating with `…`), and never throws, whatever the area.

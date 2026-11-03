@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -222,7 +221,7 @@ public class TextAreaEditorTests
     {
         public override bool CapturesText => true;
         public override bool HandleKey(ConsoleKeyInfo key) => state.HandleKey(key);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Widget.TextArea().State(state).Focused(ctx.Focused).Draw(buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Widget.TextArea().State(state).Focused(ctx.Focused).Draw(buf, area);
     }
 
     private sealed class Form : Screen
@@ -238,7 +237,7 @@ public class TextAreaEditorTests
             Focus.Add(First).Add(Second);
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             ctx.Render(First, buf, area with { Height = 3 });
             ctx.Render(Second, buf, area with { Y = 4, Height = 3 });
@@ -263,9 +262,9 @@ public class TextAreaEditorTests
 
     // Line numbers
 
-    private static Buffer DrawEditor(TextAreaState state, int width, int height, bool lineNumbers = true, BlockBuilder? block = null, WrapMode wrap = WrapMode.Word)
+    private static CellBuffer DrawEditor(TextAreaState state, int width, int height, bool lineNumbers = true, BlockBuilder? block = null, WrapMode wrap = WrapMode.Word)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         var builder = Widget.TextArea().State(state).LineNumbers(lineNumbers).Wrap(wrap).Focused();
         if (block is not null) builder.Block(block);
         builder.Draw(buf, buf.Area);

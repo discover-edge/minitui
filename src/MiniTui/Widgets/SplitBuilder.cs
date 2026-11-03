@@ -26,7 +26,7 @@ public sealed class SplitBuilder
     public SplitBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the divider and return the two panes.</summary>
-    public (Rect First, Rect Second) Draw(Buffer buf, Rect area)
+    public (Rect First, Rect Second) Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var (first, second, divider) = _state.Layout(area);

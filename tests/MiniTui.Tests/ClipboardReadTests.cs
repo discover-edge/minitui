@@ -1,5 +1,4 @@
 using System.Text;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -116,7 +115,7 @@ public sealed class ClipboardReadTests : IDisposable
         public TextFieldState State { get; } = new();
         public override bool CapturesText => true;
         public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Widget.TextField().State(State).Focused().Draw(buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Widget.TextField().State(State).Focused().Draw(buf, area);
     }
 
     private static ConsoleKeyInfo Key(string binding) => KeyBinding.Parse(binding).ToKeyInfo();

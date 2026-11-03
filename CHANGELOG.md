@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking:** `Buffer` is now `CellBuffer`, so it no longer clashes with `System.Buffer` in projects with implicit usings (every `Render(Buffer buf, ...)` override failed to compile without an alias). Every `Render`, `Draw` and render callback takes a `CellBuffer`. [Migrating from 1.x to 2.0](https://minitui.org/docs/MIGRATION-1-to-2.html) has a one-line `sed`.
+
 ## [1.15.1] - 2026-11-03
 
 MiniTui 1.15.1: the documentation moves to minitui.org, and the repository to github.com/minitui-org/minitui. No code changes.

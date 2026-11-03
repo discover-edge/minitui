@@ -72,7 +72,7 @@ public class EncoderPropertyTests
         }
     }
 
-    private static void DrawRandom(MiniTui.Buffer buf, Random random)
+    private static void DrawRandom(CellBuffer buf, Random random)
     {
         var operations = random.Next(0, 12);
         for (var i = 0; i < operations; i++)
@@ -125,7 +125,7 @@ public class EncoderPropertyTests
         Assert.False(vt.SynchronizedOutput);
     }
 
-    private static Cell[] Snapshot(MiniTui.Buffer buf)
+    private static Cell[] Snapshot(CellBuffer buf)
     {
         var cells = new Cell[buf.Width * buf.Height];
         for (var y = 0; y < buf.Height; y++)

@@ -7,7 +7,7 @@ Write your own widgets and drawing primitives.
 Widgets are just functions. Take styles from `Theme.Current` so yours follow the app's theme:
 
 ```csharp
-public static void Badge(Buffer buf, int x, int y, string text, bool ok)
+public static void Badge(CellBuffer buf, int x, int y, string text, bool ok)
 {
     var style = ok ? Theme.Current.Success : Theme.Current.Error;
     buf.SetString(x, y, $"[{text}]", style.Bold());
@@ -16,12 +16,12 @@ public static void Badge(Buffer buf, int x, int y, string text, bool ok)
 
 ## Add a new drawing primitive
 
-Extend [`Buffer`](xref:MiniTui.Buffer):
+Extend [`CellBuffer`](xref:MiniTui.CellBuffer):
 
 ```csharp
 public static class BufferExtensions
 {
-    public static void DrawCircle(this Buffer buf, int cx, int cy, int r, Color fg)
+    public static void DrawCircle(this CellBuffer buf, int cx, int cy, int r, Color fg)
     {
         for (var angle = 0.0; angle < Math.PI * 2; angle += 0.1)
         {

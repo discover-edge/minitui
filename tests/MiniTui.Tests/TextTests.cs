@@ -32,7 +32,7 @@ public class TextTests
     public void Line_Width_MatchesDrawnWidth_ForControlCharacters()
     {
         Line line = "a\tb\x1b";
-        var buf = new MiniTui.Buffer(10, 1);
+        var buf = new CellBuffer(10, 1);
 
         Assert.Equal(line.Width, buf.SetLine(0, 0, line, 10));
     }

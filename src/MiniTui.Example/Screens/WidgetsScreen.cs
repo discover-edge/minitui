@@ -67,7 +67,7 @@ internal sealed class WidgetsScreen : Screen
         if (_theme != 0) App.WithTheme(Theme.Dark, Theme.Light);
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var rows = Layout.Vertical(area).Add("tabs", Constraint.Length(2)).Add("body", Constraint.Fill()).Build();
         var columns = Layout.Horizontal(rows["body"]).Add("left", Constraint.Percentage(50)).Add("right", Constraint.Fill()).Build();
@@ -113,7 +113,7 @@ internal sealed class WidgetsScreen : Screen
             .Draw(buf, right["unicode"]);
     }
 
-    private void DrawItems(Buffer buf, Rect area, RenderContext ctx)
+    private void DrawItems(CellBuffer buf, Rect area, RenderContext ctx)
     {
         if (_tabs.Selected == 0)
         {

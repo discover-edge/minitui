@@ -49,7 +49,7 @@ internal sealed class ServicesScreen : Screen
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, _services.Value?.Count ?? 0);
     public override bool HandleMouse(MouseEvent mouse) => _selection.HandleMouse(mouse, _services.Value?.Count ?? 0);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         _services.Switch(
             idle: () => { },
             loading: stale => DrawTable(buf, area, ctx, stale, loading: true),
@@ -105,7 +105,7 @@ internal sealed class ServicesScreen : Screen
         }
     }
 
-    private void DrawTable(Buffer buf, Rect area, RenderContext ctx, IReadOnlyList<ServiceDto>? list, bool loading)
+    private void DrawTable(CellBuffer buf, Rect area, RenderContext ctx, IReadOnlyList<ServiceDto>? list, bool loading)
     {
         var rows = Sorted(list ?? []);
         var title = loading ? " Services (refreshing…) " : $" Services ({rows.Count}) ";
@@ -140,7 +140,7 @@ internal sealed class ServiceDetailScreen(ServicesClient api, ServiceDto summary
         Load(_service, ct => api.GetAsync(summary.Id, ct));
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var inner = Widget.Block().Title($" {summary.Name} ").Padding(new Margin(2, 1)).Focused(ctx.Focused).Draw(buf, area);
         _service.Switch(

@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -57,10 +56,10 @@ public class TreeFilterTests
     public void Reveal_ScrollsTheNodeIntoView()
     {
         var (state, n) = Tree();
-        Widget.Tree(state).Draw(new Buffer(20, 4), new Rect(0, 0, 20, 4));
+        Widget.Tree(state).Draw(new CellBuffer(20, 4), new Rect(0, 0, 20, 4));
 
         state.Reveal([n["docs"], n["spec.md"]]);
-        Widget.Tree(state).Draw(new Buffer(20, 4), new Rect(0, 0, 20, 4));
+        Widget.Tree(state).Draw(new CellBuffer(20, 4), new Rect(0, 0, 20, 4));
 
         // Rows src, docs, spec.md, README; two fit inside the border, so spec.md (row 2) shows from row 1
         Assert.Equal(1, state.Offset);
@@ -176,7 +175,7 @@ public class TreeFilterTests
     {
         var (state, _) = Tree();
         state.Filter = node => node.Name == "spec.md";
-        var buf = new Buffer(30, 6);
+        var buf = new CellBuffer(30, 6);
 
         Widget.Tree(state).Title("Files").Draw(buf, buf.Area);
 

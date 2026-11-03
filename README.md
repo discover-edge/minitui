@@ -54,7 +54,7 @@ app.OnKey(keys.Handle)
 - [Widgets](https://minitui.org/guides/widgets.html): lists, tables, trees, tabs, text fields and editors, charts and more
 - [Theming](https://minitui.org/guides/theming.html), including light and dark detection
 - [Keys and widget state](https://minitui.org/guides/keys-and-state.html): key bindings, selection and the clipboard
-- [Drawing on the Buffer](https://minitui.org/guides/drawing.html)
+- [Drawing on the CellBuffer](https://minitui.org/guides/drawing.html)
 - [The terminal](https://minitui.org/guides/terminal.html): keyboard protocols, the mouse, running other programs, debugging
 - [Testing](https://minitui.org/guides/testing.html) with `ComponentHarness`
 - [The app and helpers](https://minitui.org/guides/app-and-helpers.html), [Extending](https://minitui.org/guides/extending.html), and
@@ -78,7 +78,7 @@ MiniTui/
 │   ├── MiniTui.sln
 │   ├── MiniTui/
 │   │   ├── App/            # App builder and loop, Loadable, LogBuffer, events
-│   │   ├── Core/           # Color, Style, Cell, Buffer, Rect/Vec2/Margin
+│   │   ├── Core/           # Color, Style, Cell, CellBuffer, Rect/Vec2/Margin
 │   │   ├── Text/           # Span, Line, Text, sanitizing, Unicode width
 │   │   ├── Layout/         # Layout builder, constraints and solver
 │   │   ├── Terminal/       # Terminal, backends, ANSI encoder, session, input sources

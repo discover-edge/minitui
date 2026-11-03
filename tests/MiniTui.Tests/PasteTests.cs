@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -20,7 +19,7 @@ public class PasteTests
             return handles;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private sealed class PasteScreen : Screen
@@ -50,7 +49,7 @@ public class PasteTests
             return ScreenHandles;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private sealed class PasteOverlay(List<string> log) : Overlay
@@ -61,7 +60,7 @@ public class PasteTests
             return true;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private sealed class FieldScreen : Screen
@@ -70,7 +69,7 @@ public class PasteTests
         public override bool CapturesText => true;
         public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
         public override bool HandlePaste(string text) => State.Paste(text);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Widget.TextField().State(State).Draw(buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Widget.TextField().State(State).Draw(buf, area);
     }
 
     [Fact]

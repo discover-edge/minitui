@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Time.Testing;
 using static MiniTui.Tests.Snapshot;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -8,7 +7,7 @@ public class WidgetSweepTests
 {
     private static readonly IReadOnlyList<string> Items = ["alpha", "日本語", "😀 emoji", "é", "\x1b[31mevil"];
 
-    private static readonly Dictionary<string, Action<Buffer, Rect>> Draws = new()
+    private static readonly Dictionary<string, Action<CellBuffer, Rect>> Draws = new()
     {
         ["Block"] = (b, r) => Widget.Block().Title(" Title ").TitleBottom("bottom").Padding(new Margin(1)).Focused().Draw(b, r),
         ["Paragraph"] = (b, r) => Widget.Paragraph().Text("Some long text that wraps\n日本語のテキスト").Wrap(WrapMode.Word)
@@ -58,7 +57,7 @@ public class WidgetSweepTests
     public static TheoryData<string> Names => [.. Draws.Keys];
 
     // An overlay's placement and content, as the app draws them (border included)
-    private static void DrawOverlay(Overlay overlay, Buffer buf, Rect screen)
+    private static void DrawOverlay(Overlay overlay, CellBuffer buf, Rect screen)
     {
         var rect = overlay.Placement(screen);
         var inner = Widget.Block().Title(overlay.Title is { } t ? new Line(t) : null).Draw(buf, rect);
@@ -77,7 +76,7 @@ public class WidgetSweepTests
     [MemberData(nameof(Names))]
     public void W2_NeverWritesControlCharacters(string widget)
     {
-        var buf = new Buffer(30, 12);
+        var buf = new CellBuffer(30, 12);
 
         Draws[widget](buf, buf.Area);
 
@@ -89,7 +88,7 @@ public class WidgetSweepTests
     [MemberData(nameof(Names))]
     public void W3_Monochrome_UsesNoColors(string widget)
     {
-        var buf = new Buffer(30, 12);
+        var buf = new CellBuffer(30, 12);
 
         using (Theme.Use(Theme.Monochrome)) Draws[widget](buf, buf.Area);
 
@@ -104,7 +103,7 @@ public class BlockAndParagraphTests
     [Fact]
     public void Block_DrawsTitlesAndReturnsTheInnerArea()
     {
-        var buf = new Buffer(12, 4);
+        var buf = new CellBuffer(12, 4);
 
         var inner = Widget.Block().Title(" Title ").TitleBottom("end").TitleAlignment(Alignment.Center)
             .BorderType(BoxStyle.Rounded).Padding(new Margin(1, 0)).Draw(buf, buf.Area);
@@ -121,7 +120,7 @@ public class BlockAndParagraphTests
     [Fact]
     public void Block_TruncatesTitleWithEllipsis_AndUsesFocusStyles()
     {
-        var buf = new Buffer(8, 2);
+        var buf = new CellBuffer(8, 2);
 
         Widget.Block().Title("A long title").Borders(Borders.Top | Borders.Left).Focused().Draw(buf, buf.Area);
 
@@ -154,7 +153,7 @@ public class BlockAndParagraphTests
     public void Paragraph_KeepsSpanStylesAcrossWraps()
     {
         var line = new Line([new Span("red words ", new Style(Color.Red)), new Span("blue", new Style(Color.Blue))]);
-        var buf = new Buffer(6, 3);
+        var buf = new CellBuffer(6, 3);
 
         Widget.Paragraph().Text(line).Wrap(WrapMode.Word).Draw(buf, buf.Area);
 
@@ -170,7 +169,7 @@ public class BlockAndParagraphTests
     [Fact]
     public void Paragraph_AlignsAndTruncatesUnwrappedLines()
     {
-        var buf = new Buffer(6, 2);
+        var buf = new CellBuffer(6, 2);
 
         Widget.Paragraph().Text("ab\ntoo long line").Alignment(Alignment.Right).Draw(buf, buf.Area);
 
@@ -183,7 +182,7 @@ public class BlockAndParagraphTests
     [Fact]
     public void Paragraph_WithState_ScrollsAndShowsAScrollbar()
     {
-        var buf = new Buffer(4, 2);
+        var buf = new CellBuffer(4, 2);
         var state = new ScrollState { Offset = 1 };
 
         Widget.Paragraph().Text("1\n2\n3\n4").State(state).Draw(buf, buf.Area);
@@ -200,7 +199,7 @@ public class ListAndTableTests
     [Fact]
     public void List_FormatsOnlyVisibleItems_AndShowsScrollInfo()
     {
-        var buf = new Buffer(24, 5);
+        var buf = new CellBuffer(24, 5);
         var formatted = new List<int>();
         var items = Enumerable.Range(0, 1000).ToList();
         var state = new SelectionState { Selected = 500 };
@@ -219,7 +218,7 @@ public class ListAndTableTests
     {
         var rows = Enumerable.Range(0, 100_000).ToArray();
         var calls = 0;
-        var buf = new Buffer(30, 12);
+        var buf = new CellBuffer(30, 12);
         var state = new SelectionState { Selected = 99_999 };
 
         Widget.Table().Header("N").Rows(rows, n => { calls++; return new Row($"{n}"); }).State(state).Draw(buf, buf.Area);
@@ -232,7 +231,7 @@ public class ListAndTableTests
     [Fact]
     public void Table_ShowsSortMarker_AndRowStyles()
     {
-        var buf = new Buffer(16, 3);
+        var buf = new CellBuffer(16, 3);
         var state = new SelectionState { SortColumn = 0, SortDescending = true };
 
         Widget.Table()
@@ -258,13 +257,13 @@ public class SmallWidgetTests
     [Fact]
     public void Gauge_UsesEighthBlocks_AndAPercentLabel()
     {
-        var buf = new Buffer(10, 1);
+        var buf = new CellBuffer(10, 1);
 
         Widget.Gauge().Ratio(0.4625).Draw(buf, buf.Area);
 
         // 0.4625 * 10 = 4.625 cells: 4 full and a 5/8 block; the label is centered over cells 3-5
         AssertTrimmed(buf, "███46%░░░░");
-        var noLabel = new Buffer(10, 1);
+        var noLabel = new CellBuffer(10, 1);
         Widget.Gauge().Ratio(0.4625).Label("").Draw(noLabel, noLabel.Area);
         AssertTrimmed(noLabel, "████▋░░░░░");
         Assert.True(buf.Get(3, 0).Modifiers.HasFlag(Modifiers.Reversed));
@@ -273,7 +272,7 @@ public class SmallWidgetTests
     [Fact]
     public void Sparkline_IsRightAlignedToTheNewestValue()
     {
-        var buf = new Buffer(6, 2);
+        var buf = new CellBuffer(6, 2);
 
         Widget.Sparkline().Data([0, 2, 4, 8]).Draw(buf, buf.Area);
 
@@ -290,7 +289,7 @@ public class SmallWidgetTests
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
         string Frame()
         {
-            var buf = new Buffer(10, 1);
+            var buf = new CellBuffer(10, 1);
             Widget.Spinner().Frames(SpinnerFrames.Line).Label("Wait").Time(time).Draw(buf, buf.Area);
             return buf.ToLines()[0];
         }
@@ -310,7 +309,7 @@ public class SmallWidgetTests
         for (var i = 1; i <= 4; i++) queue.Push($"toast {i}", duration: TimeSpan.FromSeconds(i));
         string[] Draw()
         {
-            var buf = new Buffer(20, 12);
+            var buf = new CellBuffer(20, 12);
             Widget.Toasts().Queue(queue).Draw(buf, buf.Area);
             return buf.ToLines();
         }
@@ -332,7 +331,7 @@ public class SmallWidgetTests
     [Fact]
     public void StatusBar_OneRowArea_DrawsOnThatRow_AndRightTextWins()
     {
-        var buf = new Buffer(16, 3);
+        var buf = new CellBuffer(16, 3);
 
         Widget.StatusBar().Left("a long left message").Right("right").Draw(buf, new Rect(0, 1, 16, 1));
 
@@ -344,7 +343,7 @@ public class SmallWidgetTests
     [Fact]
     public void TabBar_ScrollsToTheSelectedTab()
     {
-        var buf = new Buffer(14, 1);
+        var buf = new CellBuffer(14, 1);
 
         Widget.TabBar().Tabs("One", "Two", "Three").State(new TabBarState { Selected = 2 }).Draw(buf, buf.Area);
 
@@ -439,7 +438,7 @@ public class ListTitleTests
     [Fact]
     public void List_PaddedTitle_KeepsPaddingAroundScrollInfo()
     {
-        var buf = new MiniTui.Buffer(16, 3);
+        var buf = new CellBuffer(16, 3);
 
         Widget.List().Title(" Fruit ").Items(["a"]).Draw(buf, buf.Area);
 

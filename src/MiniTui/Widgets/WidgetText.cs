@@ -11,7 +11,7 @@ internal static class WidgetText
     /// Each span's style is patched over <paramref name="style"/>.
     /// </summary>
     /// <returns>The columns drawn.</returns>
-    public static int DrawLine(Buffer buf, int x, int y, Line line, int width, Style style = default, Alignment? alignment = null)
+    public static int DrawLine(CellBuffer buf, int x, int y, Line line, int width, Style style = default, Alignment? alignment = null)
     {
         if (width <= 0) return 0;
         var lineWidth = line.Width;
@@ -38,7 +38,7 @@ internal static class WidgetText
     }
 
     /// <summary>Draw a string, truncated with <c>…</c> to <paramref name="width"/> columns.</summary>
-    public static int DrawString(Buffer buf, int x, int y, string text, int width, Style style, Alignment alignment = Alignment.Left) =>
+    public static int DrawString(CellBuffer buf, int x, int y, string text, int width, Style style, Alignment alignment = Alignment.Left) =>
         DrawLine(buf, x, y, new Line(text), width, style, alignment);
 
     /// <summary>The line cut to at most <paramref name="width"/> columns, ending in <c>…</c> when anything was cut.</summary>
@@ -84,12 +84,12 @@ internal static class WidgetText
     }
 
     /// <summary>A ─ line, clipped to the buffer.</summary>
-    public static void HorizontalLine(Buffer buf, int x, int y, int width, Style style)
+    public static void HorizontalLine(CellBuffer buf, int x, int y, int width, Style style)
     {
         var clip = new Rect(x, y, width, 1).Intersect(buf.Area);
         for (var cx = clip.X; cx < clip.Right; cx++) buf.SetString(cx, y, "─", style, 1);
     }
 
     /// <summary>Clear the cells in <paramref name="area"/>, for widgets drawn over other content.</summary>
-    public static void Clear(Buffer buf, Rect area) => buf.FillRect(area, Theme.Current.Text.ApplyTo(Cell.Empty));
+    public static void Clear(CellBuffer buf, Rect area) => buf.FillRect(area, Theme.Current.Text.ApplyTo(Cell.Empty));
 }

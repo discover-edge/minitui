@@ -36,7 +36,8 @@
       },
       {
         "files": [
-          "MIGRATION-0.7-to-1.0.md"
+          "MIGRATION-0.7-to-1.0.md",
+          "MIGRATION-1-to-2.md"
         ],
         "src": "../docs",
         "dest": "docs"

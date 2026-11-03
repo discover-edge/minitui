@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 using Microsoft.Extensions.Time.Testing;
 
 namespace MiniTui.Tests;
@@ -61,9 +60,9 @@ public class TreeTests
 
     private static ConsoleKeyInfo Char(char c) => K(ConsoleKey.A + (char.ToUpperInvariant(c) - 'A'), c);
 
-    private static Buffer Draw(TreeState<Node> state, int width, int height, Func<TreeBuilder<Node>, TreeBuilder<Node>>? configure = null)
+    private static CellBuffer Draw(TreeState<Node> state, int width, int height, Func<TreeBuilder<Node>, TreeBuilder<Node>>? configure = null)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         var builder = Widget.Tree(state);
         (configure?.Invoke(builder) ?? builder).Draw(buf, buf.Area);
         return buf;
@@ -512,7 +511,7 @@ public class TreeTests
     {
         var state = State();
         state.Expand(Find(state, "src"));
-        var buf = new Buffer(14, 5);
+        var buf = new CellBuffer(14, 5);
         using (Glyphs.Use(basic: true))
             Widget.Tree(state).Block(Widget.Block().Borders(Borders.None)).Draw(buf, buf.Area);
         Snapshot.AssertTrimmed(buf, """
@@ -580,7 +579,7 @@ public class TreeTests
         state.ExpandAll();
         foreach (var (w, h) in new[] { (0, 0), (1, 1), (2, 3), (3, 2), (4, 4) })
         {
-            var buf = new Buffer(Math.Max(1, w), Math.Max(1, h));
+            var buf = new CellBuffer(Math.Max(1, w), Math.Max(1, h));
             Widget.Tree(state).Guides().Title("Tree").HighlightSymbol(">>").Draw(buf, new Rect(0, 0, w, h));
         }
     }
@@ -589,7 +588,7 @@ public class TreeTests
     public void Draw_Monochrome_MarksTheSelection()
     {
         var state = State();
-        var buf = new Buffer(10, 2);
+        var buf = new CellBuffer(10, 2);
         using (Theme.Use(Theme.Monochrome))
             Widget.Tree(state).Focused().Block(Widget.Block().Borders(Borders.None)).Draw(buf, buf.Area);
         Assert.True(buf.Get(4, 0).Modifiers.HasFlag(Modifiers.Reversed));

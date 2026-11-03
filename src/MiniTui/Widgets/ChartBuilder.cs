@@ -147,7 +147,7 @@ public sealed class ChartBuilder
     public ChartBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the chart.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Draw(buf, area) ?? area;
@@ -220,7 +220,7 @@ public sealed class ChartBuilder
         return new Rect(inner.X + left, inner.Y + top, Math.Max(0, inner.Width - left), Math.Max(0, inner.Height - top - bottom));
     }
 
-    private static void DrawAxes(Buffer buf, Rect plot, Style style)
+    private static void DrawAxes(CellBuffer buf, Rect plot, Style style)
     {
         var axis = new Rect(plot.X - 1, plot.Y, 1, plot.Height).Intersect(buf.Area);
         for (var y = axis.Y; y < axis.Bottom; y++) buf.SetString(plot.X - 1, y, "│", style, 1);
@@ -230,7 +230,7 @@ public sealed class ChartBuilder
     }
 
     // 1.x spec §19.5: ┬ on the X axis and ┤ on the Y axis at each label position
-    private void DrawTicks(Buffer buf, Rect plot, int xCount, int yCount, Style style)
+    private void DrawTicks(CellBuffer buf, Rect plot, int xCount, int yCount, Style style)
     {
         if (_xAxis.Ticks)
         {
@@ -243,7 +243,7 @@ public sealed class ChartBuilder
     }
 
     // Dotted lines across the plot at each label position, but not the first, which is beside the other axis
-    private void DrawGrid(Buffer buf, Rect plot, int xCount, int yCount, Style style)
+    private void DrawGrid(CellBuffer buf, Rect plot, int xCount, int yCount, Style style)
     {
         var columns = _xAxis.Grid ? Enumerable.Range(1, Math.Max(0, xCount - 1)).Select(i => plot.X + Spread(i, xCount, plot.Width)).ToHashSet() : [];
         var rows = _yAxis.Grid ? Enumerable.Range(1, Math.Max(0, yCount - 1)).Select(i => plot.Bottom - 1 - Spread(i, yCount, plot.Height)).ToHashSet() : [];
@@ -258,7 +258,7 @@ public sealed class ChartBuilder
     }
 
     // Right-aligned left of the axis, the first on the bottom row and the last on the top one
-    private static void DrawYLabels(Buffer buf, Rect plot, int x, List<string> labels, Style style)
+    private static void DrawYLabels(CellBuffer buf, Rect plot, int x, List<string> labels, Style style)
     {
         var width = plot.X - 1 - x;
         var lastRow = int.MaxValue;
@@ -272,7 +272,7 @@ public sealed class ChartBuilder
     }
 
     // The first left-aligned at the plot's left, the last right-aligned at its right, the others centered
-    private static void DrawXLabels(Buffer buf, Rect plot, int y, int right, List<string> labels, Style style)
+    private static void DrawXLabels(CellBuffer buf, Rect plot, int y, int right, List<string> labels, Style style)
     {
         var lastEnd = int.MinValue;
         for (var i = 0; i < labels.Count; i++)
@@ -290,7 +290,7 @@ public sealed class ChartBuilder
     }
 
     // A bordered box in the chosen corner, omitted when it would cover more than half the plot's width or height
-    private void DrawLegend(Buffer buf, Rect plot, List<Dataset> datasets, Theme theme, Style style)
+    private void DrawLegend(CellBuffer buf, Rect plot, List<Dataset> datasets, Theme theme, Style style)
     {
         var entries = datasets.Select((d, i) => (Name: d.Name, Sample: Sample(d.Marker), Style: style.Patch(d.Style ?? SeriesStyle(theme, i)))).ToList();
         ChartLegend.Draw(buf, plot, _legend, entries, theme, style);
@@ -352,7 +352,7 @@ internal static class ChartLegend
     /// Draw one row per named entry (its sample in its style, then its name) in a bordered box in the corner of
     /// <paramref name="area"/>, unless it would cover more than half its width or height.
     /// </summary>
-    public static void Draw(Buffer buf, Rect area, LegendPosition position, IEnumerable<(string Name, string Sample, Style Style)> entries, Theme theme, Style style)
+    public static void Draw(CellBuffer buf, Rect area, LegendPosition position, IEnumerable<(string Name, string Sample, Style Style)> entries, Theme theme, Style style)
     {
         if (position == LegendPosition.None) return;
         var named = entries.Where(e => !string.IsNullOrEmpty(e.Name)).Select(e => e with { Name = Sanitizer.SingleLine(e.Name) }).ToList();

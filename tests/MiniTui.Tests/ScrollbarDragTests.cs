@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -10,9 +9,9 @@ public class ScrollbarDragTests
     private static readonly string[] Items = [.. Enumerable.Range(0, 40).Select(i => $"Item {i}")];
 
     // 40 items in 10 rows: the thumb is 2 cells on a 10-cell track (rows 1–10, column 19), with 8 cells to move over 30 offsets
-    private static Buffer DrawList(SelectionState state)
+    private static CellBuffer DrawList(SelectionState state)
     {
-        var buf = new Buffer(20, 12);
+        var buf = new CellBuffer(20, 12);
         Widget.List().Items(Items).State(state).Draw(buf, new Rect(0, 0, 20, 12));
         return buf;
     }
@@ -89,7 +88,7 @@ public class ScrollbarDragTests
         // A paragraph without a block draws its bar in its own last column
         var state = new ScrollState();
         var text = string.Join("\n", Items);
-        void Draw() => Widget.Paragraph().Text(text).State(state).Draw(new Buffer(20, 12), new Rect(0, 1, 20, 10));
+        void Draw() => Widget.Paragraph().Text(text).State(state).Draw(new CellBuffer(20, 12), new Rect(0, 1, 20, 10));
         Draw();
 
         Assert.True(state.HandleMouse(M(MouseAction.Press, 19, 1)));
@@ -124,7 +123,7 @@ public class ScrollbarDragTests
     public void WithoutAScrollbar_PressesOnTheEdgeDoNothingNew()
     {
         var state = new SelectionState();
-        var buf = new Buffer(20, 12);
+        var buf = new CellBuffer(20, 12);
         Widget.List().Items(Items[..5]).State(state).Block(Widget.Block()).Draw(buf, new Rect(0, 0, 20, 12));
 
         Assert.False(state.HandleMouse(M(MouseAction.Press, 19, 1), 5));
@@ -137,7 +136,7 @@ public class ScrollbarDragTests
     {
         var state = new ScrollState();
         var text = string.Join("\n", Items);
-        void Draw() => Widget.Paragraph().Text(text).State(state).Block(Widget.Block()).Draw(new Buffer(20, 12), new Rect(0, 0, 20, 12));
+        void Draw() => Widget.Paragraph().Text(text).State(state).Block(Widget.Block()).Draw(new CellBuffer(20, 12), new Rect(0, 0, 20, 12));
         Draw();
 
         state.HandleMouse(M(MouseAction.Press, 19, 1));
@@ -161,7 +160,7 @@ public class ScrollbarDragTests
         var state = new TreeState<Node>(_ => [], n => n.Name) { Roots = [.. Items.Select(i => new Node(i))] };
         var changes = 0;
         state.SelectionChanged += (_, _) => changes++;
-        void Draw() => Widget.Tree(state).Draw(new Buffer(20, 12), new Rect(0, 0, 20, 12));
+        void Draw() => Widget.Tree(state).Draw(new CellBuffer(20, 12), new Rect(0, 0, 20, 12));
         Draw();
 
         Assert.True(state.HandleMouse(M(MouseAction.Press, 19, 1)));
@@ -183,7 +182,7 @@ public class ScrollbarDragTests
         var table = Widget.Table().Header("Name", "Size").Columns(Constraint.Length(8), Constraint.Length(8))
             .Rows(Files, f => new Row(f.Name, f.Size.ToString(System.Globalization.CultureInfo.InvariantCulture)))
             .State(state).Block(Widget.Block());
-        (configure?.Invoke(table) ?? table).Draw(new Buffer(20, 13), new Rect(0, 0, 20, 13));
+        (configure?.Invoke(table) ?? table).Draw(new CellBuffer(20, 13), new Rect(0, 0, 20, 13));
     }
 
     [Fact]
@@ -246,7 +245,7 @@ public class ScrollbarDragTests
     public void TheMarker_ShowsTheSort()
     {
         var state = new SelectionState();
-        var buf = new Buffer(20, 13);
+        var buf = new CellBuffer(20, 13);
         state.ToggleSort(1);
         state.ToggleSort(1);
         Widget.Table().Header("Name", "Size").Columns(Constraint.Length(8), Constraint.Length(8))

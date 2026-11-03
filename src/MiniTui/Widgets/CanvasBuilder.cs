@@ -48,7 +48,7 @@ public sealed class CanvasBuilder
     public CanvasBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the canvas.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Draw(buf, area) ?? area;
@@ -217,7 +217,7 @@ public sealed class CanvasPainter
     }
 
     /// <summary>Draw the dots, then the text, with each style patched over <paramref name="style"/>.</summary>
-    internal void Render(Buffer buf, Style style)
+    internal void Render(CellBuffer buf, Style style)
     {
         for (var row = 0; row < _visible.Height; row++)
         for (var col = 0; col < _visible.Width; col++)

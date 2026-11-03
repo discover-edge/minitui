@@ -24,7 +24,7 @@ public class StatusBarBuilder
     /// <summary>
     /// Draw the status bar: on the area's only row if it is one row high, otherwise on its bottom row.
     /// </summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         if (area.IsEmpty) return;

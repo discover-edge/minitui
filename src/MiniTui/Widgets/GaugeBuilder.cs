@@ -32,7 +32,7 @@ public sealed class GaugeBuilder
     public GaugeBuilder EmptyStyle(Style style) { _emptyStyle = style; return this; }
 
     /// <summary>Draw the gauge.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Draw(buf, area) ?? area;
@@ -67,7 +67,7 @@ public sealed class GaugeBuilder
         : eighths switch { <= 2 => null, <= 5 => "▌", _ => "█" };
 
     // Over the filled part the label is reversed, so it reads as text on the bar color
-    private static void DrawLabel(Buffer buf, Rect inner, Line label, int filledCells, Style filled)
+    private static void DrawLabel(CellBuffer buf, Rect inner, Line label, int filledCells, Style filled)
     {
         var y = inner.Y + inner.Height / 2;
         var width = Math.Min(label.Width, inner.Width);

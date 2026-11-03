@@ -45,7 +45,7 @@ private readonly SplitState _sidebar = SplitState.Fixed(Direction.Horizontal, 24
 public override bool HandleMouse(MouseEvent mouse) => _sidebar.HandleMouse(mouse);
 public override bool HandleKey(ConsoleKeyInfo key) => _sidebar.HandleKey(key);
 
-public override void Render(Buffer buf, Rect area, RenderContext ctx)
+public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
 {
     var (left, right) = Widget.Split(_sidebar).Draw(buf, area);
     ctx.Render(_files, buf, left);

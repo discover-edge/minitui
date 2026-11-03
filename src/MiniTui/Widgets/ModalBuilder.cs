@@ -37,7 +37,7 @@ internal sealed class ModalBuilder
     public ModalBuilder State(ScrollState state) { _state = state; return this; }
 
     /// <summary>Draw the modal centered on the buffer.</summary>
-    public void Draw(Buffer buf)
+    public void Draw(CellBuffer buf)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var theme = Theme.Current;

@@ -1,5 +1,4 @@
 using System.Text;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -406,14 +405,14 @@ public sealed class SelectionTests : IDisposable
         state.Select(0, 5);
         var theme = Theme.Default;
 
-        var buf = new Buffer(20, 1);
+        var buf = new CellBuffer(20, 1);
         Widget.TextField().State(state).Focused().Draw(buf, buf.Area);
         Snapshot.AssertStyle(buf, 0, 0, theme.Selection.Fg!.Value, theme.Selection.Bg!.Value);
         Snapshot.AssertStyle(buf, 4, 0, theme.Selection.Fg!.Value, theme.Selection.Bg!.Value);
         Assert.NotEqual(theme.Selection.Bg, buf.Get(6, 0).Bg);
         Assert.Equal((5, 0), buf.CursorRequest);
 
-        buf = new Buffer(20, 1);
+        buf = new CellBuffer(20, 1);
         Widget.TextField().State(state).Draw(buf, buf.Area);
         Assert.Equal(theme.SelectionUnfocused.Bg, buf.Get(2, 0).Bg);
     }
@@ -424,7 +423,7 @@ public sealed class SelectionTests : IDisposable
         var state = new TextFieldState("abcdef中文");
         state.Select(6, 8);
 
-        var buf = new Buffer(6, 1);
+        var buf = new CellBuffer(6, 1);
         Widget.TextField().State(state).Focused().Draw(buf, buf.Area);
 
         // Scrolled so the cursor's column after the end shows: "f中文" from column 5
@@ -470,7 +469,7 @@ public sealed class SelectionTests : IDisposable
     {
         var state = new TextAreaState(string.Join('\n', Enumerable.Range(0, 10).Select(i => $"l{i}")));
         state.Cursor = P(0, 0);
-        var buf = new Buffer(10, 3);
+        var buf = new CellBuffer(10, 3);
         Widget.TextArea().State(state).Focused().Draw(buf, buf.Area);
 
         Press(state, "shift+pgdn");
@@ -605,7 +604,7 @@ public sealed class SelectionTests : IDisposable
     public void Area_ClickClearsTheSelection()
     {
         var state = new TextAreaState("one\ntwo");
-        var buf = new Buffer(10, 3);
+        var buf = new CellBuffer(10, 3);
         Widget.TextArea().State(state).Draw(buf, buf.Area);
         state.SelectAll();
 
@@ -686,7 +685,7 @@ public sealed class SelectionTests : IDisposable
         state.Select(P(0, 1), P(2, 1));
         var sel = Theme.Default.Selection.Bg;
 
-        var buf = new Buffer(6, 3);
+        var buf = new CellBuffer(6, 3);
         Widget.TextArea().State(state).Focused().Draw(buf, buf.Area);
 
         Assert.NotEqual(sel, buf.Get(0, 0).Bg);
@@ -705,7 +704,7 @@ public sealed class SelectionTests : IDisposable
     {
         var state = new TextAreaState("aaaa bbbb");
         state.Select(P(0, 2), P(0, 7));
-        var buf = new Buffer(5, 2);
+        var buf = new CellBuffer(5, 2);
 
         Widget.TextArea().State(state).Draw(buf, buf.Area);
 
@@ -723,7 +722,7 @@ public sealed class SelectionTests : IDisposable
     {
         var state = new TextAreaState("abc");
         state.Select(P(0, 0), P(0, 2));
-        var buf = new Buffer(5, 1);
+        var buf = new CellBuffer(5, 1);
 
         using (Theme.Use(Theme.Monochrome)) Widget.TextArea().State(state).Focused().Draw(buf, buf.Area);
 
@@ -803,7 +802,7 @@ public sealed class SelectionTests : IDisposable
             return !capturesText || State.HandleKey(key);
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.TextField().State(State).Focused().Draw(buf, area);
     }
 
@@ -819,7 +818,7 @@ public sealed class SelectionTests : IDisposable
         public Field Field { get; }
         public int Bound { get; private set; }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => ctx.Render(Field, buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => ctx.Render(Field, buf, area);
     }
 
     [Fact]

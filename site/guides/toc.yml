@@ -12,7 +12,7 @@
   href: theming.md
 - name: Keys and widget state
   href: keys-and-state.md
-- name: Drawing on the Buffer
+- name: Drawing on the CellBuffer
   href: drawing.md
 - name: The terminal
   href: terminal.md
@@ -22,5 +22,7 @@
   href: app-and-helpers.md
 - name: Extending
   href: extending.md
+- name: Upgrading from 1.x to 2.0
+  href: ../../docs/MIGRATION-1-to-2.md
 - name: Upgrading from 0.7
   href: ../../docs/MIGRATION-0.7-to-1.0.md

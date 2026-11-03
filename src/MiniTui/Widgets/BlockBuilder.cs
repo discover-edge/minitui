@@ -41,7 +41,7 @@ public sealed class BlockBuilder
     private Style? _borderStyle;
     private Style? _titleStyle;
 
-    // Extra columns between the corner and the title, for Buffer.DrawBoxWithTitle's 0.7 layout
+    // Extra columns between the corner and the title, for CellBuffer.DrawBoxWithTitle's 0.7 layout
     private int _titleInset;
 
     /// <summary>Which sides have a border. The default is <see cref="MiniTui.Borders.All"/>.</summary>
@@ -96,7 +96,7 @@ public sealed class BlockBuilder
 
     /// <summary>Draw the block.</summary>
     /// <returns>The inner area, the same as <see cref="Inner"/>.</returns>
-    public Rect Draw(Buffer buf, Rect area)
+    public Rect Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = Inner(area);
@@ -116,7 +116,7 @@ public sealed class BlockBuilder
 
     private bool Has(Borders side) => (_borders & side) != 0;
 
-    private void DrawBorders(Buffer buf, Rect area, Style style)
+    private void DrawBorders(CellBuffer buf, Rect area, Style style)
     {
         // Conhost fonts have no rounded corners
         var type = _borderType == BoxStyle.Rounded && Glyphs.Basic ? BoxStyle.Single : _borderType;
@@ -148,9 +148,9 @@ public sealed class BlockBuilder
 
     private bool Has(Borders sides, bool all) => all ? (_borders & sides) == sides : (_borders & sides) != 0;
 
-    private static void Patch(Buffer buf, int x, int y, string symbol, Style style) => buf.SetString(x, y, symbol, style, 1);
+    private static void Patch(CellBuffer buf, int x, int y, string symbol, Style style) => buf.SetString(x, y, symbol, style, 1);
 
-    private void DrawTitle(Buffer buf, Rect area, int y, Line title, Style style)
+    private void DrawTitle(CellBuffer buf, Rect area, int y, Line title, Style style)
     {
         var left = (Has(MiniTui.Borders.Left) ? 1 : 0) + _titleInset;
         var right = (Has(MiniTui.Borders.Right) ? 1 : 0) + _titleInset;

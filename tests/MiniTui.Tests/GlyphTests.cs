@@ -1,5 +1,4 @@
 using static MiniTui.Tests.Snapshot;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -25,7 +24,7 @@ public class GlyphTests
     [Fact]
     public void Gauge_Basic_UsesOnlyHalfBlocks()
     {
-        var buf = new Buffer(10, 1);
+        var buf = new CellBuffer(10, 1);
 
         using (Glyphs.Use(basic: true)) Widget.Gauge().Ratio(0.47).Label("").Draw(buf, buf.Area);
 
@@ -36,7 +35,7 @@ public class GlyphTests
     [Fact]
     public void Sparkline_Basic_UsesHalfAndFullBlocks()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
 
         using (Glyphs.Use(basic: true)) Widget.Sparkline().Data([0, 1, 4, 8]).Draw(buf, buf.Area);
 
@@ -46,7 +45,7 @@ public class GlyphTests
     [Fact]
     public void Spinner_Basic_FallsBackFromBraille()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
 
         using (Glyphs.Use(basic: true)) Widget.Spinner().Frames(SpinnerFrames.Braille).Draw(buf, buf.Area);
 
@@ -56,7 +55,7 @@ public class GlyphTests
     [Fact]
     public void Block_Basic_DrawsRoundedAsSingle()
     {
-        var buf = new Buffer(3, 2);
+        var buf = new CellBuffer(3, 2);
 
         using (Glyphs.Use(basic: true)) Widget.Block().BorderType(BoxStyle.Rounded).Draw(buf, buf.Area);
 
@@ -69,7 +68,7 @@ public class GlyphTests
     [Fact]
     public void EveryWidget_InBasicMode_DrawsOnlyWgl4Glyphs()
     {
-        var buf = new Buffer(40, 12);
+        var buf = new CellBuffer(40, 12);
         var toasts = new ToastQueue();
         toasts.Push("hi");
 

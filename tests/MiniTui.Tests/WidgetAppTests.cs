@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Time.Testing;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -139,7 +138,7 @@ public class SmallAppProgramTests
 
         var run = AppHarness.Run(app);
 
-        void DrawTable(Buffer buf, Rect area, IReadOnlyList<ServiceDto>? list, bool loading) =>
+        void DrawTable(CellBuffer buf, Rect area, IReadOnlyList<ServiceDto>? list, bool loading) =>
             Widget.Table()
                 .Block(Widget.Block().Title(loading ? " Services (refreshing…) " : " Services "))
                 .Header("Name", "Status", "Version")

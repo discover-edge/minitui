@@ -47,7 +47,7 @@ public sealed class TextAreaBuilder
     /// Draw the text area inside its block (or area). With a block that has a right border, a scrollbar is drawn on it
     /// when the text doesn't fit.
     /// </summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Clone().Focused(_focused || _block.IsFocused).Draw(buf, area) ?? area;
@@ -125,7 +125,7 @@ public sealed class TextAreaBuilder
     }
 
     // "Find: " and the field, with "3 of 12", "12 matches" or "No matches" on the right
-    private static void DrawFindBar(Buffer buf, Rect bar, TextAreaState state, Style style, Theme theme)
+    private static void DrawFindBar(CellBuffer buf, Rect bar, TextAreaState state, Style style, Theme theme)
     {
         const string Label = "Find: ";
         var count = state.FindText.Length == 0 ? ""
@@ -151,7 +151,7 @@ public sealed class TextAreaBuilder
     private static int Digits(int n) => n < 10 ? 1 : 1 + Digits(n / 10);
 
     // A line's number on its first row, blank on the rest; the cursor's line in the text style, the others muted
-    private static void DrawGutter(Buffer buf, Rect gutter, List<TextAreaLayout.Row> rows, TextAreaState state, Style style, Theme theme)
+    private static void DrawGutter(CellBuffer buf, Rect gutter, List<TextAreaLayout.Row> rows, TextAreaState state, Style style, Theme theme)
     {
         for (var y = 0; y < gutter.Height && state.ScrollOffset + y < rows.Count; y++)
         {
@@ -189,11 +189,11 @@ public sealed class TextAreaBuilder
     }
 
     // 1.x spec §10.8: the selected part of a row, and a cell for a selected line break when the row has room
-    private static void DrawSelection(Buffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, Style style) =>
+    private static void DrawSelection(CellBuffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, Style style) =>
         DrawRange(buf, inner, y, state, row, left, state.SelectionStart, state.SelectionEnd, style);
 
     // Patch the part of a row between two positions; a line break inside them shows as a cell after the line
-    private static void DrawRange(Buffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, TextPosition start, TextPosition end, Style style)
+    private static void DrawRange(CellBuffer buf, Rect inner, int y, TextAreaState state, TextAreaLayout.Row row, int left, TextPosition start, TextPosition end, Style style)
     {
         if (row.Line < start.Line || row.Line > end.Line) return;
         var line = state.Lines[row.Line];
@@ -208,7 +208,7 @@ public sealed class TextAreaBuilder
         if (x1 > x0) buf.SetStyle(new Rect(inner.X + x0, y, x1 - x0, 1), style);
     }
 
-    private static void DrawRow(Buffer buf, int x, int y, IReadOnlyList<string> lines, TextAreaLayout.Row row, int left, int width, Style style)
+    private static void DrawRow(CellBuffer buf, int x, int y, IReadOnlyList<string> lines, TextAreaLayout.Row row, int left, int width, Style style)
     {
         var line = lines[row.Line];
         var column = 0;

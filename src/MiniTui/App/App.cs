@@ -19,7 +19,7 @@ public partial class App
         new UnboundedChannelOptions { SingleReader = true });
 
     private Action<App>? _onSetup;
-    private Action<Buffer, Rect>? _onRender;
+    private Action<CellBuffer, Rect>? _onRender;
     private Action? _onUpdate;
     private Func<ConsoleKeyInfo, bool>? _onKey;
     private Func<string, bool>? _onPaste;
@@ -87,7 +87,7 @@ public partial class App
     /// Configure the render callback, called with the buffer and screen rect whenever a frame is drawn.
     /// </summary>
     /// <exception cref="InvalidOperationException">Screens have been pushed; an app uses either screens or a render callback.</exception>
-    public App Render(Action<Buffer, Rect> render)
+    public App Render(Action<CellBuffer, Rect> render)
     {
         if (Screens.Count > 0)
             throw new InvalidOperationException("A Render callback can't be used with screens; use one or the other.");

@@ -20,7 +20,7 @@ internal sealed class ConfirmBuilder
     public ConfirmBuilder Selected(bool yesSelected) { _yesSelected = yesSelected; return this; }
 
     /// <summary>Draw the confirmation dialog centered on the buffer.</summary>
-    public void Draw(Buffer buf)
+    public void Draw(CellBuffer buf)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var theme = Theme.Current;

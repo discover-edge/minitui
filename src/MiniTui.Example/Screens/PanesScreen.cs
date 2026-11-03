@@ -58,7 +58,7 @@ internal sealed class PanesScreen : Screen
 
     public override bool HandleMouse(MouseEvent mouse) => _sidebar.HandleMouse(mouse) || _detail.HandleMouse(mouse);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var body = area with { Height = Math.Max(0, area.Height - 1) };
         var (left, right) = Widget.Split(_sidebar).Draw(buf, body);
@@ -101,7 +101,7 @@ internal sealed class PanesScreen : Screen
         public override bool HandleKey(ConsoleKeyInfo key) => !IsAlt(key) && Selection.HandleKey(key, entries().Count);
         public override bool HandleMouse(MouseEvent mouse) => Selection.HandleMouse(mouse, entries().Count);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             var list = entries();
             Widget.Table()
@@ -128,7 +128,7 @@ internal sealed class PanesScreen : Screen
         public override bool HandleKey(ConsoleKeyInfo key) => !IsAlt(key) && _scroll.HandleKey(key);
         public override bool HandleMouse(MouseEvent mouse) => _scroll.HandleMouse(mouse);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             var text = entry() is { } e
                 ? string.Join("\n", [$"{e.Time:O}  {e.Level}  {e.Source}", e.Message, "", .. Enumerable.Range(1, 30).Select(i => $"  at Example.{e.Source}.Step{i}()")])

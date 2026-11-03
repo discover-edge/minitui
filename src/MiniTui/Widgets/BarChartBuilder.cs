@@ -88,7 +88,7 @@ public sealed class BarChartBuilder
     public BarChartBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the chart.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Draw(buf, area) ?? area;
@@ -176,7 +176,7 @@ public sealed class BarChartBuilder
         return ends;
     }
 
-    private void DrawVertical(Buffer buf, Rect inner, List<Column> columns, double max, Style text)
+    private void DrawVertical(CellBuffer buf, Rect inner, List<Column> columns, double max, Style text)
     {
         var labelRow = inner.Height >= 2 ? 1 : 0;
         var height = inner.Height - labelRow;
@@ -229,7 +229,7 @@ public sealed class BarChartBuilder
         return width;
     }
 
-    private static void DrawHorizontal(Buffer buf, Rect inner, List<Column> columns, double max, Style text)
+    private static void DrawHorizontal(CellBuffer buf, Rect inner, List<Column> columns, double max, Style text)
     {
         var labelWidth = Math.Min(columns.Max(c => UnicodeWidth.Of(c.Label)), inner.Width / 3);
         var barX = inner.X + labelWidth + (labelWidth > 0 ? 1 : 0);

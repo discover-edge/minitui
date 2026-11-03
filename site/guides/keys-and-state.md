@@ -41,7 +41,7 @@ sealed class Notes : Component
     public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
     public override bool HandlePaste(string text) => State.Paste(text);
     public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.TextArea().State(State).Placeholder("Notes").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
@@ -63,7 +63,7 @@ sealed class PlanField : Component
     public SelectState State { get; } = new(["Free", "Pro", "Team"]);
     public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key, App);
     public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse, App);
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Select().State(State).Placeholder("Choose a plan").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
@@ -108,7 +108,7 @@ sealed class CheckboxField(string label) : Component
         return true;
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Checkbox().Label(label).Checked(Checked).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
@@ -207,7 +207,7 @@ everything); typing, pasting or a delete key replaces the selection, and â† / â
       public override bool HasSelection => scroll.HasSelection;
       public override bool HandleKey(ConsoleKeyInfo key) => scroll.HandleKey(key);
       public override bool HandleMouse(MouseEvent mouse) => scroll.HandleMouse(mouse);
-      public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+      public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
           Widget.Paragraph().Text(string.Join("\n", log)).State(scroll)
               .Block(Widget.Block().Title(" Log ").Focused(ctx.Focused)).Draw(buf, area);
   }

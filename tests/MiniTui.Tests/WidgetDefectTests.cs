@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -11,7 +10,7 @@ public class WidgetDefectTests
     [InlineData(3)]
     public void D6_List_DoesNotThrow_WhenInnerWidthIsZeroOrNegative(int width)
     {
-        var buf = new Buffer(10, 5);
+        var buf = new CellBuffer(10, 5);
 
         Widgets.List(buf, new Rect(0, 0, width, 5), ["a long item", "b"], 0, focused: true, title: "T");
     }
@@ -22,7 +21,7 @@ public class WidgetDefectTests
     [InlineData(3)]
     public void D6_Table_DoesNotThrow_WhenColumnWidthIsBelowTwo(int width)
     {
-        var buf = new Buffer(10, 5);
+        var buf = new CellBuffer(10, 5);
 
         Widgets.Table(buf, new Rect(0, 0, width, 5), ["Name", "Value"], [["alpha", "1"], ["beta", "2"]], 0);
     }
@@ -33,7 +32,7 @@ public class WidgetDefectTests
     [InlineData(6, 8)]
     public void D6_Modal_DoesNotThrow_OnTinyBuffers(int width, int height)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
 
         Widgets.Modal(buf, "Title", ["a line that is much too long"], "footer");
     }
@@ -41,7 +40,7 @@ public class WidgetDefectTests
     [Fact]
     public void D9_List_TruncatesWideItemsByDisplayWidth()
     {
-        var buf = new Buffer(8, 3);
+        var buf = new CellBuffer(8, 3);
 
         Widgets.List(buf, buf.Area, ["日本語テキスト"], 0, focused: true, showScrollInfo: false);
 
@@ -51,7 +50,7 @@ public class WidgetDefectTests
     [Fact]
     public void D9_Table_TruncatesWideCellsByDisplayWidth()
     {
-        var buf = new Buffer(10, 3);
+        var buf = new CellBuffer(10, 3);
 
         Widgets.Table(buf, buf.Area, ["名前", "値"], [["日本語", "x"]]);
 
@@ -63,7 +62,7 @@ public class WidgetDefectTests
     [Fact]
     public void D9_StatusBar_RightAlignsByDisplayWidth()
     {
-        var buf = new Buffer(10, 1);
+        var buf = new CellBuffer(10, 1);
 
         Widgets.StatusBar(buf, buf.Area, "", "日本");
 

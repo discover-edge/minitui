@@ -32,7 +32,7 @@ public sealed class TabBarBuilder
     public TabBarBuilder Hover(Vec2? position) { _hover = position; return this; }
 
     /// <summary>Draw the tabs on the first row, and a separator line on the second if there's room.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         _state?.Fit(_labels.Count);

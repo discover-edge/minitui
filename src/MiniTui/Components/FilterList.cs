@@ -122,7 +122,7 @@ internal sealed class FilterList
     /// Draw a block over <paramref name="area"/> with <paramref name="title"/>, the filter line in its first row, a
     /// divider, and the matching rows under it.
     /// </summary>
-    public void Draw(Buffer buf, Rect area, string? title, string? placeholder)
+    public void Draw(CellBuffer buf, Rect area, string? title, string? placeholder)
     {
         var theme = Theme.Current;
         var inner = Widget.Block()
@@ -170,7 +170,7 @@ internal sealed class FilterList
         }
     }
 
-    private void DrawRow(Buffer buf, int x, int y, int width, int index, Theme theme)
+    private void DrawRow(CellBuffer buf, int x, int y, int width, int index, Theme theme)
     {
         var (item, match) = _matches[index];
         var row = _rows[item];

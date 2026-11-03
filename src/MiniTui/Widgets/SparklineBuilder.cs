@@ -25,7 +25,7 @@ public sealed class SparklineBuilder
     public SparklineBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the sparkline.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Draw(buf, area) ?? area;

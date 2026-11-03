@@ -44,7 +44,7 @@ public sealed class MessageDialog : Overlay
     public override bool HandleMouse(MouseEvent mouse) => _scroll.HandleMouse(mouse);
 
     /// <inheritdoc/>
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Paragraph().Text(_body).Wrap(WrapMode.Word).State(_scroll).Draw(buf, area);
 
     /// <inheritdoc/>
