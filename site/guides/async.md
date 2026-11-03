@@ -47,6 +47,25 @@ void DrawTable(Buffer buf, Rect area, IReadOnlyList<ServiceDto>? list) =>
         .Draw(buf, area);
 ```
 
+`api` above is any client with an async method. To try the sample without a server, a stand-in that's slow and
+sometimes fails, as a real API is:
+
+```csharp
+var api = new ServicesClient();
+
+record ServiceDto(string Name, string Status, string Version, bool Healthy);
+
+sealed class ServicesClient
+{
+    public async Task<IReadOnlyList<ServiceDto>> ListAsync(CancellationToken ct)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(1), ct);   // a real one would call HttpClient here, passing ct
+        if (Random.Shared.Next(5) == 0) throw new HttpRequestException("503 Service Unavailable");
+        return [new("auth", "healthy", "v1.4", true), new("billing", "degraded", "v2.0", false)];
+    }
+}
+```
+
 `Loadable<T>` holds `Status` (`Idle`, `Loading`, `Loaded`, `Failed`), the last `Value` (kept while
 reloading and after a failure), `Error` and `LoadedAt`. State changes happen on the UI thread and redraw.
 A newer load replaces an older one, and a failed fetch sets `Failed` instead of going to `OnError`. Pass a

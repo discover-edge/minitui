@@ -17,6 +17,9 @@ Assert.Contains(harness.Lines, l => l.Contains("hello"));
 Each call handles the keys, posted work and `await` continuations until nothing is in flight, then draws
 a frame.
 
+`ComponentHarness` makes its own app, so the setup in your `Program.cs` (global `app.Keys`, a menu bar, a
+theme) isn't there. Add what a test needs to `harness.App`, or move the setup into a method both call.
+
 ## Whole apps and rendering
 
 To test a whole app, give it a [`TestBackend`](xref:MiniTui.TestBackend) and a [`ScriptedInputSource`](xref:MiniTui.ScriptedInputSource) (`Enqueue`, `EnqueueText`):

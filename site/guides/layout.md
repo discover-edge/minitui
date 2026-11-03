@@ -54,4 +54,9 @@ public override void Render(Buffer buf, Rect area, RenderContext ctx)
 ```
 
 Focused children see keys first, and the list, scroll and tree states take arrows with any modifier, so a pane
-built on them passes Alt keys on to keep Alt+Shift+arrows for the split.
+built on them passes Alt keys on to keep Alt+Shift+arrows for the split. A text field takes Alt+Shift+arrows as
+Shift+arrows, so a pane with one should pass Alt keys on itself:
+
+```csharp
+public override bool HandleKey(ConsoleKeyInfo key) => (key.Modifiers & ConsoleModifiers.Alt) == 0 && field.HandleKey(key);
+```

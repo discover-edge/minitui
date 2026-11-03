@@ -30,3 +30,34 @@ In a terminal with only the 16 standard colors, their colors map to the nearest 
 
 `Theme.Current` is the running app's theme on its UI thread. `WithTheme` can be called while running.
 Builders take `.Style(...)` (and `HighlightStyle`, `BorderStyle`, …) overrides, patched over the theme.
+
+## Theme slots
+
+| Slot | Used for |
+|---|---|
+| `Text`, `TextMuted` | Text, and secondary text such as hints and placeholders |
+| `Border`, `BorderFocused`, `Title`, `TitleFocused` | Block borders and titles, unfocused and focused |
+| `Selection`, `SelectionUnfocused` | Selected rows and text, in a focused and an unfocused widget |
+| `SearchMatch`, `Hover` | Find matches in a text area; the row or control under the mouse |
+| `TableHeader` | Table headers |
+| `Input`, `InputFocused`, `Prompt`, `Cursor` | Text fields, the command line's prompt, and the cursor |
+| `StatusBar` | The status bar |
+| `Button`, `ButtonFocused` | Buttons |
+| `TabActive`, `TabActiveUnfocused`, `TabInactive` | Tab bars |
+| `ModalBorder`, `ModalTitle` | Overlays and dialogs |
+| `ScrollbarTrack`, `ScrollbarThumb` | Scrollbars |
+| `GaugeFilled`, `GaugeEmpty` | Gauges |
+| `Success`, `Warning`, `Error`, `Info` | Messages, toasts and your own status colors |
+| `ChartSeries` | Chart datasets and bar series without their own style |
+
+A component reads them from `ctx.Theme`, and code outside one from `Theme.Current`.
+
+## A theme switch
+
+`WithTheme(theme)` replaces the pair, and `WithTheme(dark, light)` goes back to following the terminal:
+
+```csharp
+var dark = true;
+app.Keys.Add("t", "Theme", () => app.WithTheme((dark = !dark) ? Theme.Dark : Theme.Light));
+app.Keys.Add("a", "Follow the terminal", () => app.WithTheme(Theme.Dark, Theme.Light));
+```

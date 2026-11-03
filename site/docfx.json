@@ -16,7 +16,8 @@
       },
       "namespaceLayout": "flattened",
       "memberLayout": "samePage",
-      "enumSortOrder": "declaringOrder"
+      "enumSortOrder": "declaringOrder",
+      "filter": "filterConfig.yml"
     }
   ],
   "build": {
@@ -28,7 +29,9 @@
         "exclude": [
           "_site/**",
           "obj/**",
-          "template/**"
+          "template/**",
+          "apiroot/**",
+          "filterConfig.yml"
         ]
       },
       {
@@ -37,6 +40,13 @@
         ],
         "src": "../docs",
         "dest": "docs"
+      },
+      {
+        "files": [
+          "index.md"
+        ],
+        "src": "apiroot",
+        "dest": "api"
       }
     ],
     "resource": [
