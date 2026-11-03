@@ -73,6 +73,17 @@ internal interface IMouseCapture
 {
     /// <summary>Take (true) or release (false) a reference: the mouse is reported while any is held.</summary>
     void SetMouseCapture(bool enabled);
+
+    /// <summary>Take or release a hover reference: every move is reported while any is held as well (1.x spec §17.5).</summary>
+    void SetHoverCapture(bool enabled) { }
+}
+
+/// <summary>The mouse tracking modes (1.x spec §4.6, §10.7, §17.5): button events, or any event with hover.</summary>
+internal static class MouseModes
+{
+    public static ReadOnlySpan<byte> On(bool hover) => hover ? "\e[?1003h\e[?1006h"u8 : "\e[?1002h\e[?1006h"u8;
+
+    public static ReadOnlySpan<byte> Off(bool hover) => hover ? "\e[?1006l\e[?1003l"u8 : "\e[?1006l\e[?1002l"u8;
 }
 
 /// <summary>A source <see cref="InputPump"/> can wait on instead of polling.</summary>

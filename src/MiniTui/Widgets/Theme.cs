@@ -35,6 +35,8 @@ public sealed record Theme
     public Style SelectionUnfocused { get; init; }
     /// <summary>Matches of a text area's find text other than the current one, which is the selection (1.x spec §16.5).</summary>
     public Style SearchMatch { get; init; }
+    /// <summary>What's under the pointer, with hover on: rows, buttons, checkboxes and tabs (1.x spec §17.6).</summary>
+    public Style Hover { get; init; }
     /// <summary>Table header cells.</summary>
     public Style TableHeader { get; init; }
     /// <summary>Text in an unfocused input.</summary>
@@ -95,6 +97,7 @@ public sealed record Theme
         Selection = new Style(Color.Black, Color.Cyan),
         SelectionUnfocused = new Style(Color.Black, Color.DarkGray),
         SearchMatch = new Style(Color.Black, Color.Yellow),
+        Hover = Style.Default.Underlined(),
         TableHeader = new Style(Color.Yellow).Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,
@@ -133,6 +136,7 @@ public sealed record Theme
         Selection = new Style(Rgb("#10131A"), Rgb("#5FA8FF")),
         SelectionUnfocused = new Style(Rgb("#D4D7DD"), Rgb("#353B46")),
         SearchMatch = new Style(Rgb("#10131A"), Rgb("#E5C07B")),
+        Hover = new Style(Bg: Rgb("#2A303B")),
         TableHeader = new Style(Rgb("#FFC66D")).Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,
@@ -176,6 +180,7 @@ public sealed record Theme
         Selection = new Style(Rgb("#FFFFFF"), Rgb("#0B5CAD")),
         SelectionUnfocused = new Style(Rgb("#24292F"), Rgb("#D8DEE4")),
         SearchMatch = new Style(Rgb("#24292F"), Rgb("#FFF2A8")),
+        Hover = new Style(Bg: Rgb("#E8ECF0")),
         TableHeader = new Style(Rgb("#0B5CAD")).Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,
@@ -216,6 +221,7 @@ public sealed record Theme
         Selection = Style.Default.Reversed(),
         SelectionUnfocused = Style.Default.Underlined(),
         SearchMatch = Style.Default.Underlined(),
+        Hover = Style.Default.Underlined(),
         TableHeader = Style.Default.Bold(),
         Input = Style.Default,
         InputFocused = Style.Default,

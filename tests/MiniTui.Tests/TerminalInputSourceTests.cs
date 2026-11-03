@@ -230,6 +230,36 @@ public class TerminalInputSourceTests
     }
 
     [Fact]
+    public void HoverCapture_SwitchesToAnyEventTracking_AndRestoreTurnsItOff()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var pty = Pty.Open();
+        using var source = new TerminalInputSource(pty.Follower, TimeSpan.FromMilliseconds(50), outputFd: pty.Follower);
+        var capture = (IMouseCapture)source;
+        ((IInputLifecycle)source).Activate();
+        Assert.Equal("\x1b[?2004h", pty.ReadEcho());
+
+        // 1.x spec §17.5: hover alone writes nothing; with the mouse on, it switches ?1002 for ?1003
+        capture.SetHoverCapture(true);
+        Assert.Equal("", pty.ReadEcho());
+        capture.SetMouseCapture(true);
+        Assert.Equal("\x1b[?1003h\x1b[?1006h", pty.ReadEcho());
+        capture.SetHoverCapture(false);
+        Assert.Equal("\x1b[?1006l\x1b[?1003l\x1b[?1002h\x1b[?1006h", pty.ReadEcho());
+        capture.SetHoverCapture(true);
+        Assert.Equal("\x1b[?1006l\x1b[?1002l\x1b[?1003h\x1b[?1006h", pty.ReadEcho());
+
+        ((IInputLifecycle)source).Deactivate();
+        Assert.Equal("\x1b[?1006l\x1b[?1003l\x1b[?2004l", pty.ReadEcho());
+        ((IInputLifecycle)source).Activate();
+        Assert.Equal("\x1b[?2004h\x1b[?1003h\x1b[?1006h", pty.ReadEcho());
+        ((IInputLifecycle)source).Deactivate();
+        pty.ReadEcho();
+        capture.SetHoverCapture(false);
+        capture.SetMouseCapture(false);
+    }
+
+    [Fact]
     public void MouseCapture_TakenBeforeActivating_TurnsOnWithRawMode()
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;

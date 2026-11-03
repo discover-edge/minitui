@@ -148,6 +148,8 @@ internal sealed class WindowsInputTranslator(Func<Vec2> windowOrigin)
                 : (buttons & RightButton) != 0 ? MouseButton.Right
                 : MouseButton.None;
             if (held != MouseButton.None) sink.Mouse(new MouseEvent(MouseAction.Drag, held, Math.Max(0, x), Math.Max(0, y), modifiers));
+            // 1.x spec §17.5: without a button it's a move, which the app drops unless hover is on
+            else if (x >= 0 && y >= 0) sink.Mouse(new MouseEvent(MouseAction.Move, MouseButton.None, x, y, modifiers));
             return;
         }
 

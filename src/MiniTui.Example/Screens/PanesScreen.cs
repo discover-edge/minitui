@@ -115,7 +115,7 @@ internal sealed class PanesScreen : Screen
                 .State(Selection)
                 .Sortable()
                 .Block(Widget.Block().Title($" Log ({list.Count}) "))
-                .Focused(ctx.Focused)
+                .Focused(ctx.Focused).Hover(ctx.Hover)
                 .Draw(buf, area);
         }
     }

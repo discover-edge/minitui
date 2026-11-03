@@ -5,6 +5,7 @@ namespace MiniTui;
 /// </summary>
 public sealed class TabBarBuilder
 {
+    private Vec2? _hover;
     private readonly List<string> _labels = [];
     private TabBarState? _state;
     private bool _focused;
@@ -24,6 +25,11 @@ public sealed class TabBarBuilder
 
     /// <summary>A style patched over the theme's tab styles.</summary>
     public TabBarBuilder Style(Style style) { _style = style; return this; }
+
+    /// <summary>
+    /// The pointer, usually <see cref="RenderContext.Hover"/>. <see cref="Theme.Hover"/> is patched over the tab under it, unless it's the selected one (1.x spec §17.6).
+    /// </summary>
+    public TabBarBuilder Hover(Vec2? position) { _hover = position; return this; }
 
     /// <summary>Draw the tabs on the first row, and a separator line on the second if there's room.</summary>
     public void Draw(Buffer buf, Rect area)
@@ -47,6 +53,7 @@ public sealed class TabBarBuilder
         {
             var style = (i != selected ? theme.TabInactive : _focused ? theme.TabActive : theme.TabActiveUnfocused).Patch(_style ?? default);
             var drawn = WidgetText.DrawString(buf, x, area.Y, labels[i], area.Right - x, style);
+            if (i != selected && _hover is { } p && p.Y == area.Y && p.X >= x && p.X < x + drawn) buf.SetStyle(new Rect(x, area.Y, drawn, 1), theme.Hover);
             _state?.TrackTab(i, x, drawn);
             x += drawn + 1;
         }

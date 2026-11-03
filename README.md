@@ -653,6 +653,12 @@ default because, while an app captures the mouse, selecting text in the terminal
 - **Double-click:** the app counts quick presses of the same button in the same cell and sets
   `MouseEvent.ClickCount` to 1, 2 or 3 on each press (`WithDoubleClickTime`, 500 ms by default). A
   double-click is still two presses, so the first one does what a single click does.
+- **Hover:** `app.WithHover()` (which turns the mouse on too) asks for every pointer move, delivered as
+  `MouseAction.Move`. The component under the pointer and its ancestors get its position as `ctx.Hover`
+  (null for the rest, and under an overlay); pass it to `.Hover(ctx.Hover)` on a list, table, tree, button,
+  checkbox or tab bar to patch `Theme.Hover` over what's under it. Popup menus, the palette and the menu bar
+  follow the pointer. A move only draws a frame when what's hovered changes or a component drew with
+  `ctx.Hover`, and queued moves are coalesced. `App.PointerPosition` is the last reported position.
 - **Hit testing** uses where components were drawn in the last frame: the top screen, overlays, and
   children rendered with `ctx.Render(child, buf, rect)`, which also sets `child.Area`. A child rendered
   with `child.Render(buf, rect, ctx.For(child))` isn't a target; its clicks go to its parent.

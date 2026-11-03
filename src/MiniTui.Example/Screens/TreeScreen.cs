@@ -40,7 +40,7 @@ internal sealed class TreeScreen : Screen
             .Title(" Files ")
             .Guides(_guides)
             .Format(e => e.Info is DirectoryInfo ? new Line(e.Name, ctx.Theme.Info) : e.Name)
-            .Focused(ctx.Focused)
+            .Focused(ctx.Focused).Hover(ctx.Hover)
             .Draw(buf, columns["tree"]);
 
         var lines = new List<Line> { new("←/→ collapse and expand, Enter toggles or opens, type a name to jump", ctx.Theme.TextMuted), "" };

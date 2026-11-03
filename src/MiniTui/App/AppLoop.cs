@@ -34,6 +34,10 @@ public partial class App
     /// <summary>The menu bar's row from the last frame, or empty.</summary>
     internal Rect MenuBarRow => _menuBarRow;
     private List<MouseRouter.Hit> _lastHits = [];
+    private readonly HashSet<Component> _hoverChain = new(ReferenceEqualityComparer.Instance);
+    private Component? _hoverTarget;
+    private bool _pointerRead;
+    private bool _pointerDrawn;
     private Rect _lastFrame;
 
     private int _tickPending;
@@ -114,7 +118,9 @@ public partial class App
             if (_mouse && input is IMouseCapture capture)
             {
                 capture.SetMouseCapture(true);
+                if (_hover) capture.SetHoverCapture(true);
                 run.MouseCapture = capture;
+                run.HoverCapture = _hover;
             }
 
             // An app started from inside another one on the same input gets the keys the outer one hasn't handled yet
@@ -175,6 +181,11 @@ public partial class App
         {
             switch (item)
             {
+                case InputItem { Mouse: { Action: MouseAction.Move } move }:
+                    // 1.x spec §17.5: only the last of the moves waiting is routed, and it draws only if it changes something
+                    if (!_hover || NextIsMove()) break;
+                    Guard(() => dirty |= HandleMove(move));
+                    break;
                 case InputItem { Mouse: { } mouse }:
                     dirty = true;
                     Guard(() => HandleMouse(mouse));
@@ -246,6 +257,7 @@ public partial class App
         if (run.ResizeHooked) TerminalSession.Resized -= OnResizeSignal;
         run.JobControl?.Dispose();
         run.Cancellation.Dispose();
+        if (run.HoverCapture) run.MouseCapture?.SetHoverCapture(false);
         run.MouseCapture?.SetMouseCapture(false);
         run.Subscription?.Dispose();
 
@@ -303,6 +315,7 @@ public partial class App
         public CancellationTokenRegistration Cancellation { get; set; }
         public bool ResizeHooked { get; set; }
         public IMouseCapture? MouseCapture { get; set; }
+        public bool HoverCapture { get; set; }
         public IDisposable? JobControl { get; set; }
         public bool FirstFrame { get; set; } = true;
     }
@@ -364,6 +377,50 @@ public partial class App
         return count;
     }
 
+    // A move: OnEvent, OnMouse, then the component under the pointer and its ancestors, without click to focus.
+    // A redraw is needed when the hovered component changes, something handled the move, or the hovered components
+    // drew with the pointer last frame (a row under it may change).
+    private bool HandleMove(MouseEvent move)
+    {
+        var before = HoverTarget();
+        _pointer = (move.X, move.Y);
+        _onEvent?.Invoke(move);
+        var handled = _onMouse?.Invoke(move) == true;
+        if (!handled && _onRender is null) handled = MouseRouter.Route(this, move, _lastHits, _lastFrame);
+        return handled || _pointerDrawn || !ReferenceEquals(before, HoverTarget()) || _onRender is not null;
+    }
+
+    private bool NextIsMove()
+    {
+        if (_pendingKeys is { } keys && _pendingIndex < keys.Length) return keys[_pendingIndex] is { Mouse.Action: MouseAction.Move };
+        return _queue.Reader.TryPeek(out var next) && next is KeyBatch { Keys: [{ Mouse.Action: MouseAction.Move }, ..] };
+    }
+
+    /// <summary>The component under the pointer in the last frame, as a click would find it (1.x spec §17.6).</summary>
+    internal Component? HoverTarget()
+    {
+        if (!_hover || _pointer is not { } p || !_lastFrame.Contains(p.X, p.Y)) return null;
+        Component? root = Overlays.Top is { } overlay ? overlay : Screens.Top;
+        return root is null ? null : MouseRouter.Target(_lastHits, root, p.X, p.Y);
+    }
+
+    /// <summary>The pointer for <paramref name="component"/>'s render context: set for the hovered component and its ancestors.</summary>
+    internal Vec2? PointerFor(Component? component)
+    {
+        if (_hoverTarget is null || _pointer is not { } p) return null;
+        if (component is not null && !_hoverChain.Contains(component)) return null;
+        _pointerRead = true;
+        return new Vec2(p.X, p.Y);
+    }
+
+    /// <summary>The pointer for the menu bar, when hover is on and it's on the bar's row.</summary>
+    internal Vec2? BarPointer(Rect row)
+    {
+        if (!_hover || _pointer is not { } p || !row.Contains(p.X, p.Y)) return null;
+        _pointerRead = true;
+        return new Vec2(p.X, p.Y);
+    }
+
     /// <summary>Record a hit target for this frame (1.x spec §4.7) and set its <see cref="Component.Area"/>.</summary>
     internal void RecordHit(Component component, Rect hit, Rect area)
     {
@@ -407,6 +464,10 @@ public partial class App
     private TimeSpan RenderFrame(Buffer buf, Rect area)
     {
         _hits.Clear();
+        _hoverTarget = HoverTarget();
+        _hoverChain.Clear();
+        for (var c = _hoverTarget; c is not null && _hoverChain.Count < 64; c = c.Parent) _hoverChain.Add(c);
+        _pointerRead = false;
         try
         {
             var start = _time.GetTimestamp();
@@ -422,6 +483,7 @@ public partial class App
         {
             (_lastHits, _hits) = (_hits, _lastHits);
             _lastFrame = area;
+            _pointerDrawn = _pointerRead;
         }
     }
 

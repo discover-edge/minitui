@@ -26,6 +26,7 @@ internal static unsafe partial class UnixTerminal
     private static int s_outputFd = -1;
     private static bool s_exitHooked;
     private static bool s_mouse;
+    private static bool s_hover;
     private static KeyboardProtocol s_keyboard;
 
     // The fd whose saved mode Suspend kept, so entering again doesn't save the mode a child left behind
@@ -98,14 +99,20 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
-    /// <summary>Turn mouse reporting (presses, releases and the wheel, SGR encoded) on or off, while in raw mode.</summary>
-    public static void SetMouse(bool enabled)
+    /// <summary>
+    /// Turn mouse reporting (presses, releases, drags and the wheel, SGR encoded; with <paramref name="hover"/>, every
+    /// move too) on or off, while in raw mode.
+    /// </summary>
+    public static void SetMouse(bool enabled, bool hover = false)
     {
         lock (Gate)
         {
-            if (s_fd < 0 || s_mouse == enabled) return;
+            hover &= enabled;
+            if (s_fd < 0 || (s_mouse == enabled && s_hover == hover)) return;
+            if (s_outputFd >= 0 && s_mouse) Write(s_outputFd, MouseModes.Off(s_hover));
             s_mouse = enabled;
-            if (s_outputFd >= 0) Write(s_outputFd, enabled ? MouseOn : MouseOff);
+            s_hover = hover;
+            if (s_outputFd >= 0 && enabled) Write(s_outputFd, MouseModes.On(hover));
         }
     }
 
@@ -146,12 +153,13 @@ internal static unsafe partial class UnixTerminal
             }
             try
             {
-                if (s_outputFd >= 0 && s_mouse) Write(s_outputFd, MouseOff);
+                if (s_outputFd >= 0 && s_mouse) Write(s_outputFd, MouseModes.Off(s_hover));
                 if (s_outputFd >= 0) Write(s_outputFd, KeyboardModes.Off(s_keyboard));
                 if (s_outputFd >= 0) Write(s_outputFd, "\e[?2004l"u8);
             }
             catch (Exception) { }
             s_mouse = false;
+            s_hover = false;
             s_keyboard = KeyboardProtocol.Legacy;
             try
             {
@@ -220,8 +228,6 @@ internal static unsafe partial class UnixTerminal
         }
     }
 
-    private static ReadOnlySpan<byte> MouseOn => "\e[?1002h\e[?1006h"u8;
-    private static ReadOnlySpan<byte> MouseOff => "\e[?1006l\e[?1002l"u8;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct PollFd

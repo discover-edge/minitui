@@ -32,6 +32,7 @@ internal static unsafe partial class WindowsConsoleInput
     private static uint s_savedMode;
     private static uint s_vtMode;
     private static bool s_mouse;
+    private static bool s_hover;
     private static KeyboardProtocol s_keyboard;
     private static bool s_active;
     private static bool s_suspended;
@@ -99,17 +100,20 @@ internal static unsafe partial class WindowsConsoleInput
     /// Turn mouse reporting on or off, while in VT input mode: the mouse sequences for consoles that report the
     /// mouse as VT, and <c>ENABLE_MOUSE_INPUT</c> with quick edit off for those that report it as records.
     /// </summary>
-    public static void SetMouse(bool enabled)
+    public static void SetMouse(bool enabled, bool hover = false)
     {
         lock (Gate)
         {
-            if (!s_active || s_mouse == enabled) return;
+            hover &= enabled;
+            if (!s_active || (s_mouse == enabled && s_hover == hover)) return;
+            if (s_mouse) Write(MouseModes.Off(s_hover));
             s_mouse = enabled;
+            s_hover = hover;
             var mode = enabled
                 ? (s_vtMode | EnableMouseInput | EnableExtendedFlags) & ~EnableQuickEditMode
                 : s_vtMode | EnableExtendedFlags | (s_savedMode & EnableQuickEditMode);
             SetConsoleMode(s_input, mode);
-            Write(enabled ? "\e[?1002h\e[?1006h"u8 : "\e[?1006l\e[?1002l"u8);
+            if (enabled) Write(MouseModes.On(hover));
         }
     }
 
@@ -153,7 +157,7 @@ internal static unsafe partial class WindowsConsoleInput
             }
             try
             {
-                if (s_mouse) Write("\e[?1006l\e[?1002l"u8);
+                if (s_mouse) Write(MouseModes.Off(s_hover));
                 Write(KeyboardModes.Off(s_keyboard));
                 Write("\e[?2004l"u8);
             }
@@ -165,6 +169,7 @@ internal static unsafe partial class WindowsConsoleInput
             }
             catch (Exception) { }
             s_mouse = false;
+            s_hover = false;
             s_keyboard = KeyboardProtocol.Legacy;
             s_active = false;
             s_suspended = keepSaved;

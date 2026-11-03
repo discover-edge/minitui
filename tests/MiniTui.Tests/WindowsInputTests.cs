@@ -210,12 +210,14 @@ public class WindowsInputTests
     {
         var events = Decode(Translator(new Vec2(0, 100)),
             InputRecord.Mouse(5, 101, buttons: 0x1, flags: 0x1), // a move with the button down: a drag
-            InputRecord.Mouse(6, 101, buttons: 0, flags: 0x1),   // a move without one: dropped
+            InputRecord.Mouse(6, 101, buttons: 0, flags: 0x1),   // a move without one: a move (1.x spec §17.5)
+            InputRecord.Mouse(6, 90, buttons: 0, flags: 0x1),    // and outside the window: dropped
             InputRecord.Mouse(5, 102, buttons: 0x4, controlKeyState: 0x10 | 0x8));
 
         Assert.Equal(
             [
                 new MouseEvent(MouseAction.Drag, MouseButton.Left, 5, 1),
+                new MouseEvent(MouseAction.Move, MouseButton.None, 6, 1),
                 new MouseEvent(MouseAction.Press, MouseButton.Middle, 5, 2, ConsoleModifiers.Shift | ConsoleModifiers.Control),
             ],
             events);

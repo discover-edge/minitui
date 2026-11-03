@@ -120,7 +120,7 @@ internal sealed class ServicesScreen : Screen
                 new Line($"{s.LatencyMs} ms") with { Alignment = Alignment.Right }))
             .State(_selection)
             .HighlightSymbol("> ")
-            .Focused(ctx.Focused)
+            .Focused(ctx.Focused).Hover(ctx.Hover)
             .Draw(buf, area);
 
         if (loading) Widget.Spinner().Label("loading").Draw(buf, new Rect(area.Right - 14, area.Bottom - 1, 12, 1));

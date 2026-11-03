@@ -67,12 +67,15 @@ internal static class MouseRouter
     /// The last-rendered hit containing the point whose component is still mounted under <paramref name="root"/>.
     /// Children render after their parents, and overlays after screens, so the last match is on top.
     /// </summary>
-    private static Component? Target(List<Hit> hits, Component root, MouseEvent mouse)
+    private static Component? Target(List<Hit> hits, Component root, MouseEvent mouse) => Target(hits, root, mouse.X, mouse.Y);
+
+    /// <summary>As <see cref="Target(List{Hit}, Component, MouseEvent)"/>, for a point.</summary>
+    internal static Component? Target(List<Hit> hits, Component root, int x, int y)
     {
         for (var i = hits.Count - 1; i >= 0; i--)
         {
             var (component, rect) = hits[i];
-            if (rect.Contains(mouse.X, mouse.Y) && component.IsMounted && IsUnder(component, root)) return component;
+            if (rect.Contains(x, y) && component.IsMounted && IsUnder(component, root)) return component;
         }
         return null;
     }

@@ -45,7 +45,7 @@ or add to them:
 | **20. Split panes, scrollbar dragging and sortable tables** | `SplitState` and `Widget.Split()`, by ratio or with a fixed-size pane, with a divider dragged by the mouse or moved with Alt+Shift+arrows; dragging the scrollbar thumbs of lists, tables, trees and paragraphs, and paging on a track press; clicking a table header to sort (`TableBuilder.Sortable`, `SelectionState.ToggleSort` and `SortChanged`). Backlog rank 3. | 10, 16 | §14 | 1.9.0 |
 | **21. Menu bar and richer menus** | Mnemonics (`&File`), check and radio items, submenus and `Run` actions in `PopupMenu`; a `MenuBar` along the top opened with F10, Alt+mnemonic or a click, with ← → between menus; the palette lists its items. Backlog rank 4. | 13, 19 | §15 | 1.10.0 |
 | **22. Text area as an editor** | Opt-in Tab-to-indent (Tab, Shift+Tab, Backspace by indent stops), auto-indent on Enter and `IndentSize`; a line number gutter; a draggable scrollbar on the block; a find bar (Ctrl+F, F3, Shift+F3) with smart case and highlighted matches (`Theme.SearchMatch`). Backlog rank 5. | 12, 16, 20 | §16 | 1.11.0 |
-| **23. Double-click and hover** | `MouseEvent.ClickCount` counted by the app (`WithDoubleClickTime`): double-click selects a word and triple-click a line in text states, and activates list, table and tree rows (`SelectionState.Activated`). Opt-in hover (`WithHover`, `?1003`, `MouseAction.Move`): `ctx.Pointer` and `.Hover()` on rows, buttons, checkboxes and tabs (`Theme.Hover`), and menus that follow the pointer. Backlog rank 7. | 10, 16 | §17 | 1.12.0 |
+| **23. Double-click and hover** | `MouseEvent.ClickCount` counted by the app (`WithDoubleClickTime`): double-click selects a word and triple-click a line in text states, and activates list, table and tree rows (`SelectionState.Activated`). Opt-in hover (`WithHover`, `?1003`, `MouseAction.Move`): `ctx.Hover` and `.Hover()` on rows, buttons, checkboxes and tabs (`Theme.Hover`), and menus that follow the pointer. Backlog rank 7. | 10, 16 | §17 | 1.12.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -3888,7 +3888,7 @@ public class App
     public App WithHover(bool enabled = true);
 
     /// Where the pointer was last reported, or null before the first report.
-    public Vec2? Pointer { get; }
+    public Vec2? PointerPosition { get; }
 }
 
 public sealed class RenderContext
@@ -3896,7 +3896,7 @@ public sealed class RenderContext
     // Existing members unchanged
 
     /// The pointer, while hover is on and the pointer is over this component (§17.6). Null otherwise.
-    public Vec2? Pointer { get; }
+    public Vec2? Hover { get; }
 }
 
 public class SelectionState
@@ -3906,7 +3906,7 @@ public class SelectionState
 }
 
 // List, Table, Tree, Button, Checkbox and TabBar builders:
-//     public XBuilder Hover(Vec2? pointer);    // usually ctx.Pointer (§17.6)
+//     public XBuilder Hover(Vec2? position);   // usually ctx.Hover (§17.6)
 
 public sealed record Theme
 {
@@ -3914,6 +3914,9 @@ public sealed record Theme
     public Style Hover { get; init; }
 }
 ```
+
+- `RenderContext.Hover` and `App.PointerPosition` aren't called `Pointer`: the analyzers reject a member named
+  after a type (CA1720).
 
 ### 17.3 Counting clicks
 
@@ -3952,22 +3955,22 @@ public sealed record Theme
 - The SGR and X10 decoders turn a motion report with no button (button 3 + 32) into `MouseAction.Move`, with
   `MouseButton.None`. Without `WithHover` they're still dropped, so a terminal that sends them anyway changes
   nothing.
-- Every report (presses, drags and moves) sets `App.Pointer`. Terminals don't report the pointer leaving the window,
+- Every report (presses, drags and moves) sets `App.PointerPosition`. Terminals don't report the pointer leaving the window,
   so hover stays where the pointer last was until it comes back. Focus reports (`?1004`) to clear it are out of
   scope.
 - **Routing.** A move goes to `App.OnEvent` and `App.OnMouse` first, then to the component under the pointer and
   its ancestors, without click to focus. Built-in components use moves only as §17.7 says; others ignore them,
   as they ignore drags.
 - **Frames.** A move requests a redraw only when the hovered component changes or that component is hover-aware
-  (it called `ctx.Pointer` in its last render). Moves already waiting in the queue are coalesced: only the last one
+  (it called `ctx.Hover` in its last render). Moves already waiting in the queue are coalesced: only the last one
   is routed. The frame diff then sends only the cells that changed.
 
 ### 17.6 Hover: drawing
 
-- `ctx.Pointer` is the pointer's position for the component under the pointer in the last frame's hit list (the
+- `ctx.Hover` is the pointer's position for the component under the pointer in the last frame's hit list (the
   topmost one, as for clicks) and for each of its ancestors, and null for everything else. An overlay above a
   component hides the hover from it. It's null without `WithHover`.
-- Builders take it with `.Hover(ctx.Pointer)` and decide what's under it:
+- Builders take it with `.Hover(ctx.Hover)` and decide what's under it:
   - **List, Table and Tree:** the row under the pointer is patched with `Theme.Hover`, under the selection, so the
     selected row stays the selection color.
   - **Button and Checkbox:** the whole widget, when the pointer is inside its area.
@@ -3997,7 +4000,7 @@ Automated:
   the expander toggled once.
 - **Hover decoding:** SGR and X10 motion without a button with and without hover; conhost `MOUSE_MOVED`; `?1003h`
   and `?1003l` in the mode strings and every restore path.
-- **Hover routing:** `ctx.Pointer` for the target and its ancestors, null under an overlay and without hover;
+- **Hover routing:** `ctx.Hover` for the target and its ancestors, null under an overlay and without hover;
   redraws only when needed; coalesced moves.
 - **Drawing:** the hover row in a list, table and tree under and beside the selection; buttons, checkboxes and tabs;
   snapshots in each built-in theme.
@@ -4014,7 +4017,7 @@ the demo list and the buttons in the Widgets demo.
 - **Changed:** a double-click in a text field or text area selects a word (and a triple-click the line), where the
   second press used to just place the cursor again. Apps with their own `OnMouse` see `ClickCount` on presses, and,
   with `WithHover`, `Move` events.
-- README: double-click, `WithHover`, `ctx.Pointer` and `.Hover()`, and `Theme.Hover`.
+- README: double-click, `WithHover`, `ctx.Hover` and `.Hover()`, and `Theme.Hover`.
 
 ### 17.10 Out of scope
 
@@ -4041,8 +4044,8 @@ Two PRs, like Phase 22:
 1. **23a** (double-click): `ClickCount` and the counting in the app, `WithDoubleClickTime`, `ComponentHarness.DoubleClick`;
    word and line selection in the text states; `SelectionState.Activated` and the tree's double-click; the demos;
    README; CHANGELOG.
-2. **23b** (hover): `MouseAction.Move`, `?1003`, the decoders and conhost; `WithHover`, `App.Pointer`, routing,
-   coalescing and redraws; `ctx.Pointer`, `.Hover()` and `Theme.Hover`; menus, the menu bar and the palette;
+2. **23b** (hover): `MouseAction.Move`, `?1003`, the decoders and conhost; `WithHover`, `App.PointerPosition`, routing,
+   coalescing and redraws; `ctx.Hover`, `.Hover()` and `Theme.Hover`; menus, the menu bar and the palette;
    the example turns hover on; README; CHANGELOG; the manual QA.
 
 Both go out in one release (1.12.0).

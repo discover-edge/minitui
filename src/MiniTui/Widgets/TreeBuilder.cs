@@ -12,6 +12,7 @@ namespace MiniTui;
 /// </example>
 public class TreeBuilder<T> where T : class
 {
+    private Vec2? _hover;
     private readonly TreeState<T> _state;
     private Func<T, Line>? _format;
     private bool _guides;
@@ -47,6 +48,11 @@ public class TreeBuilder<T> where T : class
 
     /// <summary>Set whether the tree is focused: the border and selection use the focused styles.</summary>
     public TreeBuilder<T> Focused(bool focused = true) { _focused = focused; return this; }
+
+    /// <summary>
+    /// The pointer, usually <see cref="RenderContext.Hover"/>. <see cref="Theme.Hover"/> is patched over the row under it, unless it's the selected one (1.x spec §17.6).
+    /// </summary>
+    public TreeBuilder<T> Hover(Vec2? position) { _hover = position; return this; }
 
     /// <summary>Set the title. Scroll info such as <c>[1-10 of 50]</c> is appended unless turned off.</summary>
     public TreeBuilder<T> Title(string title) { _title = title; return this; }
@@ -116,6 +122,7 @@ public class TreeBuilder<T> where T : class
             x += buf.SetString(x, y, " ", style, Math.Max(0, right - x));
             WidgetText.DrawLine(buf, x, y, _format?.Invoke(row.Node) ?? _state.TextOf(row.Node), right - x, style);
             if (offset + i == selected) buf.SetStyle(new Rect(rowArea.X, y, rowArea.Width, 1), highlight);
+            else if (_hover is { } p && p.Y == y && p.X >= rowArea.X && p.X < rowArea.Right) buf.SetStyle(new Rect(rowArea.X, y, rowArea.Width, 1), theme.Hover);
         }
         _state.Track(area, rowArea with { Height = visible }, expanders);
 

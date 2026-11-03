@@ -417,16 +417,18 @@ internal sealed class AnsiInputDecoder
     /// <summary>
     /// A mouse report's button code <paramref name="b"/>: the low two bits are the button (3 is an X10 release),
     /// +4 Shift, +8 Alt, +16 Control, +32 motion, +64 the wheel. Motion with a button held is a drag (1.x spec
-    /// §10.7); motion without one, buttons 128 and up, and negative positions give null.
+    /// §10.7) and motion without one a move (§17.5); wheel motion, buttons 128 and up, and negative positions give
+    /// null.
     /// </summary>
     internal static MouseEvent? MouseFrom(int b, int x, int y, bool release)
     {
         if (b < 0 || b >= 128 || x < 0 || y < 0) return null;
-        if ((b & 32) != 0 && ((b & 64) != 0 || (b & 3) == 3)) return null;
+        if ((b & 32) != 0 && (b & 64) != 0) return null;
         ConsoleModifiers modifiers = 0;
         if ((b & 4) != 0) modifiers |= ConsoleModifiers.Shift;
         if ((b & 8) != 0) modifiers |= ConsoleModifiers.Alt;
         if ((b & 16) != 0) modifiers |= ConsoleModifiers.Control;
+        if ((b & 32) != 0 && (b & 3) == 3) return new MouseEvent(MouseAction.Move, MouseButton.None, x, y, modifiers);
 
         var low = b & 3;
         if ((b & 64) != 0)
