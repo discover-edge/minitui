@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-03
+
+MiniTui 2.0: `Buffer` is renamed `CellBuffer`, so samples compile in a default console project, plus fixes found by building four apps from the docs alone. See [Migrating from 1.x to 2.0](https://minitui.org/docs/MIGRATION-1-to-2.html).
+
 ### Added
 - `TextFieldState.Changed`, raised after the text changes (typing, deleting, pasting, undo and redo, or setting `Text`), but not for cursor or selection moves.
 - `ConfirmAsync(message, yes, no, yesFirst)` and `ConfirmDialog(..., yesFirst)`: with `yesFirst: false`, No is selected when the dialog opens, for destructive actions. The example's Services demo asks that way before deleting.

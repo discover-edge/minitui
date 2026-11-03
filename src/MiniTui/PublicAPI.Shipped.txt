@@ -32,7 +32,7 @@ MiniTui.App.PointerPosition.get -> MiniTui.Vec2?
 MiniTui.App.Post(System.Action! action) -> void
 MiniTui.App.Quit() -> void
 MiniTui.App.QuitWhenEmpty(bool quit = true) -> MiniTui.App!
-MiniTui.App.Render(System.Action<MiniTui.Buffer!, MiniTui.Rect>! render) -> MiniTui.App!
+MiniTui.App.Render(System.Action<MiniTui.CellBuffer!, MiniTui.Rect>! render) -> MiniTui.App!
 MiniTui.App.RequestRedraw() -> void
 MiniTui.App.Run() -> void
 MiniTui.App.RunAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
@@ -106,7 +106,7 @@ MiniTui.BarChartBuilder.Bars(System.Collections.Generic.IReadOnlyList<MiniTui.Ba
 MiniTui.BarChartBuilder.Bars(params MiniTui.Bar![]! bars) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Direction(MiniTui.Direction direction) -> MiniTui.BarChartBuilder!
-MiniTui.BarChartBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.BarChartBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.BarChartBuilder.GroupGap(int gap) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Groups(System.Collections.Generic.IReadOnlyList<MiniTui.BarGroup!>! groups) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Groups(params MiniTui.BarGroup![]! groups) -> MiniTui.BarChartBuilder!
@@ -129,7 +129,7 @@ MiniTui.BlockBuilder.BlockBuilder() -> void
 MiniTui.BlockBuilder.BorderStyle(MiniTui.Style style) -> MiniTui.BlockBuilder!
 MiniTui.BlockBuilder.BorderType(MiniTui.BoxStyle type) -> MiniTui.BlockBuilder!
 MiniTui.BlockBuilder.Borders(MiniTui.Borders borders) -> MiniTui.BlockBuilder!
-MiniTui.BlockBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> MiniTui.Rect
+MiniTui.BlockBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> MiniTui.Rect
 MiniTui.BlockBuilder.Focused(bool focused = true) -> MiniTui.BlockBuilder!
 MiniTui.BlockBuilder.Inner(MiniTui.Rect area) -> MiniTui.Rect
 MiniTui.BlockBuilder.Padding(MiniTui.Margin padding) -> MiniTui.BlockBuilder!
@@ -150,27 +150,9 @@ MiniTui.BoxStyle.Double = 1 -> MiniTui.BoxStyle
 MiniTui.BoxStyle.Heavy = 3 -> MiniTui.BoxStyle
 MiniTui.BoxStyle.Rounded = 2 -> MiniTui.BoxStyle
 MiniTui.BoxStyle.Single = 0 -> MiniTui.BoxStyle
-MiniTui.Buffer
-MiniTui.Buffer.Area.get -> MiniTui.Rect
-MiniTui.Buffer.Buffer(int width, int height) -> void
-MiniTui.Buffer.Clear() -> void
-MiniTui.Buffer.CursorRequest.get -> (int X, int Y)?
-MiniTui.Buffer.DrawHLine(int x, int y, int length, char c = '─', MiniTui.Style style = default(MiniTui.Style)) -> void
-MiniTui.Buffer.DrawVLine(int x, int y, int length, char c = '│', MiniTui.Style style = default(MiniTui.Style)) -> void
-MiniTui.Buffer.Fill(MiniTui.Cell cell) -> void
-MiniTui.Buffer.FillRect(MiniTui.Rect rect, MiniTui.Cell cell) -> void
-MiniTui.Buffer.Get(int x, int y) -> MiniTui.Cell
-MiniTui.Buffer.Height.get -> int
-MiniTui.Buffer.Set(int x, int y, MiniTui.Cell cell) -> void
-MiniTui.Buffer.SetCursor(int x, int y) -> void
-MiniTui.Buffer.SetLine(int x, int y, MiniTui.Line! line, int maxWidth) -> int
-MiniTui.Buffer.SetString(int x, int y, System.ReadOnlySpan<char> text, MiniTui.Style style, int maxWidth = 2147483647) -> int
-MiniTui.Buffer.SetStyle(MiniTui.Rect area, MiniTui.Style style) -> void
-MiniTui.Buffer.ToLines() -> string![]!
-MiniTui.Buffer.Width.get -> int
 MiniTui.ButtonBuilder
 MiniTui.ButtonBuilder.ButtonBuilder() -> void
-MiniTui.ButtonBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.ButtonBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.ButtonBuilder.Focused(bool focused = true) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Label(string! label) -> MiniTui.ButtonBuilder!
@@ -179,7 +161,7 @@ MiniTui.ButtonBuilder.Style(MiniTui.Style style) -> MiniTui.ButtonBuilder!
 MiniTui.CanvasBuilder
 MiniTui.CanvasBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.CanvasBuilder!
 MiniTui.CanvasBuilder.CanvasBuilder() -> void
-MiniTui.CanvasBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.CanvasBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.CanvasBuilder.Marker(MiniTui.Marker marker) -> MiniTui.CanvasBuilder!
 MiniTui.CanvasBuilder.Paint(System.Action<MiniTui.CanvasPainter!>! paint) -> MiniTui.CanvasBuilder!
 MiniTui.CanvasBuilder.Style(MiniTui.Style style) -> MiniTui.CanvasBuilder!
@@ -209,6 +191,24 @@ MiniTui.Cell.Modifiers.init -> void
 MiniTui.Cell.Symbol.get -> string!
 MiniTui.Cell.Symbol.init -> void
 MiniTui.Cell.Width.get -> int
+MiniTui.CellBuffer
+MiniTui.CellBuffer.Area.get -> MiniTui.Rect
+MiniTui.CellBuffer.CellBuffer(int width, int height) -> void
+MiniTui.CellBuffer.Clear() -> void
+MiniTui.CellBuffer.CursorRequest.get -> (int X, int Y)?
+MiniTui.CellBuffer.DrawHLine(int x, int y, int length, char c = '─', MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CellBuffer.DrawVLine(int x, int y, int length, char c = '│', MiniTui.Style style = default(MiniTui.Style)) -> void
+MiniTui.CellBuffer.Fill(MiniTui.Cell cell) -> void
+MiniTui.CellBuffer.FillRect(MiniTui.Rect rect, MiniTui.Cell cell) -> void
+MiniTui.CellBuffer.Get(int x, int y) -> MiniTui.Cell
+MiniTui.CellBuffer.Height.get -> int
+MiniTui.CellBuffer.Set(int x, int y, MiniTui.Cell cell) -> void
+MiniTui.CellBuffer.SetCursor(int x, int y) -> void
+MiniTui.CellBuffer.SetLine(int x, int y, MiniTui.Line! line, int maxWidth) -> int
+MiniTui.CellBuffer.SetString(int x, int y, System.ReadOnlySpan<char> text, MiniTui.Style style, int maxWidth = 2147483647) -> int
+MiniTui.CellBuffer.SetStyle(MiniTui.Rect area, MiniTui.Style style) -> void
+MiniTui.CellBuffer.ToLines() -> string![]!
+MiniTui.CellBuffer.Width.get -> int
 MiniTui.CellUpdate
 MiniTui.CellUpdate.Cell.get -> MiniTui.Cell
 MiniTui.CellUpdate.Cell.init -> void
@@ -225,7 +225,7 @@ MiniTui.ChartBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.ChartBuilder!
 MiniTui.ChartBuilder.ChartBuilder() -> void
 MiniTui.ChartBuilder.Datasets(System.Collections.Generic.IReadOnlyList<MiniTui.Dataset!>! datasets) -> MiniTui.ChartBuilder!
 MiniTui.ChartBuilder.Datasets(params MiniTui.Dataset![]! datasets) -> MiniTui.ChartBuilder!
-MiniTui.ChartBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.ChartBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.ChartBuilder.Legend(MiniTui.LegendPosition position) -> MiniTui.ChartBuilder!
 MiniTui.ChartBuilder.Style(MiniTui.Style style) -> MiniTui.ChartBuilder!
 MiniTui.ChartBuilder.XAxis(MiniTui.Axis! axis) -> MiniTui.ChartBuilder!
@@ -234,7 +234,7 @@ MiniTui.ChartTime
 MiniTui.CheckboxBuilder
 MiniTui.CheckboxBuilder.CheckboxBuilder() -> void
 MiniTui.CheckboxBuilder.Checked(bool isChecked = true) -> MiniTui.CheckboxBuilder!
-MiniTui.CheckboxBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.CheckboxBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.CheckboxBuilder.Focused(bool focused = true) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Label(string! label) -> MiniTui.CheckboxBuilder!
@@ -265,7 +265,7 @@ MiniTui.CommandBuilder.SubCommands(System.Action<MiniTui.CommandRegistry!>! conf
 MiniTui.CommandBuilder.Usage(string! usage) -> MiniTui.CommandBuilder!
 MiniTui.CommandLineBuilder
 MiniTui.CommandLineBuilder.CommandLineBuilder() -> void
-MiniTui.CommandLineBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.CommandLineBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.CommandLineBuilder.Focused(bool focused = true) -> MiniTui.CommandLineBuilder!
 MiniTui.CommandLineBuilder.Prompt(string! prompt) -> MiniTui.CommandLineBuilder!
 MiniTui.CommandLineBuilder.State(MiniTui.CommandLineState! state) -> MiniTui.CommandLineBuilder!
@@ -329,7 +329,7 @@ MiniTui.ComponentHarness.RunUntilIdle() -> void
 MiniTui.ComponentHarness.Scroll(int x, int y, int rows) -> void
 MiniTui.ComponentHarness.Type(string! text) -> void
 MiniTui.ConfirmDialog
-MiniTui.ConfirmDialog.ConfirmDialog(string! message, string! yes = "Yes", string! no = "No") -> void
+MiniTui.ConfirmDialog.ConfirmDialog(string! message, string! yes = "Yes", string! no = "No", bool yesFirst = true) -> void
 MiniTui.ConfirmDialog.Result.get -> System.Threading.Tasks.Task<bool>!
 MiniTui.ConsoleInputSource
 MiniTui.ConsoleInputSource.ConsoleInputSource() -> void
@@ -404,7 +404,7 @@ MiniTui.FuzzyMatch.Score.get -> int
 MiniTui.FuzzyMatch.Score.init -> void
 MiniTui.GaugeBuilder
 MiniTui.GaugeBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.GaugeBuilder!
-MiniTui.GaugeBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.GaugeBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.GaugeBuilder.EmptyStyle(MiniTui.Style style) -> MiniTui.GaugeBuilder!
 MiniTui.GaugeBuilder.FilledStyle(MiniTui.Style style) -> MiniTui.GaugeBuilder!
 MiniTui.GaugeBuilder.GaugeBuilder() -> void
@@ -486,7 +486,7 @@ MiniTui.Line.Spans.init -> void
 MiniTui.Line.Width.get -> int
 MiniTui.ListBuilder
 MiniTui.ListBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.ListBuilder!
-MiniTui.ListBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.ListBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.ListBuilder.Focused(bool focused = true) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.HighlightStyle(MiniTui.Style style) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.HighlightSymbol(string! symbol) -> MiniTui.ListBuilder!
@@ -633,7 +633,7 @@ MiniTui.Overlay.Overlay() -> void
 MiniTui.OverlayStack
 MiniTui.OverlayStack.Any.get -> bool
 MiniTui.OverlayStack.Close(MiniTui.Overlay! overlay) -> void
-MiniTui.OverlayStack.ConfirmAsync(string! message, string! yes = "Yes", string! no = "No") -> System.Threading.Tasks.Task<bool>!
+MiniTui.OverlayStack.ConfirmAsync(string! message, string! yes = "Yes", string! no = "No", bool yesFirst = true) -> System.Threading.Tasks.Task<bool>!
 MiniTui.OverlayStack.Show(MiniTui.Overlay! overlay) -> void
 MiniTui.OverlayStack.ShowHelp() -> void
 MiniTui.OverlayStack.ShowMenuAsync(System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items, MiniTui.Rect anchor, int selected = 0) -> System.Threading.Tasks.Task<int?>!
@@ -657,7 +657,7 @@ MiniTui.Paragraph
 MiniTui.ParagraphBuilder
 MiniTui.ParagraphBuilder.Alignment(MiniTui.Alignment alignment) -> MiniTui.ParagraphBuilder!
 MiniTui.ParagraphBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.ParagraphBuilder!
-MiniTui.ParagraphBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.ParagraphBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.ParagraphBuilder.ParagraphBuilder() -> void
 MiniTui.ParagraphBuilder.Scroll(int rows) -> MiniTui.ParagraphBuilder!
 MiniTui.ParagraphBuilder.State(MiniTui.ScrollState! state) -> MiniTui.ParagraphBuilder!
@@ -728,7 +728,7 @@ MiniTui.RenderContext.Focused.get -> bool
 MiniTui.RenderContext.For(MiniTui.Component! child) -> MiniTui.RenderContext!
 MiniTui.RenderContext.Hints(int maxWidth) -> string!
 MiniTui.RenderContext.Hover.get -> MiniTui.Vec2?
-MiniTui.RenderContext.Render(MiniTui.Component! child, MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.RenderContext.Render(MiniTui.Component! child, MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.RenderContext.Theme.get -> MiniTui.Theme!
 MiniTui.ResizeEvent
 MiniTui.ResizeEvent.Deconstruct(out int Width, out int Height) -> void
@@ -783,7 +783,7 @@ MiniTui.ScrollState.SelectedText.get -> string!
 MiniTui.ScrollState.ViewportHeight.get -> int
 MiniTui.ScrollbarBuilder
 MiniTui.ScrollbarBuilder.ContentLength(int length) -> MiniTui.ScrollbarBuilder!
-MiniTui.ScrollbarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.ScrollbarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.ScrollbarBuilder.Horizontal() -> MiniTui.ScrollbarBuilder!
 MiniTui.ScrollbarBuilder.Position(int offset) -> MiniTui.ScrollbarBuilder!
 MiniTui.ScrollbarBuilder.ScrollbarBuilder() -> void
@@ -791,7 +791,7 @@ MiniTui.ScrollbarBuilder.Vertical() -> MiniTui.ScrollbarBuilder!
 MiniTui.ScrollbarBuilder.ViewportLength(int length) -> MiniTui.ScrollbarBuilder!
 MiniTui.SelectBuilder
 MiniTui.SelectBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.SelectBuilder!
-MiniTui.SelectBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.SelectBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.SelectBuilder.Focused(bool focused = true) -> MiniTui.SelectBuilder!
 MiniTui.SelectBuilder.Placeholder(string? placeholder) -> MiniTui.SelectBuilder!
 MiniTui.SelectBuilder.SelectBuilder() -> void
@@ -846,12 +846,12 @@ MiniTui.Span.Width.get -> int
 MiniTui.SparklineBuilder
 MiniTui.SparklineBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.SparklineBuilder!
 MiniTui.SparklineBuilder.Data(System.Collections.Generic.IReadOnlyList<double>! data) -> MiniTui.SparklineBuilder!
-MiniTui.SparklineBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.SparklineBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.SparklineBuilder.Max(double? max) -> MiniTui.SparklineBuilder!
 MiniTui.SparklineBuilder.SparklineBuilder() -> void
 MiniTui.SparklineBuilder.Style(MiniTui.Style style) -> MiniTui.SparklineBuilder!
 MiniTui.SpinnerBuilder
-MiniTui.SpinnerBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.SpinnerBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.SpinnerBuilder.Frames(MiniTui.SpinnerFrames frames) -> MiniTui.SpinnerBuilder!
 MiniTui.SpinnerBuilder.Label(string? label) -> MiniTui.SpinnerBuilder!
 MiniTui.SpinnerBuilder.SpinnerBuilder() -> void
@@ -861,7 +861,7 @@ MiniTui.SpinnerFrames.Braille = 1 -> MiniTui.SpinnerFrames
 MiniTui.SpinnerFrames.Dots = 2 -> MiniTui.SpinnerFrames
 MiniTui.SpinnerFrames.Line = 0 -> MiniTui.SpinnerFrames
 MiniTui.SplitBuilder
-MiniTui.SplitBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> (MiniTui.Rect First, MiniTui.Rect Second)
+MiniTui.SplitBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> (MiniTui.Rect First, MiniTui.Rect Second)
 MiniTui.SplitBuilder.Focused(bool focused = true) -> MiniTui.SplitBuilder!
 MiniTui.SplitBuilder.Style(MiniTui.Style style) -> MiniTui.SplitBuilder!
 MiniTui.SplitPane
@@ -886,7 +886,7 @@ MiniTui.SplitState.Ratio.get -> double
 MiniTui.SplitState.Ratio.set -> void
 MiniTui.SplitState.SplitState(MiniTui.Direction direction, double ratio = 0.5) -> void
 MiniTui.StatusBarBuilder
-MiniTui.StatusBarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.StatusBarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.StatusBarBuilder.Left(MiniTui.Line! text) -> MiniTui.StatusBarBuilder!
 MiniTui.StatusBarBuilder.Message(MiniTui.TimedMessage message, string! defaultText) -> MiniTui.StatusBarBuilder!
 MiniTui.StatusBarBuilder.Right(MiniTui.Line! text) -> MiniTui.StatusBarBuilder!
@@ -915,7 +915,7 @@ MiniTui.Style.Underlined() -> MiniTui.Style
 MiniTui.Style.WithBg(MiniTui.Color c) -> MiniTui.Style
 MiniTui.Style.WithFg(MiniTui.Color c) -> MiniTui.Style
 MiniTui.TabBarBuilder
-MiniTui.TabBarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.TabBarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.TabBarBuilder.Focused(bool focused = true) -> MiniTui.TabBarBuilder!
 MiniTui.TabBarBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.TabBarBuilder!
 MiniTui.TabBarBuilder.State(MiniTui.TabBarState! state) -> MiniTui.TabBarBuilder!
@@ -936,7 +936,7 @@ MiniTui.TableBuilder
 MiniTui.TableBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.ColumnSpacing(int spacing) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Columns(params MiniTui.Constraint![]! widths) -> MiniTui.TableBuilder!
-MiniTui.TableBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.TableBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.TableBuilder.Focused(bool focused = true) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Header(params MiniTui.Line![]! cells) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.HeaderStyle(MiniTui.Style style) -> MiniTui.TableBuilder!
@@ -953,7 +953,7 @@ MiniTui.Terminal
 MiniTui.Terminal.Area.get -> MiniTui.Rect
 MiniTui.Terminal.CheckResize() -> bool
 MiniTui.Terminal.Dispose() -> void
-MiniTui.Terminal.Draw(System.Action<MiniTui.Buffer!>! render) -> void
+MiniTui.Terminal.Draw(System.Action<MiniTui.CellBuffer!>! render) -> void
 MiniTui.Terminal.Height.get -> int
 MiniTui.Terminal.Invalidate() -> void
 MiniTui.Terminal.Terminal() -> void
@@ -1024,7 +1024,7 @@ MiniTui.Text.Text(System.Collections.Generic.IReadOnlyList<MiniTui.Line!>! Lines
 MiniTui.Text.Width.get -> int
 MiniTui.TextAreaBuilder
 MiniTui.TextAreaBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.TextAreaBuilder!
-MiniTui.TextAreaBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.TextAreaBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.TextAreaBuilder.Focused(bool focused = true) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaBuilder.LineNumbers(bool show = true) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaBuilder.Placeholder(string? placeholder) -> MiniTui.TextAreaBuilder!
@@ -1077,7 +1077,7 @@ MiniTui.TextAreaState.TextAreaState(string! text = "") -> void
 MiniTui.TextAreaState.Undo() -> bool
 MiniTui.TextFieldBuilder
 MiniTui.TextFieldBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.TextFieldBuilder!
-MiniTui.TextFieldBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.TextFieldBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.TextFieldBuilder.Focused(bool focused = true) -> MiniTui.TextFieldBuilder!
 MiniTui.TextFieldBuilder.Placeholder(string? placeholder) -> MiniTui.TextFieldBuilder!
 MiniTui.TextFieldBuilder.State(MiniTui.TextFieldState! state) -> MiniTui.TextFieldBuilder!
@@ -1086,6 +1086,7 @@ MiniTui.TextFieldBuilder.TextFieldBuilder() -> void
 MiniTui.TextFieldState
 MiniTui.TextFieldState.CanRedo.get -> bool
 MiniTui.TextFieldState.CanUndo.get -> bool
+MiniTui.TextFieldState.Changed -> System.EventHandler?
 MiniTui.TextFieldState.Clear() -> void
 MiniTui.TextFieldState.ClearSelection() -> void
 MiniTui.TextFieldState.Copy() -> bool
@@ -1215,12 +1216,12 @@ MiniTui.ToastQueue.Push(string! text, MiniTui.ToastLevel level = MiniTui.ToastLe
 MiniTui.ToastQueue.ToastQueue() -> void
 MiniTui.ToastQueue.ToastQueue(System.TimeProvider! time) -> void
 MiniTui.ToastsBuilder
-MiniTui.ToastsBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.ToastsBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.ToastsBuilder.Queue(MiniTui.ToastQueue! queue) -> MiniTui.ToastsBuilder!
 MiniTui.ToastsBuilder.ToastsBuilder() -> void
 MiniTui.TreeBuilder<T>
 MiniTui.TreeBuilder<T>.Block(MiniTui.BlockBuilder! block) -> MiniTui.TreeBuilder<T!>!
-MiniTui.TreeBuilder<T>.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.TreeBuilder<T>.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.TreeBuilder<T>.Focused(bool focused = true) -> MiniTui.TreeBuilder<T!>!
 MiniTui.TreeBuilder<T>.Format(System.Func<T!, MiniTui.Line!>! format) -> MiniTui.TreeBuilder<T!>!
 MiniTui.TreeBuilder<T>.Guides(bool guides = true) -> MiniTui.TreeBuilder<T!>!
@@ -1299,7 +1300,7 @@ MiniTui.WrapMode
 MiniTui.WrapMode.Char = 2 -> MiniTui.WrapMode
 MiniTui.WrapMode.None = 0 -> MiniTui.WrapMode
 MiniTui.WrapMode.Word = 1 -> MiniTui.WrapMode
-abstract MiniTui.Component.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+abstract MiniTui.Component.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 abstract MiniTui.Constraint.<Clone>$() -> MiniTui.Constraint!
 abstract MiniTui.Event.<Clone>$() -> MiniTui.Event!
 override MiniTui.Axis.Equals(object? obj) -> bool
@@ -1319,7 +1320,7 @@ override MiniTui.CommandLineOverlay.CapturesText.get -> bool
 override MiniTui.CommandLineOverlay.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.CommandLineOverlay.HandlePaste(string! text) -> bool
 override MiniTui.CommandLineOverlay.Placement(MiniTui.Rect screen) -> MiniTui.Rect
-override MiniTui.CommandLineOverlay.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.CommandLineOverlay.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.CommandLineOverlay.Title.get -> string?
 override MiniTui.CommandLineState.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.CommandPalette.CapturesText.get -> bool
@@ -1329,7 +1330,7 @@ override MiniTui.CommandPalette.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.CommandPalette.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.CommandPalette.HandlePaste(string! text) -> bool
 override MiniTui.CommandPalette.Placement(MiniTui.Rect screen) -> MiniTui.Rect
-override MiniTui.CommandPalette.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.CommandPalette.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.CommandPalette.Title.get -> string?
 override MiniTui.CommandResult.Equals(object? obj) -> bool
 override MiniTui.CommandResult.GetHashCode() -> int
@@ -1337,7 +1338,7 @@ override MiniTui.CommandResult.ToString() -> string!
 override MiniTui.ConfirmDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.ConfirmDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.ConfirmDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
-override MiniTui.ConfirmDialog.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.ConfirmDialog.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.ConfirmDialog.Title.get -> string?
 override MiniTui.Constraint.Equals(object? obj) -> bool
 override MiniTui.Constraint.GetHashCode() -> int
@@ -1354,7 +1355,7 @@ override MiniTui.HelpOverlay.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.HelpOverlay.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.HelpOverlay.HasSelection.get -> bool
 override MiniTui.HelpOverlay.Placement(MiniTui.Rect screen) -> MiniTui.Rect
-override MiniTui.HelpOverlay.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.HelpOverlay.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.HelpOverlay.Title.get -> string?
 override MiniTui.KeyBinding.GetHashCode() -> int
 override MiniTui.KeyBinding.ToString() -> string!
@@ -1376,7 +1377,7 @@ override MiniTui.MessageDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.MessageDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.MessageDialog.HasSelection.get -> bool
 override MiniTui.MessageDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
-override MiniTui.MessageDialog.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.MessageDialog.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.MessageDialog.Title.get -> string?
 override MiniTui.MouseEvent.<Clone>$() -> MiniTui.MouseEvent!
 override MiniTui.MouseEvent.Equals(object? obj) -> bool
@@ -1399,7 +1400,7 @@ override MiniTui.PopupMenu.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.PopupMenu.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.PopupMenu.KeysGroup.get -> string!
 override MiniTui.PopupMenu.Placement(MiniTui.Rect screen) -> MiniTui.Rect
-override MiniTui.PopupMenu.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.PopupMenu.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.Rect.GetHashCode() -> int
 override MiniTui.ResizeEvent.<Clone>$() -> MiniTui.ResizeEvent!
 override MiniTui.ResizeEvent.Equals(object? obj) -> bool
@@ -1492,7 +1493,7 @@ static MiniTui.CommandResult.Ok(string! message) -> MiniTui.CommandResult!
 static MiniTui.CommandResult.Quit(string? message = null) -> MiniTui.CommandResult!
 static MiniTui.CommandResult.operator !=(MiniTui.CommandResult? left, MiniTui.CommandResult? right) -> bool
 static MiniTui.CommandResult.operator ==(MiniTui.CommandResult? left, MiniTui.CommandResult? right) -> bool
-static MiniTui.Component.From(System.Action<MiniTui.Buffer!, MiniTui.Rect, MiniTui.RenderContext!>! render, System.Func<System.ConsoleKeyInfo, bool>? handleKey = null, bool capturesText = false) -> MiniTui.Component!
+static MiniTui.Component.From(System.Action<MiniTui.CellBuffer!, MiniTui.Rect, MiniTui.RenderContext!>! render, System.Func<System.ConsoleKeyInfo, bool>? handleKey = null, bool capturesText = false) -> MiniTui.Component!
 static MiniTui.Constraint.Fill(int weight = 1) -> MiniTui.Constraint!
 static MiniTui.Constraint.Length(int cells) -> MiniTui.Constraint!
 static MiniTui.Constraint.Max(int cells) -> MiniTui.Constraint!
