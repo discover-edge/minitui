@@ -31,9 +31,9 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Text area as an editor (`TabIndents`, `AutoIndent`, `LineNumbers`, a scrollbar, Ctrl+F find) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §16
 - [x] Double-click and hover (`ClickCount`, `SelectionState.Activated`, `WithHover`, `ctx.Hover`, `Theme.Hover`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §17
 - [x] Tree extras (`Reveal`, `Filter`, `Checkboxes`, `TreeState.Async`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §18
+- [x] Chart extras (grouped and stacked bars, `Axis.Time`, `Axis.Duration`, `Ticks`, `Grid`, `GraphType.Area`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §19
 
 ## Backlog
 Ideas not specced yet, ranked by value in [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §1.1:
 
-- [ ] Chart extras: grouped/stacked bars, time axes, grid lines, area charts
 - [ ] Clipboard extras: OSC 52 read, Ctrl/Shift+Insert, selecting text in paragraphs and logs

@@ -192,6 +192,30 @@ public sealed class CanvasPainter
         if (_visible.Contains((int)cellX, (int)cellY)) _labels.Add(((int)cellX, (int)cellY, text));
     }
 
+    /// <summary>
+    /// Fill every dot column under the line between two points down to the bottom of the canvas, the line's height
+    /// interpolated at each column (1.x spec §19.6). Used by area charts.
+    /// </summary>
+    internal void FillBelow(double x1, double y1, double x2, double y2, Style style)
+    {
+        if (!_valid || !double.IsFinite(x1) || !double.IsFinite(y1) || !double.IsFinite(x2) || !double.IsFinite(y2)) return;
+        if (x2 < x1) (x1, y1, x2, y2) = (x2, y2, x1, y1);
+        if (x2 < _xMin || x1 > _xMax) return;
+
+        var from = Math.Max(_windowLeft, (long)Math.Round(ToDot(Math.Max(x1, _xMin), 0).X));
+        var to = Math.Min(_windowRight, (long)Math.Round(ToDot(Math.Min(x2, _xMax), 0).X));
+        var bottom = Math.Min(_dotHeight - 1, _windowBottom);
+        for (var col = from; col <= to; col++)
+        {
+            // The line's value at this column, then its dot row; a value under the bounds fills nothing
+            var x = _xMin + (double)col / Math.Max(1, _dotWidth - 1) * (_xMax - _xMin);
+            var y = x2 == x1 ? Math.Max(y1, y2) : y1 + (y2 - y1) * Math.Clamp((x - x1) / (x2 - x1), 0, 1);
+            if (y < _yMin) continue;
+            var top = Math.Max(_windowTop, (long)Math.Round(ToDot(x, Math.Min(y, _yMax)).Y));
+            for (var dy = top; dy <= bottom; dy++) SetDot(col, dy, style);
+        }
+    }
+
     /// <summary>Draw the dots, then the text, with each style patched over <paramref name="style"/>.</summary>
     internal void Render(Buffer buf, Style style)
     {

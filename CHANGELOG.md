@@ -10,7 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Grouped and stacked bar charts: `BarChartBuilder.Groups(new BarGroup(label, bars), ...)` draws each group's bars side by side, with `GroupGap` between groups and the group's label under them, or, with `Stacked()`, as one bar of segments from the bottom up (left to right), whole cells between segments and eighths at the top, with the group's total in its top cell. Bar i of each group is series i, colored from `Theme.ChartSeries` unless it has its own style. `Max` defaults to the largest bar, or the largest total when stacked.
 - `BarChartBuilder.Legend(position)`: a legend of the groups' series (the first group's bar labels), in a corner as `Chart`'s.
-- Example: `g` in the Charts demo cycles the requests chart between single, grouped and stacked bars (GET, POST and DELETE).
+- `Axis.LabelCount` (default 3) and `Axis.Formatter`, which formats the default labels instead of `LabelFormat`.
+- Time axes: `Axis.Time(format)` labels values as local times (seconds since the Unix epoch) and `Axis.Duration(format)` as durations in seconds, with `-` before negatives. `ChartTime.ToValue` and `FromValue` convert times and durations to and from chart values.
+- `Axis.Ticks`: `┬` on the X axis and `┤` on the Y axis at each label. `Axis.Grid`: dotted lines (`┈ ┊ ┼`) across the plot at each label, behind the data, except beside the other axis.
+- `GraphType.Area`: a line with the dots under it filled down to the bottom of the plot.
+- Example: `g` in the Charts demo cycles the requests chart between single, grouped and stacked bars (GET, POST and DELETE), the line chart's X axis is the last 10 s as a duration axis with ticks and a Y grid, and `a` toggles areas.
 - `docs/SPEC-1.x.md` §19: the chart extras spec.
 
 ## [1.13.0] - 2026-11-03

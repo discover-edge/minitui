@@ -10,6 +10,9 @@ public enum GraphType
 
     /// <summary>The points only.</summary>
     Scatter,
+
+    /// <summary>A line with the dots under it filled down to the bottom of the plot (1.x spec §19.6).</summary>
+    Area,
 }
 
 /// <summary>A series of (x, y) values for a <see cref="ChartBuilder"/> (1.x spec §8.2).</summary>
@@ -39,11 +42,58 @@ public sealed record Axis
     /// <summary>The value at the end of the axis, or null for the largest value in the data.</summary>
     public double? Max { get; init; }
 
-    /// <summary>Labels spread evenly along the axis, or null for <see cref="Min"/>, the middle and <see cref="Max"/>.</summary>
+    /// <summary>
+    /// Labels spread evenly along the axis, or null for <see cref="LabelCount"/> of them from <see cref="Min"/> to
+    /// <see cref="Max"/>.
+    /// </summary>
     public IReadOnlyList<string>? Labels { get; init; }
 
     /// <summary>The .NET numeric format of the default labels, in the invariant culture. Default <c>"0.##"</c>.</summary>
     public string LabelFormat { get; init; } = "0.##";
+
+    /// <summary>How many labels to spread along the axis when <see cref="Labels"/> is null. Default 3, at least 2.</summary>
+    public int LabelCount { get; init; } = 3;
+
+    /// <summary>Formats the default labels' values, instead of <see cref="LabelFormat"/> (1.x spec §19.4).</summary>
+    public Func<double, string>? Formatter { get; init; }
+
+    /// <summary>Draw a tick on the axis line at each label: <c>┬</c> on the X axis, <c>┤</c> on the Y axis (1.x spec §19.5).</summary>
+    public bool Ticks { get; init; }
+
+    /// <summary>Draw a dotted line across the plot at each label, behind the data (1.x spec §19.5).</summary>
+    public bool Grid { get; init; }
+
+    /// <summary>
+    /// An axis of times: values are seconds since the Unix epoch (<see cref="ChartTime"/>), labelled in local time
+    /// with a <see cref="DateTime"/> <paramref name="format"/> in the invariant culture (1.x spec §19.4).
+    /// </summary>
+    public static Axis Time(string format = "HH:mm:ss") => new()
+    {
+        Formatter = v => double.IsFinite(v) ? ChartTime.FromValue(v).ToLocalTime().ToString(format, CultureInfo.InvariantCulture) : "",
+    };
+
+    /// <summary>
+    /// An axis of durations: values are seconds, labelled with a <see cref="TimeSpan"/> <paramref name="format"/>,
+    /// with <c>-</c> before negative ones (1.x spec §19.4).
+    /// </summary>
+    public static Axis Duration(string format = @"m\:ss") => new()
+    {
+        Formatter = v => !double.IsFinite(v) || Math.Abs(v) > TimeSpan.MaxValue.TotalSeconds ? ""
+            : (v < 0 && Math.Round(v) != 0 ? "-" : "") + TimeSpan.FromSeconds(Math.Round(Math.Abs(v))).ToString(format, CultureInfo.InvariantCulture),
+    };
+}
+
+/// <summary>Times as chart values: seconds since the Unix epoch, and durations as seconds (1.x spec §19.4).</summary>
+public static class ChartTime
+{
+    /// <summary>A time as seconds since the Unix epoch.</summary>
+    public static double ToValue(DateTimeOffset time) => (time - DateTimeOffset.UnixEpoch).TotalSeconds;
+
+    /// <summary>The time a value made by <see cref="ToValue(DateTimeOffset)"/> stands for, in UTC.</summary>
+    public static DateTimeOffset FromValue(double value) => DateTimeOffset.UnixEpoch + TimeSpan.FromSeconds(value);
+
+    /// <summary>A duration as seconds.</summary>
+    public static double ToValue(TimeSpan duration) => duration.TotalSeconds;
 }
 
 /// <summary>Where a <see cref="ChartBuilder"/> draws its legend.</summary>
@@ -126,6 +176,8 @@ public sealed class ChartBuilder
 
         buf.SetStyle(inner.Intersect(buf.Area), style);
         if (axes) DrawAxes(buf, plot, theme.Border);
+        if (axes) DrawTicks(buf, plot, xLabels.Count, yLabels.Count, theme.Border);
+        DrawGrid(buf, plot, xLabels.Count, yLabels.Count, theme.Border.Patch(theme.TextMuted));
         if (labels)
         {
             DrawYLabels(buf, plot, inner.X, yLabels, style.Patch(theme.TextMuted));
@@ -142,7 +194,11 @@ public sealed class ChartBuilder
             if (dataset.Type == GraphType.Scatter || data.Count == 1) painter.Points(data, dataStyle);
             else
             {
-                for (var p = 1; p < data.Count; p++) painter.Line(data[p - 1].X, data[p - 1].Y, data[p].X, data[p].Y, dataStyle);
+                for (var p = 1; p < data.Count; p++)
+                {
+                    if (dataset.Type == GraphType.Area) painter.FillBelow(data[p - 1].X, data[p - 1].Y, data[p].X, data[p].Y, dataStyle);
+                    painter.Line(data[p - 1].X, data[p - 1].Y, data[p].X, data[p].Y, dataStyle);
+                }
             }
             painter.Render(buf, style);
         }
@@ -171,6 +227,34 @@ public sealed class ChartBuilder
         buf.SetString(plot.X - 1, plot.Bottom, "└", style, 1);
         var clip = new Rect(plot.X, plot.Bottom, plot.Width, 1).Intersect(buf.Area);
         for (var x = clip.X; x < clip.Right; x++) buf.SetString(x, plot.Bottom, "─", style, 1);
+    }
+
+    // 1.x spec §19.5: ┬ on the X axis and ┤ on the Y axis at each label position
+    private void DrawTicks(Buffer buf, Rect plot, int xCount, int yCount, Style style)
+    {
+        if (_xAxis.Ticks)
+        {
+            for (var i = 0; i < xCount; i++) buf.SetString(plot.X + Spread(i, xCount, plot.Width), plot.Bottom, "┬", style, 1);
+        }
+        if (_yAxis.Ticks)
+        {
+            for (var i = 0; i < yCount; i++) buf.SetString(plot.X - 1, plot.Bottom - 1 - Spread(i, yCount, plot.Height), "┤", style, 1);
+        }
+    }
+
+    // Dotted lines across the plot at each label position, but not the first, which is beside the other axis
+    private void DrawGrid(Buffer buf, Rect plot, int xCount, int yCount, Style style)
+    {
+        var columns = _xAxis.Grid ? Enumerable.Range(1, Math.Max(0, xCount - 1)).Select(i => plot.X + Spread(i, xCount, plot.Width)).ToHashSet() : [];
+        var rows = _yAxis.Grid ? Enumerable.Range(1, Math.Max(0, yCount - 1)).Select(i => plot.Bottom - 1 - Spread(i, yCount, plot.Height)).ToHashSet() : [];
+        if (columns.Count == 0 && rows.Count == 0) return;
+        var visible = plot.Intersect(buf.Area);
+        for (var y = visible.Y; y < visible.Bottom; y++)
+        for (var x = visible.X; x < visible.Right; x++)
+        {
+            var (column, row) = (columns.Contains(x), rows.Contains(y));
+            if (column || row) buf.SetString(x, y, column && row ? "┼" : column ? "┊" : "┈", style, 1);
+        }
     }
 
     // Right-aligned left of the axis, the first on the bottom row and the last on the top one
@@ -253,8 +337,9 @@ public sealed class ChartBuilder
     private static List<string> Labels(Axis axis, (double Min, double Max) bounds)
     {
         if (axis.Labels is { } labels) return [.. labels.Select(l => Sanitizer.SingleLine(l ?? ""))];
-        string Format(double v) => v.ToString(axis.LabelFormat, CultureInfo.InvariantCulture);
-        return [Format(bounds.Min), Format((bounds.Min + bounds.Max) / 2), Format(bounds.Max)];
+        string Format(double v) => Sanitizer.SingleLine(axis.Formatter?.Invoke(v) ?? v.ToString(axis.LabelFormat, CultureInfo.InvariantCulture));
+        var count = Math.Max(2, axis.LabelCount);
+        return [.. Enumerable.Range(0, count).Select(i => Format(bounds.Min + (bounds.Max - bounds.Min) * i / (count - 1)))];
     }
 
     private static string Title(Axis axis) => Sanitizer.SingleLine(axis.Title ?? "");
