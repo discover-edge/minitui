@@ -215,6 +215,9 @@ public class TextFieldState
     {
         var ctrl = KeyInput.HasControl(key);
         var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
+        // 1.x spec §20.4: Ctrl+Insert copies (and never quits), Shift+Insert pastes, Shift+Delete cuts
+        if (key.Key == ConsoleKey.Insert && ctrl != shift) return ctrl ? Copy() : MiniTui.Clipboard.PasteInto(Paste);
+        if (key.Key == ConsoleKey.Delete && shift && !ctrl && Cut()) return true;
         switch (key.Key)
         {
             case ConsoleKey.LeftArrow:
@@ -261,7 +264,7 @@ public class TextFieldState
         }
         if (KeyInput.IsCtrlC(key)) return Copy();
         if (KeyInput.IsCtrl(key, 'X')) return Cut();
-        if (KeyInput.IsCtrl(key, 'V')) return Paste(MiniTui.Clipboard.GetText() ?? "");
+        if (KeyInput.IsCtrl(key, 'V')) return MiniTui.Clipboard.PasteInto(Paste);
         if (KeyInput.IsCtrlZ(key))
         {
             Undo();

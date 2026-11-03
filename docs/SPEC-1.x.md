@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -48,6 +48,7 @@ or add to them:
 | **23. Double-click and hover** | `MouseEvent.ClickCount` counted by the app (`WithDoubleClickTime`): double-click selects a word and triple-click a line in text states, and activates list, table and tree rows (`SelectionState.Activated`). Opt-in hover (`WithHover`, `?1003`, `MouseAction.Move`): `ctx.Hover` and `.Hover()` on rows, buttons, checkboxes and tabs (`Theme.Hover`), and menus that follow the pointer. Backlog rank 7. | 10, 16 | §17 | 1.12.0 |
 | **24. Tree extras** | `TreeState.Reveal(path)`; `Filter` showing matches and their ancestors, opened; tri-state `Checkboxes` (Space, a click, `CheckedNodes`, `CheckedChanged`); async children with a loader, `Loading…` and errors on the row, and `Reload`. Backlog rank 8. | 17 | §18 | 1.13.0 |
 | **25. Chart extras** | Grouped and stacked bar charts (`BarGroup`, `Groups`, `Stacked`, `GroupGap`) with a series legend; time and duration axes (`Axis.Time`, `Axis.Duration`, `ChartTime`, `Formatter`, `LabelCount`); tick marks and grid lines (`Ticks`, `Grid`); area charts (`GraphType.Area`). Backlog rank 9. | 14 | §19 | 1.14.0 |
+| **26. Clipboard and selection extras** | Reading the Unix clipboard with an OSC 52 query (`WithClipboardRead`, `Clipboard.GetTextAsync`); Ctrl+Insert, Shift+Insert and Shift+Delete; selecting text in paragraphs with the mouse (`ScrollState.Selectable`, `Component.HasSelection`), including the message and help dialogs. Backlog rank 10. | 12, 16, 23 | §20 | 1.15.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -70,7 +71,7 @@ picked, as in §0 rule 3.
 | 7 | **Hover and double-click** (Phase 23, §17). Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
 | 8 | **Tree extras** (Phase 24, §18). Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
 | 9 | **Chart extras** (Phase 25, §19). Grouped and stacked bar charts, time axes (`DateTime` and `TimeSpan`), tick marks and grid lines, and area charts. | Dashboards want them, but the 1.4 charts cover the common cases. | §8.11 | 14 |
-| 10 | **Clipboard and selection extras.** Reading the Unix clipboard through OSC 52 queries (needs rank 6), Ctrl+Insert, Shift+Insert and Shift+Delete, and selecting text in paragraphs and the log view. | Edge cases. Terminals' own Shift+drag already selects screen text. | §10.12 | 16 |
+| 10 | **Clipboard and selection extras** (Phase 26, §20). Reading the Unix clipboard through OSC 52 queries (needs rank 6), Ctrl+Insert, Shift+Insert and Shift+Delete, and selecting text in paragraphs and the log view. | Edge cases. Terminals' own Shift+drag already selects screen text. | §10.12 | 16 |
 
 Ranks 1 and 6 share the reply parser, so they could be one phase, with rank 6 first. Ranks 3 and 7 both build on
 mouse motion.
@@ -4442,3 +4443,182 @@ Two PRs:
    and `GraphType.Area`; the demo's duration axis, grid and `a`; README; CHANGELOG; the manual QA.
 
 Both go out in one release (1.14.0).
+
+---
+
+## 20. Clipboard and selection extras (Phase 26)
+
+### 20.1 Purpose
+
+Phase 16 (§10) left a few clipboard and selection cases out (§10.12), and they're the last item on the backlog
+(rank 10, §1.1):
+- **Reading the system clipboard on Unix.** Ctrl+V pastes only what the app itself copied, because reading the
+  system clipboard needs an OSC 52 query and a reply parser. Phase 18 (§12) built the parser.
+- **The Insert keys:** Ctrl+Insert (copy), Shift+Insert (paste) and Shift+Delete (cut), the IBM CUA keys that
+  Windows and many terminal users still reach for.
+- **Selecting text that isn't editable:** paragraphs, such as a log or a detail pane. Terminals' own Shift+drag
+  selects screen text, but it takes borders and neighbouring panes with it.
+
+### 20.2 Public API
+
+```csharp
+public static class Clipboard
+{
+    // Existing members unchanged
+
+    /// The system clipboard's text where it can be read (§20.3): on Windows the Win32 clipboard; on Unix, with
+    /// App.WithClipboardRead, an OSC 52 query to the running app's terminal. Otherwise, or when the terminal doesn't
+    /// answer in time, GetText().
+    public static Task<string?> GetTextAsync(CancellationToken cancellationToken = default);
+}
+
+public class App
+{
+    /// Ask the terminal for its clipboard (OSC 52) when Ctrl+V or Shift+Insert pastes on Linux and macOS (§20.3).
+    /// Off by default: many terminals refuse, and some ask the user each time.
+    public App WithClipboardRead(bool enabled = true);
+}
+
+public abstract class Component
+{
+    /// True while the component has something selected to copy. Ctrl+C and Ctrl+Insert go to its HandleKey first,
+    /// as they do for a component that captures text (§10.4, §20.5).
+    public virtual bool HasSelection => false;
+}
+
+public class ScrollState
+{
+    // Existing members unchanged
+
+    /// Let the mouse select the text: a press and drag select, a double-click a word, a triple-click a row (§20.5).
+    /// Off by default.
+    public bool Selectable { get; set; }
+
+    public bool HasSelection { get; }
+    public string SelectedText { get; }      // the selected part of the rows, a line break between rows
+    public void SelectAll();
+    public void ClearSelection();
+
+    /// Copy the selection to the Clipboard. False, doing nothing, without one.
+    public bool Copy();
+}
+```
+
+- `ScrollState.HandleKey` also takes Ctrl+C and Ctrl+Insert (copy, only with a selection) and Ctrl+A (select all)
+  when `Selectable`, and Esc clears a selection (unhandled without one, so it still goes back).
+- `ParagraphBuilder` draws the selection with `Theme.Selection` (or `SelectionUnfocused`) when its state has one.
+
+### 20.3 Reading the clipboard on Unix
+
+- **The query:** with `WithClipboardRead`, `GetTextAsync` writes `ESC ] 52 ; c ; ? BEL` to the running app's
+  terminal (under the backend's lock, as writes are, §10.5), then waits for the reply.
+- **The reply:** `ESC ] 52 ; c ; <base64> BEL` (or ST). The decoder turns it into an internal reply, never keys,
+  like the Phase 18 replies (§12.3). The base64 is decoded as UTF-8; the text is returned as is (a paste then
+  normalizes it).
+- **When it fails:** an empty reply (some terminals answer that way when they refuse), invalid base64, or no reply
+  within 500 ms all give `GetText()`, the in-app text. After a timeout, the app stops asking for the rest of the run,
+  so a terminal that ignores the query costs one delay, not one per paste. A refusal is answered quickly, so it
+  doesn't stop the asking.
+- **Where it works:** xterm with `allowWindowOps` (or `disallowedWindowOps` without `GetSelection`), kitty (asks the
+  user unless `clipboard_control` allows `read-clipboard`), WezTerm, foot, iTerm2 (with "Applications in terminal
+  may access clipboard"), and tmux 3.3+ with `set -s set-clipboard on`. GNOME Terminal and Windows Terminal (through
+  WSL) don't answer. The README lists these.
+- **Ctrl+V and Shift+Insert in the text states:** when the app reads the clipboard asynchronously, the key starts
+  the read (through `App.RunTask`) and returns true; the paste happens when the text arrives, at the cursor and
+  selection as they are then. Otherwise it pastes at once, as today.
+- **Windows:** `GetTextAsync` is the Win32 read, as `GetText` is; `WithClipboardRead` changes nothing there.
+- **Without an app** (a state used in a test): `GetTextAsync` is `GetText()`.
+
+### 20.4 The Insert keys
+
+| Key | In a text field, text area or command line | In a selectable paragraph |
+|---|---|---|
+| Ctrl+Insert | Copy the selection (as Ctrl+C; unhandled without one, but it never quits) | Copy the selection |
+| Shift+Insert | Paste (as Ctrl+V) | — |
+| Shift+Delete | Cut the selection; without one, delete the next cluster, as Delete | — |
+
+- The decoder already reports Insert and Delete with modifiers (`CSI 2 ; m ~`, `CSI 3 ; m ~`, §2.5), and Windows
+  reports them as keys. Many terminals take Shift+Insert for their own paste (xterm pastes the primary selection,
+  Windows Terminal its clipboard): then it arrives as a paste, which the states handle the same way.
+- These are a "Changed" entry: Ctrl+Insert, Shift+Insert and Shift+Delete used to be unhandled by the text states
+  (Shift+Delete deleted a cluster).
+
+### 20.5 Selecting paragraph text
+
+- **Positions** are cells of the rows the paragraph drew last (after wrapping): a row and a display column.
+  Wide characters are selected whole.
+- **The mouse,** with `Selectable`: a left press in the text clears the selection and anchors a new one; a drag
+  extends it to the pointer, scrolling a row at a time past the top or bottom, as in a text area (§10.7). A
+  double-click selects the word under the pointer (`TextFieldState`'s word rule, §17.4), and a triple-click the row.
+  The wheel and the scrollbar still scroll, and keep the selection.
+- **`SelectedText`** is the selected part of each row, with `\n` between rows: the text as it's shown, so a
+  wrapped line copies as several. Trailing spaces of a row are kept.
+- **Drawing:** the selected cells get `Theme.Selection` when the paragraph's block is focused, otherwise
+  `Theme.SelectionUnfocused`, patched over the text.
+- **When the text changes** (a log grows): the selection is kept by row and column, so it stays where it was on
+  screen relative to the text, until the next press. If the rows it covered are gone, it's cleared.
+- **Ctrl+C:** the §10.4 step now sends Ctrl+C (and Ctrl+Insert) to the focused component's `HandleKey` when it
+  `CapturesText` or `HasSelection`. A component around a selectable `ScrollState` overrides
+  `HasSelection => State.HasSelection`. With nothing selected, Ctrl+C still quits.
+- **Built in:** the message and help dialogs' text is selectable, so an error message can be copied.
+
+### 20.6 Example
+
+- The Dashboard demo's log panel becomes a selectable component: drag to select lines, Ctrl+C to copy, Ctrl+A for
+  all, Esc to clear.
+- The Form demo's footer mentions Shift+Insert and Ctrl+Insert.
+- The example turns on `WithClipboardRead`.
+
+### 20.7 Tests and acceptance
+
+Automated:
+- **OSC 52 replies:** decoding with BEL and ST, split across reads, invalid base64, empty, and never as keys.
+- **`GetTextAsync`:** the query bytes; a reply resolves it; an empty reply and a timeout fall back to the in-app text;
+  no more queries after a timeout; cancellation; without `WithClipboardRead`; without an app; Windows through the
+  reader hook.
+- **Ctrl+V and Shift+Insert with an async read** through `AppHarness`: the paste lands at the cursor when the reply
+  arrives, and a selection made meanwhile is replaced.
+- **Insert keys** in the three text states: copy without quitting, paste, cut, Shift+Delete without a selection.
+- **Paragraph selection:** press, drag both ways, past the top and bottom, double- and triple-click, wide
+  characters, `SelectedText` across rows, `SelectAll`, Esc, the wheel keeping it, text that grows and shrinks,
+  drawing focused and unfocused, `Selectable` off.
+- **Ctrl+C routing:** a component with `HasSelection` copies; without a selection the app quits; Ctrl+Insert never
+  quits; the dialogs.
+
+Manual QA (results in the PR): Ctrl+V reading the clipboard in kitty, WezTerm or foot, and in tmux with
+`set-clipboard on`; the fallback in GNOME Terminal; the Insert keys in Windows Terminal and conhost; selecting the
+Dashboard log with the mouse and pasting it elsewhere.
+
+### 20.8 Migration impact
+
+- New public API (§20.2) in `PublicAPI.Unshipped.txt`.
+- **Changed:** the Insert keys in text states (§20.4); Ctrl+C reaches a focused component with `HasSelection`; the
+  message and help dialogs handle a drag and a double-click (selecting) where they ignored them.
+- README: `WithClipboardRead` and the terminals that support it, the Insert keys, and selectable paragraphs.
+
+### 20.9 Out of scope
+
+- X11's primary selection (select to copy, middle-click to paste), and copying on select.
+- Keyboard selection in paragraphs (Shift+arrows need a cursor the paragraph doesn't have).
+- Selecting across several components or the whole screen, and in lists, tables and trees.
+- Copying a wrapped line as one line (the paragraph doesn't keep where it wrapped).
+- Rich (HTML) or image clipboard content.
+
+### 20.10 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | OSC 52 reads: opt-in (`WithClipboardRead`) or on by default? | **Opt-in** (§20.3): kitty and iTerm2 prompt the user, and terminals that ignore it cost a 500 ms delay once. The example turns it on. |
+| 2 | How long to wait for the reply before falling back? | **500 ms**, and stop asking after one timeout. |
+| 3 | Paragraph selection: copy rows as shown (a line break per row), or rejoin wrapped lines? | **As shown** (§20.5), as terminals copy; the paragraph doesn't keep where it wrapped. |
+| 4 | Make the message and help dialogs selectable? | **Yes** (§20.5): copying an error message is the most common case. |
+
+### 20.11 Implementation order
+
+Two PRs:
+1. **26a** (clipboard): the OSC 52 reply, `GetTextAsync`, `WithClipboardRead`, the async paste in the text states,
+   the Insert keys; the example's `WithClipboardRead` and footer; README; CHANGELOG.
+2. **26b** (selection): `Component.HasSelection` and the Ctrl+C step; `ScrollState` selection, keys and mouse;
+   `ParagraphBuilder` drawing; the dialogs; the Dashboard log; README; CHANGELOG; the manual QA.
+
+Both go out in one release (1.15.0).

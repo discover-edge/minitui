@@ -24,6 +24,31 @@ public static class Clipboard
     /// </summary>
     public static string? GetText() => t_target?.Read?.Invoke() ?? s_text;
 
+    /// <summary>
+    /// The system clipboard's text where it can be read (1.x spec §20.3): the Win32 clipboard on Windows, and on Linux
+    /// and macOS with <see cref="App.WithClipboardRead"/>, the running app's terminal through an OSC 52 query.
+    /// Otherwise, or when the terminal refuses or doesn't answer in time, <see cref="GetText"/>.
+    /// </summary>
+    public static async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
+    {
+        if (t_target?.ReadAsync is not { } read) return GetText();
+        return await read(cancellationToken).ConfigureAwait(true) ?? s_text;
+    }
+
+    /// <summary>
+    /// Ctrl+V and Shift+Insert in the text states: paste the clipboard now, or, when it's read from the terminal,
+    /// when the reply arrives (through <see cref="App.RunTask"/>).
+    /// </summary>
+    internal static bool PasteInto(Func<string, bool> paste)
+    {
+        if (t_target?.ReadAsync is not null && App.Current is { } app)
+        {
+            _ = app.RunTask(async ct => paste(await GetTextAsync(ct).ConfigureAwait(true) ?? ""));
+            return true;
+        }
+        return paste(GetText() ?? "");
+    }
+
     /// <summary>The running app's system clipboard, for the given backend; null for in-app only.</summary>
     internal static Target? For(ITerminalBackend? backend)
     {
@@ -40,7 +65,11 @@ public static class Clipboard
     internal static void Reset() => s_text = null;
 
     /// <summary>Where text goes and comes from besides the in-app clipboard.</summary>
-    internal sealed record Target(Action<string>? Write, Func<string?>? Read);
+    internal sealed record Target(Action<string>? Write, Func<string?>? Read)
+    {
+        /// <summary>Reads the terminal's clipboard: null when it refused or didn't answer (1.x spec §20.3).</summary>
+        public Func<CancellationToken, Task<string?>>? ReadAsync { get; init; }
+    }
 
     internal readonly struct Scope : IDisposable
     {

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `App.WithClipboardRead()`: on Linux and macOS, Ctrl+V (and Shift+Insert) in text fields, text areas and command lines asks the terminal for its clipboard with an OSC 52 query and pastes the reply when it arrives. A refusal (an empty reply) pastes the in-app text; no reply within 500 ms does too, and the app stops asking for the rest of the run. The decoder reads OSC 52 replies of any length, never as keys. `Clipboard.GetTextAsync()` reads the same way from code (the Win32 clipboard on Windows).
+- Ctrl+Insert copies the selection (and never quits), Shift+Insert pastes, and Shift+Delete cuts (or deletes, without a selection) in text fields, text areas and command lines.
+- Example: the example app reads the clipboard through the terminal, and the Form demo's footer lists the Insert keys.
+- `docs/SPEC-1.x.md` §20: the clipboard and selection extras spec.
+
+### Changed
+- Ctrl+Insert and Shift+Insert used to be unhandled in the text states, and Shift+Delete deleted a cluster even with a selection.
+
 ## [1.14.0] - 2026-11-03
 
 MiniTui 1.14: grouped and stacked bar charts, time and duration axes, tick marks and grid lines, and area charts.

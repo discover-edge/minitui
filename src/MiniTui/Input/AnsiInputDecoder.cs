@@ -30,6 +30,9 @@ internal sealed class AnsiInputDecoder
     private const int MaxStringLength = 4096;
     private static ReadOnlySpan<byte> PasteStart => "\e[200~"u8;
     private static ReadOnlySpan<byte> PasteEnd => "\e[201~"u8;
+    private static ReadOnlySpan<byte> ClipboardStart => "\e]52;"u8;
+    private const int MaxClipboardLength = 64 * 1024 * 1024;
+    private static readonly TimeSpan ClipboardTimeout = TimeSpan.FromSeconds(1);
 
     // A held prefix is at most an unterminated OSC/DCS string, so this never grows
     private readonly byte[] _pending = new byte[MaxStringLength * 2];
@@ -42,10 +45,16 @@ internal sealed class AnsiInputDecoder
     private int _pasteCount;
     private bool _inPaste;
 
+    // Clipboard mode (1.x spec §20.3): an OSC 52 reply's body since ESC ] 52 ;, which can be far longer than other
+    // strings. Ends at BEL or ESC \; a byte that can't be in it, or a second without input, abandons it.
+    private readonly List<byte> _clipboard = [];
+    private bool _inClipboard;
+    private bool _clipboardEsc;
+
     public AnsiInputDecoder(TimeSpan escapeTimeout) => _escapeTimeout = escapeTimeout;
 
     /// <summary>When held bytes must be resolved, or null if none are held. A paste never times out.</summary>
-    public TimeSpan? Deadline => _pendingCount > 0 ? _lastByte + _escapeTimeout : null;
+    public TimeSpan? Deadline => _inClipboard ? _lastByte + ClipboardTimeout : _pendingCount > 0 ? _lastByte + _escapeTimeout : null;
 
     /// <summary>Decode <paramref name="bytes"/>, which arrived at <paramref name="now"/>.</summary>
     public void Feed(ReadOnlySpan<byte> bytes, TimeSpan now, IInputSink sink)
@@ -60,13 +69,18 @@ internal sealed class AnsiInputDecoder
                 bytes = bytes[FeedPaste(bytes, sink)..];
                 continue;
             }
+            if (_inClipboard)
+            {
+                bytes = bytes[FeedClipboard(bytes, sink)..];
+                continue;
+            }
 
             if (_pendingCount == 0)
             {
                 // Common case: decode straight from the caller's span and hold only the incomplete tail
                 var consumed = DecodeAll(bytes, final: false, sink);
                 bytes = bytes[consumed..];
-                if (_inPaste) continue;
+                if (_inPaste || _inClipboard) continue;
                 Hold(bytes);
                 break;
             }
@@ -84,7 +98,9 @@ internal sealed class AnsiInputDecoder
     /// <summary>Resolve held bytes as typed if <paramref name="now"/> is at or past <see cref="Deadline"/>.</summary>
     public void Expire(TimeSpan now, IInputSink sink)
     {
-        if (Deadline is { } deadline && now >= deadline) Resolve(sink);
+        if (Deadline is not { } deadline || now < deadline) return;
+        if (_inClipboard) EndClipboard(null);
+        else Resolve(sink);
     }
 
     private void Resolve(IInputSink sink)
@@ -98,10 +114,10 @@ internal sealed class AnsiInputDecoder
     {
         while (_pendingCount > 0)
         {
-            var wasPaste = _inPaste;
+            var (wasPaste, wasClipboard) = (_inPaste, _inClipboard);
             var span = _pending.AsSpan(0, _pendingCount);
-            Shift(wasPaste ? FeedPaste(span, sink) : DecodeAll(span, final, sink));
-            if (_inPaste == wasPaste) break;
+            Shift(wasPaste ? FeedPaste(span, sink) : wasClipboard ? FeedClipboard(span, sink) : DecodeAll(span, final, sink));
+            if (_inPaste == wasPaste && _inClipboard == wasClipboard) break;
         }
     }
 
@@ -125,6 +141,70 @@ internal sealed class AnsiInputDecoder
         _pasteCount = 0;
         if (end > 0) sink.Paste(NormalizeLineBreaks(Encoding.UTF8.GetString(_paste, 0, end)));
         return end + PasteEnd.Length - before;
+    }
+
+    /// <summary>Collect an OSC 52 reply's body until BEL or ESC \, then deliver it as a reply.</summary>
+    /// <returns>Bytes consumed: up to the terminator, or all of <paramref name="s"/>, or up to a byte that can't be in it.</returns>
+    private int FeedClipboard(ReadOnlySpan<byte> s, IInputSink sink)
+    {
+        for (var i = 0; i < s.Length; i++)
+        {
+            var b = s[i];
+            if (_clipboardEsc)
+            {
+                _clipboardEsc = false;
+                if (b == (byte)'\\')
+                {
+                    EndClipboard(sink);
+                    return i + 1;
+                }
+                // ESC and something else: not a reply after all; what follows decodes normally
+                EndClipboard(null);
+                return i;
+            }
+            if (b == 0x07)
+            {
+                EndClipboard(sink);
+                return i + 1;
+            }
+            if (b == Esc)
+            {
+                _clipboardEsc = true;
+                continue;
+            }
+            if (b < 0x20 || b >= 0x7F)
+            {
+                EndClipboard(null);
+                return i;
+            }
+            if (_clipboard.Count < MaxClipboardLength) _clipboard.Add(b);
+        }
+        return s.Length;
+    }
+
+    // Deliver the body as "selection;base64" (or drop it), and leave clipboard mode
+    private void EndClipboard(IInputSink? sink)
+    {
+        _inClipboard = false;
+        _clipboardEsc = false;
+        var body = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_clipboard);
+        var semicolon = body.IndexOf((byte)';');
+        if (sink is not null && semicolon >= 0 && _clipboard.Count < MaxClipboardLength)
+        {
+            var data = body[(semicolon + 1)..];
+            if (data.SequenceEqual("?"u8)) { }
+            else if (TryBase64(data, out var text)) sink.Reply(new TerminalReply.ClipboardText(text));
+        }
+        _clipboard.Clear();
+    }
+
+    private static bool TryBase64(ReadOnlySpan<byte> data, out string text)
+    {
+        text = "";
+        var bytes = new byte[data.Length / 4 * 3 + 3];
+        if (System.Buffers.Text.Base64.DecodeFromUtf8(data, bytes, out _, out var written) != System.Buffers.OperationStatus.Done) return false;
+        text = Encoding.UTF8.GetString(bytes, 0, written);
+        return true;
     }
 
     internal static string NormalizeLineBreaks(string text) =>
@@ -156,6 +236,12 @@ internal sealed class AnsiInputDecoder
             {
                 _inPaste = true;
                 return offset + PasteStart.Length;
+            }
+            if (s[offset..].StartsWith(ClipboardStart))
+            {
+                _inClipboard = true;
+                _clipboard.Clear();
+                return offset + ClipboardStart.Length;
             }
 
             var used = Decode(s[offset..], final, sink);

@@ -145,6 +145,18 @@ public sealed class AnsiBackend : ITerminalBackend, IConsoleDevice
         }
     }
 
+    /// <summary>Ask the terminal for its clipboard (OSC 52, 1.x spec §20.3), only while the terminal is entered.</summary>
+    internal bool WriteClipboardQuery()
+    {
+        lock (_lock)
+        {
+            if (!_entered || _output is null) return false;
+            _output.Write("\e]52;c;?\a"u8);
+            _output.Flush();
+            return true;
+        }
+    }
+
     /// <summary>
     /// Write the startup queries (1.x spec §12.3), only while the terminal is entered. Terminals answer through the
     /// input, where the decoder reads the replies.

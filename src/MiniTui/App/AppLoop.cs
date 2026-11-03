@@ -110,6 +110,8 @@ public partial class App
             _activeTheme = ResolveTheme(StartTheme());
             _basicGlyphs = Glyphs.DetectBasic(backend);
             _clipboard = ClipboardTarget ?? Clipboard.For(backend);
+            _clipboardTimedOut = false;
+            if (_clipboardRead && !OperatingSystem.IsWindows() && backend is AnsiBackend ansi) UseTerminalClipboard(ansi.WriteClipboardQuery);
             StartDebug();
             if (_captureConsole) run.Capture = ConsoleCapture.Start(Log);
 
@@ -419,6 +421,45 @@ public partial class App
         if (!_hover || _pointer is not { } p || !row.Contains(p.X, p.Y)) return null;
         _pointerRead = true;
         return new Vec2(p.X, p.Y);
+    }
+
+    // 1.x spec §20.3: one query per read, answered by the OSC 52 reply; 500 ms without one stops the asking
+    private static readonly TimeSpan ClipboardWait = TimeSpan.FromMilliseconds(500);
+    private readonly List<TaskCompletionSource<string?>> _clipboardReads = [];
+    private bool _clipboardTimedOut;
+
+    /// <summary>Read the clipboard by writing a query with <paramref name="writeQuery"/> and waiting for the reply.</summary>
+    internal void UseTerminalClipboard(Func<bool> writeQuery) =>
+        _clipboard = (_clipboard ?? new Clipboard.Target(null, null)) with { ReadAsync = ct => ReadTerminalClipboardAsync(writeQuery, ct) };
+
+    private async Task<string?> ReadTerminalClipboardAsync(Func<bool> writeQuery, CancellationToken ct)
+    {
+        if (_clipboardTimedOut) return null;
+        var reply = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _clipboardReads.Add(reply);
+        if (!writeQuery())
+        {
+            _clipboardReads.Remove(reply);
+            return null;
+        }
+        var winner = await Task.WhenAny(reply.Task, Task.Delay(ClipboardWait, _time, ct)).ConfigureAwait(true);
+        if (winner != reply.Task)
+        {
+            _clipboardReads.Remove(reply);
+            ct.ThrowIfCancellationRequested();
+            _clipboardTimedOut = true;
+            return null;
+        }
+        return await reply.Task.ConfigureAwait(true);
+    }
+
+    // The oldest read gets the reply; an empty one (a refusal) reads as nothing
+    private void AnswerClipboard(string text)
+    {
+        if (_clipboardReads.Count == 0) return;
+        var read = _clipboardReads[0];
+        _clipboardReads.RemoveAt(0);
+        read.TrySetResult(text.Length > 0 ? text : null);
     }
 
     /// <summary>Record a hit target for this frame (1.x spec §4.7) and set its <see cref="Component.Area"/>.</summary>
