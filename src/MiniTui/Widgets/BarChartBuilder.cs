@@ -182,6 +182,7 @@ public sealed class BarChartBuilder
         var height = inner.Height - labelRow;
         var bottom = inner.Y + height - 1;
         var x = (long)inner.X;
+        var above = new List<(long From, long To)>();
         for (var i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
@@ -203,16 +204,29 @@ public sealed class BarChartBuilder
             var valueWidth = UnicodeWidth.Of(column.Value);
             if (valueWidth > 0 && valueWidth <= _barWidth && height > 0)
             {
-                if (column.IsStack)
+                // 1.x spec §23.2: inside a bar of a whole cell or more; above a shorter one, so its glyph stays whole;
+                // in the bottom row of an empty one. The last two take the bar's color.
+                var color = text.Patch(new Style((ends.Count > 0 ? ends[^1].Style : column.Segments[0].Style).Fg));
+                if (top >= 8)
                 {
                     // A stack's total goes in its top whole cell
-                    var row = (int)(top / 8) - 1;
-                    if (row >= 0) WidgetText.DrawString(buf, (int)x, bottom - row, column.Value, _barWidth, ends.First(e => e.End > 8L * row).Style.Reversed(), Alignment.Center);
+                    var row = column.IsStack ? (int)(top / 8) - 1 : 0;
+                    WidgetText.DrawString(buf, (int)x, bottom - row, column.Value, _barWidth, ends.First(e => e.End > 8L * row).Style.Reversed(), Alignment.Center);
                 }
-                else
+                else if (top == 0)
                 {
-                    var full = top >= 8;
-                    WidgetText.DrawString(buf, (int)x, bottom, column.Value, _barWidth, full ? ends[0].Style.Reversed() : text, Alignment.Center);
+                    WidgetText.DrawString(buf, (int)x, bottom, column.Value, _barWidth, color, Alignment.Center);
+                }
+                else if (height >= 2)
+                {
+                    // Short bars' neighbours share the row above: a value that would touch one already there is left out
+                    var from = x + (_barWidth - valueWidth) / 2;
+                    var to = from + valueWidth;
+                    if (!above.Any(v => from <= v.To && v.From <= to))
+                    {
+                        WidgetText.DrawString(buf, (int)x, bottom - 1, column.Value, _barWidth, color, Alignment.Center);
+                        above.Add((from, to));
+                    }
                 }
             }
             if (labelRow > 0 && (column.GroupSize > 0 || _groups is null || _stacked))
