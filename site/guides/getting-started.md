@@ -53,3 +53,33 @@ app.OnKey(keys.Handle)
     })
     .Run();
 ```
+
+## Your first screen
+
+Larger apps are built from screens and components ([Screens and components](screens.md)). Their `Render`
+methods take a `Buffer`, and a new console project's implicit usings bring in `System.Buffer` too, so add an
+alias at the top of each file that names it:
+
+```csharp
+using MiniTui;
+using Buffer = MiniTui.Buffer;   // System.Buffer has the same name
+
+var app = App.Create();
+app.Screens.Push(new CounterScreen());
+app.Run();
+
+sealed class CounterScreen : Screen
+{
+    int count;
+    public override string Title => "Counter";
+
+    public CounterScreen() =>
+        Keys.Add("k,up", "+1", () => count++).Add("j,down", "-1", () => count--);
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        buf.SetString(area.X + 1, area.Y + 1, $"Count: {count}", ctx.Theme.Text.Bold());
+}
+```
+
+Without the alias, the build fails with `CS0104: 'Buffer' is an ambiguous reference between 'MiniTui.Buffer'
+and 'System.Buffer'`. The samples in these guides leave it out.

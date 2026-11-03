@@ -68,6 +68,53 @@ sealed class PlanField : Component
 }
 ```
 
+## Forms
+
+A form is a screen with a component per field in its `Focus`, so Tab and Shift+Tab move between them. There's no
+form widget or validation framework: check the values when the user submits, show the errors in `Render`, and
+focus the first bad field with `Focus.Focus(field)`:
+
+```csharp
+void Submit()
+{
+    nameError = name.State.Text.Trim().Length == 0 ? "A name is required" : null;
+    if (nameError is not null) { Focus.Focus(name); return; }
+    App.Screens.Push(new NextStepScreen(profile));
+}
+```
+
+`TextFieldState` has no change event; compare its `Text` with the last value you saw (in `Render`, say) to react
+to typing. `SelectState` has `Changed`.
+
+`Widget.Checkbox()` and `Widget.Button()` only draw. A component around one keeps the value and handles the
+keys and clicks:
+
+```csharp
+sealed class CheckboxField(string label) : Component
+{
+    public bool Checked { get; set; }
+
+    public override bool HandleKey(ConsoleKeyInfo key)
+    {
+        if (key.Key != ConsoleKey.Spacebar) return false;
+        Checked = !Checked;
+        return true;
+    }
+
+    public override bool HandleMouse(MouseEvent mouse)
+    {
+        if (!mouse.IsClick) return false;
+        Checked = !Checked;
+        return true;
+    }
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.Checkbox().Label(label).Checked(Checked).Focused(ctx.Focused).Draw(buf, area);
+}
+```
+
+A button is the same with Enter and Space, calling an action instead of toggling.
+
 ## Trees
 
 `TreeState<T>` shows your own node objects: give it a function for a node's children and one for its label.

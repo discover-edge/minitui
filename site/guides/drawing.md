@@ -35,3 +35,19 @@ var merged = baseStyle.Patch(style);
 [`Span`](xref:MiniTui.Span) (styled text), [`Line`](xref:MiniTui.Line) (spans) and [`Text`](xref:MiniTui.Text) (lines) build styled content. Strings convert
 implicitly. `UnicodeWidth.Of(text)` and `UnicodeWidth.Truncate(text, maxWidth)` measure and cut text
 by display width.
+
+## Building text
+
+A [`Text`](xref:MiniTui.Text) is a list of lines, a [`Line`](xref:MiniTui.Line) a list of styled spans. Strings
+convert to all three, and a string with line breaks becomes several lines:
+
+```csharp
+Text plain = "first line\nsecond line";
+var text = new Text(
+[
+    new Line("Plain"),
+    new Line("Failed", Theme.Current.Error),
+    new Line(["Name: ", new Span("auth", Style.Default.Bold())]),
+]);
+Widget.Paragraph().Text(text).Draw(buf, area);
+```

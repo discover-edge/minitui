@@ -5,24 +5,31 @@ Structure a larger app as a stack of screens built from components, with focus, 
 A larger app is a stack of screens built from components:
 
 ```csharp
-var app = App.Create().WithTheme(Theme.Default);   // status bar with key hints and a breadcrumb
+using MiniTui;
+using Buffer = MiniTui.Buffer;                     // System.Buffer has the same name (see Getting started)
+
+var app = App.Create();                            // screens get a status bar with key hints and a breadcrumb
 app.Keys.Add("q", "Quit", app.Quit);               // global; "?" help and "ctrl+c" quit are built in
 app.Screens.Push(new ServicesScreen(api));
 app.Run();
 
-sealed class ServicesScreen(ServicesClient api) : Screen
+sealed class ServicesScreen : Screen
 {
+    readonly ServicesClient api;
     readonly Loadable<IReadOnlyList<ServiceDto>> services = new();
     readonly SelectionState selection = new();
     public override string Title => "Services";
 
-    protected override void OnMount()
+    public ServicesScreen(ServicesClient api)
     {
+        this.api = api;
+        // Bindings go in the constructor: OnMount runs again each time the screen is pushed, and Keys keeps them
         Keys.Add("r", "Refresh", () => Load(services, api.ListAsync))
             .Add("enter", "Open", () => App.Screens.Push(new DetailScreen(api, services.Value![selection.Selected])))
             .Add("d", "Delete", () => App.RunTask(_ => DeleteAsync()));
-        Load(services, api.ListAsync);                 // cancelled automatically when the screen is popped
     }
+
+    protected override void OnMount() => Load(services, api.ListAsync);   // cancelled when the screen is popped
 
     public override bool HandleKey(ConsoleKeyInfo key) => selection.HandleKey(key, services.Value?.Count ?? 0);
 
@@ -87,9 +94,16 @@ sealed class FilesScreen : Screen
 - **Keys** go to the `App.OnKey` hook; then, if an overlay is open, only to it (Esc closes it); otherwise
   along the focus chain from the innermost focused component outwards (`HandleKey`, then `Keys`), then
   `App.Keys`; finally an unhandled Esc pops the screen. An unhandled Tab cycles the innermost focus scope.
+  Popping the last screen quits.
+- **Going back:** the hints don't show that Esc goes back. To show it, bind it:
+  `Keys.Add("esc", "Back", () => App.Screens.Pop())`. A popped screen can be pushed again and keeps its state;
+  its `OnMount` runs again with a new `Lifetime`.
+- **Hints and help** list the bindings in `Keys`. Keys a component handles itself in `HandleKey` (a list's
+  arrows, say) don't appear; add a binding with `showInHints: false` if you want one in the help only.
 - **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and
   the screen titles. Turn it off with `WithChrome(statusBar: false)`.
-- **Overlays:** `app.Overlays.ConfirmAsync(message)`, `ShowMessageAsync(title, text)`,
+- **Overlays:** `app.Overlays.ConfirmAsync(message)` (Yes is selected first; `y` and `n` answer even when
+  you pass other labels), `ShowMessageAsync(title, text)`,
   `ShowMenuAsync(items, anchor)`, `ShowHelp()`, `ShowPalette(registry)`, or `Show(new CommandLineOverlay(registry))` and your own
   [`Overlay`](xref:MiniTui.Overlay) subclasses. An overlay with `Framed => false` draws its own border; one with
   `CloseOnClickOutside => true` closes when the user clicks elsewhere.
@@ -138,3 +152,65 @@ sealed class FilesScreen : Screen
   ```csharp
   app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette(commands));
   ```
+
+## A dialog that returns a value
+
+A dialog is an [`Overlay`](xref:MiniTui.Overlay) subclass. Give it a task the caller awaits, completed when it
+closes. Esc closes an overlay (unless `CloseOnEscape` is false), so complete the task in `OnUnmount` too:
+
+```csharp
+sealed class NameDialog : Overlay
+{
+    readonly TaskCompletionSource<string?> result = new();
+    readonly TextFieldState name = new();
+
+    public Task<string?> Result => result.Task;
+    public override string? Title => " Your name ";        // drawn on the border as is, so pad it
+    public override bool CapturesText => true;             // typing q types a q
+    public override Rect Placement(Rect screen) => Centered(screen, 40, 3);
+
+    public override bool HandleKey(ConsoleKeyInfo key)
+    {
+        if (key.Key != ConsoleKey.Enter) return name.HandleKey(key);
+        result.TrySetResult(name.Text);
+        Close();
+        return true;
+    }
+
+    public override bool HandlePaste(string text) => name.Paste(text);
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.TextField().State(name).Focused().Draw(buf, area);
+
+    protected override void OnUnmount() => result.TrySetResult(null);   // Esc closes it without a name
+}
+```
+
+Show it and await the answer from `RunTask`, so the code after the `await` runs on the UI thread:
+
+```csharp
+Keys.Add("a", "Add", () => App.RunTask(async _ =>
+{
+    var dialog = new NameDialog();
+    App.Overlays.Show(dialog);
+    if (await dialog.Result is { Length: > 0 } name) App.Toasts.Push($"Hello, {name}");
+}));
+```
+
+Inside a dialog, Tab moves between the components in its `Focus`, as on a screen.
+
+## Updating on a timer
+
+To update something every second, post from a timer. `App.Post` runs the update on the UI thread and redraws;
+dispose of the timer when the screen's `Lifetime` ends:
+
+```csharp
+protected override void OnMount()
+{
+    var timer = new Timer(_ => App.Post(() => samples.Add(ReadCpu())), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    Lifetime.Register(timer.Dispose);
+}
+```
+
+A loop in `RunTask` (`while (true) { await Task.Delay(...); ... }`) works in the app too, but
+`ComponentHarness` waits for `RunTask` work to finish, so it would never be idle in a test.
