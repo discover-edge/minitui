@@ -1216,27 +1216,39 @@ MiniTui.TreeRow<T>.Parent.get -> T?
 MiniTui.TreeRow<T>.Parent.init -> void
 MiniTui.TreeRow<T>.TreeRow() -> void
 MiniTui.TreeRow<T>.TreeRow(T! Node, T? Parent, int Depth, bool HasChildren, bool IsExpanded) -> void
+MiniTui.TreeState
 MiniTui.TreeState<T>
 MiniTui.TreeState<T>.Activated -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
+MiniTui.TreeState<T>.Checkboxes.get -> bool
+MiniTui.TreeState<T>.Checkboxes.set -> void
+MiniTui.TreeState<T>.CheckedChanged -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
+MiniTui.TreeState<T>.CheckedNodes.get -> System.Collections.Generic.IReadOnlyList<T!>!
 MiniTui.TreeState<T>.Collapse(T! node) -> void
 MiniTui.TreeState<T>.CollapseAll() -> void
 MiniTui.TreeState<T>.Collapsed -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
 MiniTui.TreeState<T>.Expand(T! node) -> void
 MiniTui.TreeState<T>.ExpandAll() -> void
 MiniTui.TreeState<T>.Expanded -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
+MiniTui.TreeState<T>.Filter.get -> System.Func<T!, bool>?
+MiniTui.TreeState<T>.Filter.set -> void
 MiniTui.TreeState<T>.HandleKey(System.ConsoleKeyInfo key) -> bool
 MiniTui.TreeState<T>.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 MiniTui.TreeState<T>.HasChildren.get -> System.Func<T!, bool>?
 MiniTui.TreeState<T>.HasChildren.set -> void
+MiniTui.TreeState<T>.IsChecked(T! node) -> bool?
 MiniTui.TreeState<T>.IsExpanded(T! node) -> bool
 MiniTui.TreeState<T>.Offset.get -> int
 MiniTui.TreeState<T>.Offset.set -> void
+MiniTui.TreeState<T>.Reload(T! node) -> void
+MiniTui.TreeState<T>.Reveal(System.Collections.Generic.IReadOnlyList<T!>! path) -> bool
+MiniTui.TreeState<T>.RevealAsync(System.Collections.Generic.IReadOnlyList<T!>! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<bool>!
 MiniTui.TreeState<T>.Roots.get -> System.Collections.Generic.IReadOnlyList<T!>!
 MiniTui.TreeState<T>.Roots.set -> void
 MiniTui.TreeState<T>.Rows.get -> System.Collections.Generic.IReadOnlyList<MiniTui.TreeRow<T!>>!
 MiniTui.TreeState<T>.Selected.get -> T?
 MiniTui.TreeState<T>.Selected.set -> void
 MiniTui.TreeState<T>.SelectionChanged -> System.EventHandler?
+MiniTui.TreeState<T>.SetChecked(T! node, bool isChecked) -> void
 MiniTui.TreeState<T>.Toggle(T! node) -> void
 MiniTui.TreeState<T>.TreeState(System.Func<T!, System.Collections.Generic.IReadOnlyList<T!>!>! children, System.Func<T!, string!>! text, System.Collections.Generic.IEqualityComparer<T!>? comparer = null) -> void
 MiniTui.TreeState<T>.ViewportHeight.get -> int
@@ -1525,6 +1537,7 @@ static MiniTui.TimedMessage.Show(string! text, System.TimeSpan duration) -> Mini
 static MiniTui.TimedMessage.Show(string! text, double seconds = 3) -> MiniTui.TimedMessage
 static MiniTui.TimedMessage.operator !=(MiniTui.TimedMessage left, MiniTui.TimedMessage right) -> bool
 static MiniTui.TimedMessage.operator ==(MiniTui.TimedMessage left, MiniTui.TimedMessage right) -> bool
+static MiniTui.TreeState.Async<T>(System.Func<T!, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<T!>!>!>! loadChildren, System.Func<T!, string!>! text, System.Collections.Generic.IEqualityComparer<T!>? comparer = null) -> MiniTui.TreeState<T!>!
 static MiniTui.UnicodeWidth.Graphemes(string! text) -> System.Collections.Generic.IEnumerable<string!>!
 static MiniTui.UnicodeWidth.Of(System.ReadOnlySpan<char> text) -> int
 static MiniTui.UnicodeWidth.OfGrapheme(System.ReadOnlySpan<char> grapheme) -> int
