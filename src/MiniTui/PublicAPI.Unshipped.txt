@@ -1,4 +1,12 @@
 #nullable enable
+MiniTui.Axis.Formatter.get -> System.Func<double, string!>?
+MiniTui.Axis.Formatter.init -> void
+MiniTui.Axis.Grid.get -> bool
+MiniTui.Axis.Grid.init -> void
+MiniTui.Axis.LabelCount.get -> int
+MiniTui.Axis.LabelCount.init -> void
+MiniTui.Axis.Ticks.get -> bool
+MiniTui.Axis.Ticks.init -> void
 MiniTui.BarChartBuilder.GroupGap(int gap) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Groups(System.Collections.Generic.IReadOnlyList<MiniTui.BarGroup!>! groups) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Groups(params MiniTui.BarGroup![]! groups) -> MiniTui.BarChartBuilder!
@@ -13,8 +21,15 @@ MiniTui.BarGroup.Deconstruct(out string! Label, out System.Collections.Generic.I
 MiniTui.BarGroup.Equals(MiniTui.BarGroup? other) -> bool
 MiniTui.BarGroup.Label.get -> string!
 MiniTui.BarGroup.Label.init -> void
+MiniTui.ChartTime
+MiniTui.GraphType.Area = 2 -> MiniTui.GraphType
 override MiniTui.BarGroup.Equals(object? obj) -> bool
 override MiniTui.BarGroup.GetHashCode() -> int
 override MiniTui.BarGroup.ToString() -> string!
+static MiniTui.Axis.Duration(string! format = "m\\:ss") -> MiniTui.Axis!
+static MiniTui.Axis.Time(string! format = "HH:mm:ss") -> MiniTui.Axis!
 static MiniTui.BarGroup.operator !=(MiniTui.BarGroup? left, MiniTui.BarGroup? right) -> bool
 static MiniTui.BarGroup.operator ==(MiniTui.BarGroup? left, MiniTui.BarGroup? right) -> bool
+static MiniTui.ChartTime.FromValue(double value) -> System.DateTimeOffset
+static MiniTui.ChartTime.ToValue(System.DateTimeOffset time) -> double
+static MiniTui.ChartTime.ToValue(System.TimeSpan duration) -> double

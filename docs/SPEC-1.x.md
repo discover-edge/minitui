@@ -4374,8 +4374,8 @@ when it would cover more than half the area's width or height, or when no first-
   line, `┤` at each tick's row. The corner stays `└`. In `Theme.Border`.
 - **Grid** (`Grid`): across the plot at each tick, `┈` rows for a Y axis grid and `┊` columns for an X axis grid,
   `┼` where they cross, in `Theme.Border` patched with `Theme.TextMuted`. Grid lines are drawn before the datasets,
-  and a cell with any dot shows the dot, so the data is always on top. A grid line on the plot's edge (the first
-  and last ticks are at the axes) isn't drawn, since the axis line is there.
+  and a cell with any dot shows the dot, so the data is always on top. The first tick's grid line on each axis
+  isn't drawn: it's beside the other axis line (the plot's first column, or its bottom row).
 - Basic glyph mode keeps the box-drawing characters, as borders do.
 
 ### 19.6 Area charts

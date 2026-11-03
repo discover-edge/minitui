@@ -17,6 +17,7 @@ internal sealed class ChartsScreen : Screen
     private double _time;
     private int _marker;
     private bool _scatter;
+    private bool _area;
     private bool _horizontal;
     private int _barMode;
 
@@ -26,6 +27,7 @@ internal sealed class ChartsScreen : Screen
     {
         Keys.Add("m", "Marker", () => _marker = (_marker + 1) % Markers.Length)
             .Add("s", "Line/scatter", () => _scatter = !_scatter)
+            .Add("a", "Line/area", () => _area = !_area)
             .Add("d", "Bar direction", () => _horizontal = !_horizontal)
             .Add("g", "Bar groups", () => _barMode = (_barMode + 1) % BarModes.Length);
     }
@@ -51,15 +53,16 @@ internal sealed class ChartsScreen : Screen
         var bottom = Layout.Horizontal(rows["bottom"]).Add("bars", Constraint.Percentage(55)).Add("canvas", Constraint.Fill()).Build();
 
         var marker = Markers[_marker];
-        var type = _scatter ? GraphType.Scatter : GraphType.Line;
-        var start = Math.Max(0, _time - Window);
+        var type = _scatter ? GraphType.Scatter : _area ? GraphType.Area : GraphType.Line;
+        // 1.x spec §19.4, §19.5: the last 10 s as a duration axis ending now, with ticks and a grid
+        List<(double X, double Y)> Ago(List<(double X, double Y)> data) => [.. data.Select(p => (p.X - _time, p.Y))];
         Widget.Chart()
             .Datasets(
-                new Dataset("sin", _sin) { Marker = marker, Type = type },
-                new Dataset("cos", _cos) { Marker = marker, Type = type })
-            .XAxis(new Axis { Title = "seconds", Min = start, Max = start + Window, LabelFormat = "0" })
-            .YAxis(new Axis { Title = "value", LabelFormat = "0.0" })
-            .Block(Widget.Block().Title($" Line chart · {marker} (m), {type} (s) "))
+                new Dataset("sin", Ago(_sin)) { Marker = marker, Type = type },
+                new Dataset("cos", Ago(_cos)) { Marker = marker, Type = type })
+            .XAxis(Axis.Duration() with { Title = "ago", Min = -Window, Max = 0, LabelCount = 6, Ticks = true })
+            .YAxis(new Axis { Title = "value", Min = -1.5, Max = 1.5, LabelFormat = "0.0", LabelCount = 5, Ticks = true, Grid = true })
+            .Block(Widget.Block().Title($" Line chart · {marker} (m), {type} (s, a) "))
             .Draw(buf, rows["chart"]);
 
         // 1.x spec §19.3: the same requests split into GET, POST and DELETE, side by side or stacked
