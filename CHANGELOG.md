@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-03
+
+MiniTui 1.12: double- and triple-click, and hover for rows, buttons, tabs and menus.
+
 ### Added
 - Double- and triple-click: the app counts quick presses of the same button in the same cell and sets `MouseEvent.ClickCount` (1, 2 or 3) on each press, before `App.OnMouse` and the components see it. `App.WithDoubleClickTime(interval)` sets the time between presses (500 ms by default, 100 ms to 2 s). Windows' own `DOUBLE_CLICK` records are counted the same way. `ComponentHarness.DoubleClick(x, y)`.
 - A double-click selects the word under the pointer in text fields, text areas and command lines (a run of letters, digits and `_`, of other symbols, or of spaces), and a triple-click selects the line (all of a text field).

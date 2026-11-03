@@ -1,18 +1,1 @@
 #nullable enable
-MiniTui.App.PointerPosition.get -> MiniTui.Vec2?
-MiniTui.App.WithDoubleClickTime(System.TimeSpan interval) -> MiniTui.App!
-MiniTui.App.WithHover(bool enabled = true) -> MiniTui.App!
-MiniTui.ButtonBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.ButtonBuilder!
-MiniTui.CheckboxBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.CheckboxBuilder!
-MiniTui.ComponentHarness.DoubleClick(int x, int y) -> void
-MiniTui.ListBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.ListBuilder!
-MiniTui.MouseAction.Move = 7 -> MiniTui.MouseAction
-MiniTui.MouseEvent.ClickCount.get -> int
-MiniTui.MouseEvent.ClickCount.init -> void
-MiniTui.RenderContext.Hover.get -> MiniTui.Vec2?
-MiniTui.SelectionState.Activated -> System.EventHandler?
-MiniTui.TabBarBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.TabBarBuilder!
-MiniTui.TableBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.TableBuilder!
-MiniTui.Theme.Hover.get -> MiniTui.Style
-MiniTui.Theme.Hover.init -> void
-MiniTui.TreeBuilder<T>.Hover(MiniTui.Vec2? position) -> MiniTui.TreeBuilder<T!>!

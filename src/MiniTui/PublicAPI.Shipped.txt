@@ -28,6 +28,7 @@ MiniTui.App.OnSetup(System.Action! setup) -> MiniTui.App!
 MiniTui.App.OnSetup(System.Action<MiniTui.App!>! setup) -> MiniTui.App!
 MiniTui.App.OnUpdate(System.Action! update) -> MiniTui.App!
 MiniTui.App.Overlays.get -> MiniTui.OverlayStack!
+MiniTui.App.PointerPosition.get -> MiniTui.Vec2?
 MiniTui.App.Post(System.Action! action) -> void
 MiniTui.App.Quit() -> void
 MiniTui.App.QuitWhenEmpty(bool quit = true) -> MiniTui.App!
@@ -49,6 +50,8 @@ MiniTui.App.WithBackend(MiniTui.ITerminalBackend! backend) -> MiniTui.App!
 MiniTui.App.WithChrome(bool statusBar = true, bool breadcrumb = true) -> MiniTui.App!
 MiniTui.App.WithColorMode(MiniTui.ColorMode mode) -> MiniTui.App!
 MiniTui.App.WithDebugKey(string? key = "f12") -> MiniTui.App!
+MiniTui.App.WithDoubleClickTime(System.TimeSpan interval) -> MiniTui.App!
+MiniTui.App.WithHover(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithInput(MiniTui.IInputSource! input) -> MiniTui.App!
 MiniTui.App.WithKeyboardProtocol(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithMenuBar(MiniTui.MenuBar? menuBar) -> MiniTui.App!
@@ -146,6 +149,7 @@ MiniTui.ButtonBuilder
 MiniTui.ButtonBuilder.ButtonBuilder() -> void
 MiniTui.ButtonBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.ButtonBuilder.Focused(bool focused = true) -> MiniTui.ButtonBuilder!
+MiniTui.ButtonBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Label(string! label) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Pressed(bool pressed = true) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Style(MiniTui.Style style) -> MiniTui.ButtonBuilder!
@@ -208,6 +212,7 @@ MiniTui.CheckboxBuilder.CheckboxBuilder() -> void
 MiniTui.CheckboxBuilder.Checked(bool isChecked = true) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.CheckboxBuilder.Focused(bool focused = true) -> MiniTui.CheckboxBuilder!
+MiniTui.CheckboxBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Label(string! label) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Style(MiniTui.Style style) -> MiniTui.CheckboxBuilder!
 MiniTui.Clipboard
@@ -291,6 +296,7 @@ MiniTui.ComponentHarness.CellAt(int x, int y) -> MiniTui.Cell
 MiniTui.ComponentHarness.Click(int x, int y, MiniTui.MouseButton button = MiniTui.MouseButton.Left) -> void
 MiniTui.ComponentHarness.ComponentHarness(MiniTui.Screen! root, int width = 80, int height = 24, System.TimeProvider? time = null) -> void
 MiniTui.ComponentHarness.Dispose() -> void
+MiniTui.ComponentHarness.DoubleClick(int x, int y) -> void
 MiniTui.ComponentHarness.Lines.get -> string![]!
 MiniTui.ComponentHarness.Mouse(MiniTui.MouseEvent! mouse) -> void
 MiniTui.ComponentHarness.Paste(string! text) -> void
@@ -459,6 +465,7 @@ MiniTui.ListBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.ListBuilder.Focused(bool focused = true) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.HighlightStyle(MiniTui.Style style) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.HighlightSymbol(string! symbol) -> MiniTui.ListBuilder!
+MiniTui.ListBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.Items(System.Collections.Generic.IReadOnlyList<string!>! items) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.Items<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Line!>! format) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.ListBuilder() -> void
@@ -565,6 +572,7 @@ MiniTui.Modifiers.Reversed = 16 -> MiniTui.Modifiers
 MiniTui.Modifiers.Underlined = 8 -> MiniTui.Modifiers
 MiniTui.MouseAction
 MiniTui.MouseAction.Drag = 6 -> MiniTui.MouseAction
+MiniTui.MouseAction.Move = 7 -> MiniTui.MouseAction
 MiniTui.MouseAction.Press = 0 -> MiniTui.MouseAction
 MiniTui.MouseAction.Release = 1 -> MiniTui.MouseAction
 MiniTui.MouseAction.ScrollDown = 3 -> MiniTui.MouseAction
@@ -581,6 +589,8 @@ MiniTui.MouseEvent.Action.get -> MiniTui.MouseAction
 MiniTui.MouseEvent.Action.init -> void
 MiniTui.MouseEvent.Button.get -> MiniTui.MouseButton
 MiniTui.MouseEvent.Button.init -> void
+MiniTui.MouseEvent.ClickCount.get -> int
+MiniTui.MouseEvent.ClickCount.init -> void
 MiniTui.MouseEvent.Deconstruct(out MiniTui.MouseAction Action, out MiniTui.MouseButton Button, out int X, out int Y, out System.ConsoleModifiers Modifiers) -> void
 MiniTui.MouseEvent.Equals(MiniTui.MouseEvent? other) -> bool
 MiniTui.MouseEvent.IsClick.get -> bool
@@ -692,6 +702,7 @@ MiniTui.RenderContext.App.get -> MiniTui.App!
 MiniTui.RenderContext.Focused.get -> bool
 MiniTui.RenderContext.For(MiniTui.Component! child) -> MiniTui.RenderContext!
 MiniTui.RenderContext.Hints(int maxWidth) -> string!
+MiniTui.RenderContext.Hover.get -> MiniTui.Vec2?
 MiniTui.RenderContext.Render(MiniTui.Component! child, MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.RenderContext.Theme.get -> MiniTui.Theme!
 MiniTui.ResizeEvent
@@ -769,6 +780,7 @@ MiniTui.SelectState.Selected.get -> int?
 MiniTui.SelectState.Selected.set -> void
 MiniTui.SelectState.Value.get -> string?
 MiniTui.SelectionState
+MiniTui.SelectionState.Activated -> System.EventHandler?
 MiniTui.SelectionState.First() -> void
 MiniTui.SelectionState.HandleKey(System.ConsoleKeyInfo key, int count) -> bool
 MiniTui.SelectionState.HandleMouse(MiniTui.MouseEvent! mouse, int count) -> bool
@@ -873,6 +885,7 @@ MiniTui.Style.WithFg(MiniTui.Color c) -> MiniTui.Style
 MiniTui.TabBarBuilder
 MiniTui.TabBarBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
 MiniTui.TabBarBuilder.Focused(bool focused = true) -> MiniTui.TabBarBuilder!
+MiniTui.TabBarBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.TabBarBuilder!
 MiniTui.TabBarBuilder.State(MiniTui.TabBarState! state) -> MiniTui.TabBarBuilder!
 MiniTui.TabBarBuilder.Style(MiniTui.Style style) -> MiniTui.TabBarBuilder!
 MiniTui.TabBarBuilder.Tab(string! label) -> MiniTui.TabBarBuilder!
@@ -897,6 +910,7 @@ MiniTui.TableBuilder.Header(params MiniTui.Line![]! cells) -> MiniTui.TableBuild
 MiniTui.TableBuilder.HeaderStyle(MiniTui.Style style) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.HighlightStyle(MiniTui.Style style) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.HighlightSymbol(string! symbol) -> MiniTui.TableBuilder!
+MiniTui.TableBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Rows(System.Collections.Generic.IReadOnlyList<MiniTui.Row!>! rows) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Rows<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Row!>! format) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Sortable(params int[]! columns) -> MiniTui.TableBuilder!
@@ -1093,6 +1107,8 @@ MiniTui.Theme.GaugeEmpty.get -> MiniTui.Style
 MiniTui.Theme.GaugeEmpty.init -> void
 MiniTui.Theme.GaugeFilled.get -> MiniTui.Style
 MiniTui.Theme.GaugeFilled.init -> void
+MiniTui.Theme.Hover.get -> MiniTui.Style
+MiniTui.Theme.Hover.init -> void
 MiniTui.Theme.Info.get -> MiniTui.Style
 MiniTui.Theme.Info.init -> void
 MiniTui.Theme.Input.get -> MiniTui.Style
@@ -1178,6 +1194,7 @@ MiniTui.TreeBuilder<T>.Format(System.Func<T!, MiniTui.Line!>! format) -> MiniTui
 MiniTui.TreeBuilder<T>.Guides(bool guides = true) -> MiniTui.TreeBuilder<T!>!
 MiniTui.TreeBuilder<T>.HighlightStyle(MiniTui.Style style) -> MiniTui.TreeBuilder<T!>!
 MiniTui.TreeBuilder<T>.HighlightSymbol(string! symbol) -> MiniTui.TreeBuilder<T!>!
+MiniTui.TreeBuilder<T>.Hover(MiniTui.Vec2? position) -> MiniTui.TreeBuilder<T!>!
 MiniTui.TreeBuilder<T>.Indent(int columns) -> MiniTui.TreeBuilder<T!>!
 MiniTui.TreeBuilder<T>.ShowScrollInfo(bool show = true) -> MiniTui.TreeBuilder<T!>!
 MiniTui.TreeBuilder<T>.Style(MiniTui.Style style) -> MiniTui.TreeBuilder<T!>!
