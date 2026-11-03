@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Horizontal scrolling in paragraphs: `ScrollState.ScrollsHorizontally` lets an unwrapped paragraph's long lines scroll sideways instead of being cut. ← → and the horizontal wheel (or Shift with the wheel) scroll 8 columns, Home and End go to the first and last column, and a `…` marks each edge a row continues past. `HorizontalOffset`, `ContentWidth` and `ViewportWidth` give the position. Selection works while scrolled, and dragging past a side scrolls. Off by default. The example's Dashboard log uses it.
+
 ### Changed
 - Bar charts: a vertical bar shorter than one cell has its value on the row above it, in the bar's color, instead of over its partial glyph, which cut the bar in two. Where values above short neighbours would touch, the later one is left out. An empty bar's value takes the bar's color too.
 

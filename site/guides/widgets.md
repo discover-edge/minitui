@@ -19,7 +19,7 @@ Widget.Table()
 | Builder | What it draws |
 |---|---|
 | `Block()` | Borders (`Borders.All`, `Top`, …), `BorderType(BoxStyle)`, `Title`/`TitleBottom`, `Padding`, `Focused`. `Draw` returns the inner rect. |
-| `Paragraph()` | [`Text`](xref:MiniTui.Text) with `Wrap(WrapMode.None/Word/Char)`, [`Alignment`](xref:MiniTui.Alignment), `Scroll(n)` or `State(ScrollState)`. `Paragraph.MeasureLines` measures without drawing. |
+| `Paragraph()` | [`Text`](xref:MiniTui.Text) with `Wrap(WrapMode.None/Word/Char)`, [`Alignment`](xref:MiniTui.Alignment), `Scroll(n)` or `State(ScrollState)`. Unwrapped lines are cut with `…`, or scroll sideways with `ScrollState.ScrollsHorizontally` (see below). `Paragraph.MeasureLines` measures without drawing. |
 | `List()` | `Items(list)` or `Items(list, format)` (only visible rows are formatted), `State(SelectionState)`, `HighlightSymbol("> ")`, `Title`. |
 | `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows`, `State` (▲/▼ on `SortColumn`), `HighlightSymbol`, `Sortable(columns)` (a header click calls `SelectionState.ToggleSort`, and `SortChanged` tells you to re-sort). 100,000 rows cost the same per frame as 100. |
 | `Scrollbar()` | `Vertical`/`Horizontal`, `ContentLength`, `Position`, `ViewportLength`. Hidden when the content fits. |
@@ -37,6 +37,24 @@ Widget.Table()
 | `TabBar()` | `Tabs(...)` with [`TabBarState`](xref:MiniTui.TabBarState), scrolled to keep the selected tab visible. |
 | `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](keys-and-state.md#trees). |
 | `Button()`, `Checkbox()` | Themed controls. |
+
+**Long lines.** A paragraph with `WrapMode.None` cuts long lines with `…`. Give it a `ScrollState` with
+`ScrollsHorizontally = true` and they scroll instead: ← and → move 8 columns (and go unhandled at the edge, so
+the screen gets them), Home and End go to the first and last column, and the horizontal wheel or Shift with the
+wheel scrolls too. A `…` marks each edge a row continues past. Rows narrower than the view keep their alignment.
+`HorizontalOffset` is the first visible column; `ContentWidth` and `ViewportWidth` are set when it's drawn.
+It's off by default so that ← → stay free for screens that use them.
+
+```csharp
+readonly ScrollState _log = new() { ScrollsHorizontally = true, Selectable = true };
+
+public override bool HandleKey(ConsoleKeyInfo key) => _log.HandleKey(key);
+public override bool HandleMouse(MouseEvent mouse) => _log.HandleMouse(mouse);
+
+public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
+    Widget.Paragraph().Text(string.Join("\n", _lines)).State(_log)
+        .Block(Widget.Block().Title(" Log ").Focused(ctx.Focused)).Draw(buf, area);
+```
 
 ```csharp
 Widget.Chart()

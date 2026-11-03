@@ -7,7 +7,10 @@ namespace MiniTui;
 /// </summary>
 public enum WrapMode
 {
-    /// <summary>Don't wrap; long lines are truncated with <c>…</c>.</summary>
+    /// <summary>
+    /// Don't wrap; long lines are truncated with <c>…</c>, or scroll sideways with a <see cref="ScrollState"/> whose
+    /// <see cref="ScrollState.ScrollsHorizontally"/> is on.
+    /// </summary>
     None,
     /// <summary>Break at whitespace. Words wider than the area are broken anywhere.</summary>
     Word,
@@ -87,10 +90,17 @@ public sealed class ParagraphBuilder
         }
 
         var offset = _scroll;
+        int? columns = null;
         if (_state is { } state)
         {
             state.Fit(rows.Count, inner.Height);
-            state.TrackRows(inner, rows, _alignment);
+            if (_wrap == WrapMode.None && state.ScrollsHorizontally)
+            {
+                state.FitColumns(rows.Count == 0 ? 0 : rows.Max(r => r.Width), inner.Width);
+                columns = state.HorizontalOffset;
+            }
+            else state.FitColumns(0, inner.Width);
+            state.TrackRows(inner, rows, _alignment, columns);
             offset = state.Offset;
         }
 
@@ -98,8 +108,12 @@ public sealed class ParagraphBuilder
         for (var i = 0; i < inner.Height && offset + i < rows.Count; i++)
         {
             var line = rows[offset + i];
-            var alignment = line.Alignment != MiniTui.Alignment.Left ? line.Alignment : _alignment;
-            WidgetText.DrawLine(buf, inner.X, inner.Y + i, line, inner.Width, style, alignment);
+            if (columns is { } from && line.Width > inner.Width) DrawScrolled(buf, inner.X, inner.Y + i, line, from, inner.Width, style);
+            else
+            {
+                var alignment = line.Alignment != MiniTui.Alignment.Left ? line.Alignment : _alignment;
+                WidgetText.DrawLine(buf, inner.X, inner.Y + i, line, inner.Width, style, alignment);
+            }
             DrawSelection(buf, inner, i, offset + i);
         }
 
@@ -111,11 +125,37 @@ public sealed class ParagraphBuilder
         }
     }
 
+    // 1.x spec §23.3: the columns of a row wider than the view from `from`, with … at an edge it continues past
+    private static void DrawScrolled(CellBuffer buf, int x, int y, Line line, int from, int width, Style style)
+    {
+        var spans = new List<Span>();
+        var column = 0;
+        foreach (var span in line.Spans)
+        {
+            var content = Sanitizer.SingleLine(span.Content ?? "");
+            var text = new System.Text.StringBuilder();
+            for (var i = 0; i < content.Length;)
+            {
+                var length = StringInfo.GetNextTextElementLength(content, i);
+                var w = UnicodeWidth.OfGrapheme(content.AsSpan(i, length));
+                if (w > 0 && column >= from && column + w <= from + width) text.Append(content, i, length);
+                else if (column < from && column + w > from) text.Append(' ', column + w - from); // the right half of a wide character
+                column += w;
+                i += length;
+            }
+            if (text.Length > 0) spans.Add(new Span(text.ToString(), span.Style));
+        }
+        WidgetText.DrawLine(buf, x, y, new Line([.. spans]), width, style, MiniTui.Alignment.Left);
+        if (from > 0) buf.SetString(x, y, WidgetText.Ellipsis, style, 1);
+        if (line.Width > from + width) buf.SetString(x + width - 1, y, WidgetText.Ellipsis, style, 1);
+    }
+
     // 1.x spec §20.5: the selected cells of a row, focused unless the block says otherwise
     private void DrawSelection(CellBuffer buf, Rect inner, int y, int row)
     {
         if (_state is not { HasSelection: true } state) return;
         var (from, to) = state.SelectedColumns(row);
+        from = Math.Max(from, 0);
         to = Math.Min(to, inner.Width);
         if (to <= from) return;
         var style = _block?.IsFocused == false ? Theme.Current.SelectionUnfocused : Theme.Current.Selection;
