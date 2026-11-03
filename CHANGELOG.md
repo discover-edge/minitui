@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The documentation moved to [minitui.org](https://minitui.org): guides, an API reference and the changelog. The README is now a summary that links to it, and the package's project URL is the site.
+
 ## [1.15.0] - 2026-11-03
 
 MiniTui 1.15: reading the system clipboard through the terminal, the Insert keys, and selecting paragraph text with the mouse.

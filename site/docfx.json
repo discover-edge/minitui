@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../src/MiniTui",
+          "files": [
+            "MiniTui.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "properties": {
+        "Configuration": "Release"
+      },
+      "namespaceLayout": "flattened",
+      "memberLayout": "samePage",
+      "enumSortOrder": "declaringOrder"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "**/*.{md,yml}"
+        ],
+        "exclude": [
+          "_site/**",
+          "obj/**",
+          "template/**"
+        ]
+      },
+      {
+        "files": [
+          "MIGRATION-0.7-to-1.0.md"
+        ],
+        "src": "../docs",
+        "dest": "docs"
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "media/**",
+          "images/**"
+        ]
+      }
+    ],
+    "output": "_site",
+    "template": [
+      "default",
+      "modern",
+      "template"
+    ],
+    "globalMetadata": {
+      "_appName": "MiniTui",
+      "_appTitle": "MiniTui",
+      "_appFooter": "© 2026 Discover Edge LLC · MIT licensed · <a href=\"https://www.nuget.org/packages/MiniTui\">NuGet</a> · <a href=\"https://github.com/minitui-org/minitui\">GitHub</a>",
+      "_enableSearch": true,
+      "_disableContribution": false,
+      "_gitContribute": {
+        "repo": "https://github.com/minitui-org/minitui",
+        "branch": "main"
+      },
+      "pdf": false,
+      "_appLogoPath": "images/logo.svg",
+      "_appFaviconPath": "images/favicon.svg"
+    },
+    "sitemap": {
+      "baseUrl": "https://minitui.org",
+      "changefreq": "weekly"
+    }
+  }
+}

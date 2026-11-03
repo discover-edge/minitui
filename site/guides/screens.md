@@ -1,0 +1,140 @@
+# Screens and components
+
+Structure a larger app as a stack of screens built from components, with focus, overlays and scoped key bindings.
+
+A larger app is a stack of screens built from components:
+
+```csharp
+var app = App.Create().WithTheme(Theme.Default);   // status bar with key hints and a breadcrumb
+app.Keys.Add("q", "Quit", app.Quit);               // global; "?" help and "ctrl+c" quit are built in
+app.Screens.Push(new ServicesScreen(api));
+app.Run();
+
+sealed class ServicesScreen(ServicesClient api) : Screen
+{
+    readonly Loadable<IReadOnlyList<ServiceDto>> services = new();
+    readonly SelectionState selection = new();
+    public override string Title => "Services";
+
+    protected override void OnMount()
+    {
+        Keys.Add("r", "Refresh", () => Load(services, api.ListAsync))
+            .Add("enter", "Open", () => App.Screens.Push(new DetailScreen(api, services.Value![selection.Selected])))
+            .Add("d", "Delete", () => App.RunTask(_ => DeleteAsync()));
+        Load(services, api.ListAsync);                 // cancelled automatically when the screen is popped
+    }
+
+    public override bool HandleKey(ConsoleKeyInfo key) => selection.HandleKey(key, services.Value?.Count ?? 0);
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.Table().Header("Name", "Status").Rows(services.Value ?? [], s => new Row(s.Name, s.Status))
+            .State(selection).Focused(ctx.Focused).Draw(buf, area);
+
+    async Task DeleteAsync()
+    {
+        var svc = services.Value![selection.Selected];
+        if (!await App.Overlays.ConfirmAsync($"Delete {svc.Name}?")) return;
+        await api.DeleteAsync(svc.Id, Lifetime);       // resumes on the UI thread
+        App.Toasts.Push($"Deleted {svc.Name}", ToastLevel.Success);
+        Load(services, api.ListAsync);
+    }
+}
+```
+
+Components are plain classes that hold state, handle keys and render every frame; there's no retained
+widget tree. A parent renders its children explicitly with `ctx.Render(child, buf, rect)`, which also records
+where the child is, so the mouse can click it.
+
+```csharp
+sealed class SearchBox : Component
+{
+    readonly TextFieldState text = new();
+    public override bool CapturesText => true;           // typing "q" here doesn't trigger global "q"
+    public override bool HandleKey(ConsoleKeyInfo key) => text.HandleKey(key);
+    public override bool HandlePaste(string pasted) => text.Paste(pasted);
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.TextField().State(text).Focused(ctx.Focused).Block(Widget.Block().Title(" Search ")).Draw(buf, area);
+}
+
+sealed class FilesScreen : Screen
+{
+    readonly SearchBox search;
+    readonly Component list;
+
+    public FilesScreen()
+    {
+        search = AddChild(new SearchBox());
+        list = AddChild(Component.From((buf, area, ctx) => { /* draw */ }, key => false));
+        Focus.Add(list).Add(search);                       // Tab cycles; the first one starts focused
+        Keys.Add("ctrl+r", "Reload", Reload);
+    }
+
+    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    {
+        var rows = Layout.Split(area, Direction.Vertical, Constraint.Length(3), Constraint.Fill());
+        ctx.Render(search, buf, rows[0]);
+        ctx.Render(list, buf, rows[1]);
+    }
+
+    void Reload() { }
+}
+```
+
+- **Lifecycle:** `OnMount` runs when a component joins a mounted screen (parents before children);
+  `OnUnmount` when it leaves (children first, after `Lifetime` is cancelled). `OnActivated`/`OnDeactivated`
+  run when its screen becomes or stops being the top one. `Load(loadable, fetch)` ties a load to `Lifetime`,
+  so popping a screen cancels its loads and ignores their results.
+- **Keys** go to the `App.OnKey` hook; then, if an overlay is open, only to it (Esc closes it); otherwise
+  along the focus chain from the innermost focused component outwards (`HandleKey`, then `Keys`), then
+  `App.Keys`; finally an unhandled Esc pops the screen. An unhandled Tab cycles the innermost focus scope.
+- **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and
+  the screen titles. Turn it off with `WithChrome(statusBar: false)`.
+- **Overlays:** `app.Overlays.ConfirmAsync(message)`, `ShowMessageAsync(title, text)`,
+  `ShowMenuAsync(items, anchor)`, `ShowHelp()`, `ShowPalette(registry)`, or `Show(new CommandLineOverlay(registry))` and your own
+  [`Overlay`](xref:MiniTui.Overlay) subclasses. An overlay with `Framed => false` draws its own border; one with
+  `CloseOnClickOutside => true` closes when the user clicks elsewhere.
+- **Menus:** `ShowMenuAsync` opens a [`PopupMenu`](xref:MiniTui.PopupMenu) below the anchor (above it when there's more room there) and
+  answers the chosen index, or null when dismissed. ↑ ↓ PgUp PgDn Home End and type-ahead move; Enter or a
+  click chooses; Esc, Tab or a click outside closes. Items can also have:
+  - a **mnemonic**, `&` before a letter in the label (`"&Save"`, `"&&"` for a literal `&`): drawn underlined,
+    and typing it (or Alt+it) chooses the item at once;
+  - a **check or radio mark**, `Checked = true/false`, with `Radio = true` for ● / ○;
+  - a **submenu**, `Submenu = [...]`, opened beside the item with → Enter or a click, and closed with ← or Esc;
+  - an action, `Run`, called after every open menu has closed. `PopupMenu.Chosen` gives the chosen item at any
+    depth.
+
+  A right-click makes a context menu:
+
+  ```csharp
+  public override bool HandleMouse(MouseEvent mouse)
+  {
+      if (mouse is not { Action: MouseAction.Press, Button: MouseButton.Right }) return false;
+      MenuItem[] items = [new("Rename") { Hint = "F2" }, MenuItem.Separator, new("Delete") { Enabled = canDelete }];
+      App.RunTask(async _ =>
+      {
+          if (await App.Overlays.ShowMenuAsync(items, new Rect(mouse.X, mouse.Y, 1, 1)) is { } choice) Run(choice);
+      });
+      return true;
+  }
+  ```
+- **Menu bar:** `app.WithMenuBar(new MenuBar(menus))` puts a row of menus on the top line, above the
+  screens. F10 opens the first menu, Alt and a title's mnemonic opens that one (after the focus chain and
+  `App.Keys`, so your own Alt bindings win), and a click on a title opens or closes it. In an open menu, ← →
+  move between menus and F10 or Esc closes it. A [`Menu`](xref:MiniTui.Menu) takes a fixed item list, or a factory run at each
+  opening so marks follow your state; the palette lists every menu item that has a `Run`:
+
+  ```csharp
+  app.WithMenuBar(new MenuBar(
+      new Menu("&File", [new("&Save") { Hint = "Ctrl+S", Run = Save }, MenuItem.Separator, new("&Quit") { Run = app.Quit }]),
+      new Menu("&View", () => [new("&Wrap") { Checked = _wrap, Run = () => _wrap = !_wrap }])));
+  ```
+- **Command palette:** `ShowPalette()` opens a [`CommandPalette`](xref:MiniTui.CommandPalette) listing every key binding in scope (the ones
+  help shows, hidden ones included) with its group and key, plus the commands of an optional [`CommandRegistry`](xref:MiniTui.CommandRegistry).
+  Typing filters them with fuzzy matching (matched letters in bold), ↑ ↓ PgUp PgDn move, and Enter or a click
+  runs the item once the palette has closed. A command with a usage opens the command line with its name
+  typed. Nothing is bound by default; `Fuzzy.Match(pattern, text)` is public for filtering your own lists, and
+  `new CommandPalette(items)` takes [`PaletteItem`](xref:MiniTui.PaletteItem)s of your own:
+
+  ```csharp
+  app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette(commands));
+  ```
