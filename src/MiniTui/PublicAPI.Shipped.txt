@@ -18,6 +18,7 @@ MiniTui.App.Invalidate() -> void
 MiniTui.App.Keys.get -> MiniTui.KeyMap!
 MiniTui.App.LastFrame.get -> MiniTui.FrameStats
 MiniTui.App.Log.get -> MiniTui.LogBuffer!
+MiniTui.App.MenuBar.get -> MiniTui.MenuBar?
 MiniTui.App.OnError(System.Func<System.Exception!, MiniTui.ErrorAction>! handler) -> MiniTui.App!
 MiniTui.App.OnEvent(System.Action<MiniTui.Event!>! handler) -> MiniTui.App!
 MiniTui.App.OnKey(System.Func<System.ConsoleKeyInfo, bool>! handler) -> MiniTui.App!
@@ -50,6 +51,7 @@ MiniTui.App.WithColorMode(MiniTui.ColorMode mode) -> MiniTui.App!
 MiniTui.App.WithDebugKey(string? key = "f12") -> MiniTui.App!
 MiniTui.App.WithInput(MiniTui.IInputSource! input) -> MiniTui.App!
 MiniTui.App.WithKeyboardProtocol(bool enabled = true) -> MiniTui.App!
+MiniTui.App.WithMenuBar(MiniTui.MenuBar? menuBar) -> MiniTui.App!
 MiniTui.App.WithMouse(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithSuspendKey(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithTerminalQueries(bool enabled = true) -> MiniTui.App!
@@ -519,8 +521,20 @@ MiniTui.Marker.Block = 2 -> MiniTui.Marker
 MiniTui.Marker.Braille = 0 -> MiniTui.Marker
 MiniTui.Marker.Dot = 3 -> MiniTui.Marker
 MiniTui.Marker.HalfBlock = 1 -> MiniTui.Marker
+MiniTui.Menu
+MiniTui.Menu.Items() -> System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>!
+MiniTui.Menu.Menu(string! title, System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items) -> void
+MiniTui.Menu.Menu(string! title, System.Func<System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>!>! items) -> void
+MiniTui.Menu.Title.get -> string!
+MiniTui.MenuBar
+MiniTui.MenuBar.IsOpen.get -> bool
+MiniTui.MenuBar.MenuBar(params MiniTui.Menu![]! menus) -> void
+MiniTui.MenuBar.Menus.get -> System.Collections.Generic.IReadOnlyList<MiniTui.Menu!>!
+MiniTui.MenuBar.Open(int index = 0) -> void
 MiniTui.MenuItem
 MiniTui.MenuItem.<Clone>$() -> MiniTui.MenuItem!
+MiniTui.MenuItem.Checked.get -> bool?
+MiniTui.MenuItem.Checked.init -> void
 MiniTui.MenuItem.Deconstruct(out string! Label) -> void
 MiniTui.MenuItem.Enabled.get -> bool
 MiniTui.MenuItem.Enabled.init -> void
@@ -531,6 +545,13 @@ MiniTui.MenuItem.IsSeparator.get -> bool
 MiniTui.MenuItem.Label.get -> string!
 MiniTui.MenuItem.Label.init -> void
 MiniTui.MenuItem.MenuItem(string! Label) -> void
+MiniTui.MenuItem.Mnemonic.get -> char?
+MiniTui.MenuItem.Radio.get -> bool
+MiniTui.MenuItem.Radio.init -> void
+MiniTui.MenuItem.Run.get -> System.Action?
+MiniTui.MenuItem.Run.init -> void
+MiniTui.MenuItem.Submenu.get -> System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>?
+MiniTui.MenuItem.Submenu.init -> void
 MiniTui.MessageDialog
 MiniTui.MessageDialog.Closed.get -> System.Threading.Tasks.Task!
 MiniTui.MessageDialog.MessageDialog(string! title, MiniTui.Text! body) -> void
@@ -628,6 +649,7 @@ MiniTui.PasteEvent.PasteEvent(string! Text) -> void
 MiniTui.PasteEvent.Text.get -> string!
 MiniTui.PasteEvent.Text.init -> void
 MiniTui.PopupMenu
+MiniTui.PopupMenu.Chosen.get -> System.Threading.Tasks.Task<MiniTui.MenuItem?>!
 MiniTui.PopupMenu.MaxRows.get -> int
 MiniTui.PopupMenu.MaxRows.init -> void
 MiniTui.PopupMenu.MinWidth.get -> int
