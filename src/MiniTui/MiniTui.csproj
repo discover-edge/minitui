@@ -40,7 +40,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <!-- The package page on nuget.org: a summary that links to minitui.org (1.x spec §21.7) -->
+    <None Include="PACKAGE.md" Pack="true" PackagePath="/README.md" />
   </ItemGroup>
 
   <ItemGroup>

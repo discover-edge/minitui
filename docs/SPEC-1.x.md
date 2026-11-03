@@ -4748,7 +4748,9 @@ At the registrar for minitui.org:
 
 The README shrinks to what a nuget.org or GitHub visitor needs first: the one-line pitch, install,
 the Quick Start, a feature list linking to the guides, "Project Structure", "Building and Testing", and the
-license. Everything else moves to the guides (§21.2), so it's written once. No screenshot: the generated ones are
+license. Everything else moves to the guides (§21.2), so it's written once. The package gets its own, shorter readme
+(`src/MiniTui/PACKAGE.md`): the pitch, the Quick Start and links to the site, without the contributor sections. No
+screenshot: the generated ones are
 SVGs, which nuget.org doesn't show from other sites; the site has them.
 
 ### 21.8 Tests and acceptance
