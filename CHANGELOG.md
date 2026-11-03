@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-02
+
+MiniTui 1.10: a menu bar, and menus with mnemonics, check and radio items, and submenus.
+
 ### Added
 - Richer menu items in `PopupMenu` (and so in context menus): mnemonics (`&` before a letter in `MenuItem.Label`, drawn underlined; typing it, or Alt+it, chooses the item, and items sharing one are cycled through), check and radio marks (`Checked`, `Radio`), submenus (`Submenu`, opened beside the item with → Enter or a click, to the left when there's no room, closed with ← or Esc; Tab or a click outside every menu closes them all), and `Run`, called after every open menu has closed. `MenuItem.Mnemonic` and `PopupMenu.Chosen` (the chosen item at any depth; `Result` is the top-level index).
 - `MenuBar`, `Menu` and `App.WithMenuBar(bar)` (`App.MenuBar`): a row of menus on the top line, above the screens and overlays. F10 opens the first menu (an `f10` "Menu" entry in `App.Keys`, listed in help), Alt and a title's mnemonic opens that one after the focus chain and `App.Keys`, and a click on a title opens, switches or closes. In an open menu, ← → move between menus (→ on an item without a submenu too), Alt and another title switches, and F10 or Esc closes. A `Menu` takes a fixed list or a factory run at each opening. `MenuBar.Open(index)` and `IsOpen`.
