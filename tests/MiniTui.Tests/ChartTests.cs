@@ -495,7 +495,60 @@ public class BarChartTests
              A   B
             """);
         AssertStyle(buf, 1, 1, Color.Green, Color.Reset, Modifiers.Reversed);
-        AssertStyle(buf, 5, 1, Color.Reset, Color.Reset);
+        // 1.x spec §23.2: an empty bar's value takes the bar's color
+        AssertStyle(buf, 5, 1, Color.Green, Color.Reset);
+    }
+
+    [Fact]
+    public void AShortBarsValue_GoesAboveIt_AndLeavesItsGlyphWhole()
+    {
+        // 4 rows of bars over a max of 8: 1 is a quarter of a cell
+        var buf = new CellBuffer(7, 5);
+
+        Widget.BarChart().Bars(new Bar("A", 8), new Bar("B", 1)).Max(8).Draw(buf, buf.Area);
+
+        AssertTrimmed(buf, """
+            ███
+            ███
+            ███  1
+            █8█ ▄▄▄
+             A   B
+            """);
+        AssertStyle(buf, 5, 2, Color.Green, Color.Reset);
+    }
+
+    [Fact]
+    public void ValuesAboveShortBars_ThatWouldTouch_LeaveOutTheLaterOne()
+    {
+        var buf = new CellBuffer(6, 4);
+
+        Widget.BarChart().Bars(new Bar("A", 1), new Bar("B", 1), new Bar("C", 1)).Max(8).BarWidth(1).BarGap(0).Draw(buf, buf.Area);
+
+        // 1-wide bars side by side: the second value would touch the first, the third is a column from the first
+        Assert.Equal("1 1", buf.ToLines()[1].TrimEnd());
+        Assert.Equal("▃▃▃", buf.ToLines()[2].TrimEnd());
+    }
+
+    [Fact]
+    public void AShortBarsValue_IsLeftOut_WithoutARowAbove()
+    {
+        var buf = new CellBuffer(3, 2);
+
+        Widget.BarChart().Bars(new Bar("A", 1)).Max(8).Draw(buf, buf.Area);
+
+        Assert.Equal("▁▁▁", buf.ToLines()[0]);
+    }
+
+    [Fact]
+    public void AShortStacksTotal_GoesAboveIt()
+    {
+        var buf = new CellBuffer(3, 4);
+
+        Widget.BarChart().Groups(new BarGroup("A", [new Bar("x", 0.5) { ValueText = "" }, new Bar("y", 0.5) { ValueText = "" }]))
+            .Stacked().Max(8).Draw(buf, buf.Area);
+
+        Assert.Equal(" 1", buf.ToLines()[1].TrimEnd());
+        Assert.Equal("▃▃▃", buf.ToLines()[2]);
     }
 
     [Fact]

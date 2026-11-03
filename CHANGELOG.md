@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Bar charts: a vertical bar shorter than one cell has its value on the row above it, in the bar's color, instead of over its partial glyph, which cut the bar in two. Where values above short neighbours would touch, the later one is left out. An empty bar's value takes the bar's color too.
+
 ## [2.0.0] - 2026-11-03
 
 MiniTui 2.0: `Buffer` is renamed `CellBuffer`, so samples compile in a default console project, plus fixes found by building four apps from the docs alone. See [Migrating from 1.x to 2.0](https://minitui.org/docs/MIGRATION-1-to-2.html).

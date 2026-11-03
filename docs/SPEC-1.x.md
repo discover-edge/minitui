@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0; §21 (Phase 27) live at minitui.org, with its README and project URL released in v1.15.1; §22 (Phase 28) released in v2.0.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0; §21 (Phase 27) live at minitui.org, with its README and project URL released in v1.15.1; §22 (Phase 28) released in v2.0.0; §23 (Phase 29) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -51,6 +51,7 @@ or add to them:
 | **26. Clipboard and selection extras** | Reading the Unix clipboard with an OSC 52 query (`WithClipboardRead`, `Clipboard.GetTextAsync`); Ctrl+Insert, Shift+Insert and Shift+Delete; selecting text in paragraphs with the mouse (`ScrollState.Selectable`, `Component.HasSelection`), including the message and help dialogs. Backlog rank 10. | 12, 16, 23 | §20 | 1.15.0 |
 | **27. Website** | minitui.org on GitHub Pages, built with DocFX: a landing page with generated recordings and screenshots of the example app, the README's content as guide pages, an API reference from the XML docs, and the changelog. | — | §21 | — (no package) |
 | **28. Fixes from building apps from the docs** | `Buffer` renamed to `CellBuffer`; tree type-ahead and expander clicks, gauge label colors, text states leaving Alt+arrows, palette duplicates, toasts and the menu bar, status bar hints first, an `esc Back` hint, padded overlay titles, the harness and custom dialogs; `TextFieldState.Changed`, `ConfirmAsync(yesFirst)`. | 27 | §22 | **2.0.0** |
+| **29. Bar values, paragraph scrolling, checkbox and button states** | A short bar's value drawn above it instead of splitting it; `ScrollState.ScrollsHorizontally` for unwrapped paragraphs; `CheckboxState` and `ButtonState`. | 28 | §23 | 2.1.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -4879,3 +4880,136 @@ Two PRs, then one release:
 2. **28b** (fixes): §22.3 and §22.4, with their tests.
 
 Both go out as **2.0.0**.
+
+---
+
+## 23. Bar values, horizontal paragraph scrolling, and checkbox and button states (Phase 29)
+
+### 23.1 Purpose
+
+Hand-testing the doc-validation apps on 2.0.0 found one problem, and Phase 28 left two features on its backlog
+(§22.7). All three come from apps built from the docs:
+- **Bar values split short bars.** In the system monitor's grouped bar chart, a value over a bar shorter than one
+  cell is drawn across the bar's partial glyph and cuts it in two (`▂8▂`).
+- **Long lines can't be read in a paragraph.** With `WrapMode.None`, a long line is cut with `…` and there's no way
+  to see the rest (the log viewer).
+- **Checkboxes and buttons only draw.** Every form app writes the same component to hold a checkbox's value and
+  handle Space, Enter and clicks (the settings wizard).
+
+This is **2.1.0**: one fix and two additions, no breaking changes.
+
+### 23.2 Bar values (fix)
+
+Vertical bars and stacks, where the value is drawn:
+
+| The bar | Its value |
+|---|---|
+| One whole cell or taller | In its bottom row, reversed in the bar's color (unchanged). A stack's total stays in its top whole cell. |
+| Shorter than one cell (a partial glyph) | On the row above the bar, in the bar's color, so the glyph stays whole. Not drawn when there's no row above. |
+| Empty (zero, negative, NaN) | In its bottom row, in the bar's color. |
+
+- **The row above** is shared by a short bar's neighbours, so a value there is drawn only if it doesn't touch a value
+  already drawn on that row (one column apart at least). The first, leftmost, wins.
+- **A value wider than its bar** is still left out. With `BarGap(0)`, values reversed inside neighbouring bars
+  read apart by their colors, so they don't change either.
+- Horizontal bars, whose values go after the bar, don't change.
+
+### 23.3 Horizontal scrolling in paragraphs (addition)
+
+```csharp
+public sealed class ScrollState
+{
+    // Existing members unchanged
+
+    /// Let ← → and the horizontal wheel (or Shift+wheel) scroll unwrapped text sideways. Off by default.
+    public bool ScrollsHorizontally { get; set; }
+
+    /// The first visible column of unwrapped text. Clamped when drawn.
+    public int HorizontalOffset { get; set; }
+
+    /// How many columns were visible, and the widest row, at the last draw.
+    public int ViewportWidth { get; }
+    public int ContentWidth { get; }
+}
+```
+
+- **When it applies:** a `ParagraphBuilder` with `WrapMode.None`, a `State(...)` whose `ScrollsHorizontally` is
+  true. Rows are drawn from `HorizontalOffset`, clipped at the edges instead of cut with `…`, except that a row
+  continuing past the right edge shows `…` in the last column, and one scrolled past its start shows `…` in the
+  first (only when the row is wider than the view).
+- **Keys:** ← and → scroll by 8 columns (not handled at the edge, so they go on); `HandleKey`'s Home and End also
+  go to the first and last column. Alignment applies only to rows narrower than the view.
+- **Mouse:** `ScrollLeft`/`ScrollRight` (a horizontal wheel or trackpad), and Shift with the vertical wheel, scroll
+  by 8 columns.
+- **Selection** (§20.5) works in the scrolled view: positions are columns of the row's text, so a selection keeps
+  its text when scrolled, and dragging past the left or right edge scrolls by a column.
+- **Off by default,** so screens that use ← → for something else keep them. Without it, nothing changes.
+
+### 23.4 Checkbox and button states (addition)
+
+```csharp
+public sealed class CheckboxState
+{
+    public bool Checked { get; set; }
+    public void Toggle();
+    /// Raised when the user toggles it (Space, or a click on the box or its label); not when code sets Checked.
+    public event EventHandler? Changed;
+    public bool HandleKey(ConsoleKeyInfo key);    // Space
+    public bool HandleMouse(MouseEvent mouse);    // a left click where it was drawn
+}
+
+public sealed class ButtonState
+{
+    /// Raised when the user presses it: Enter or Space, or a left click released over it.
+    public event EventHandler? Pressed;
+    /// True while the left button is held down on it, so it draws pressed.
+    public bool IsDown { get; }
+    public bool HandleKey(ConsoleKeyInfo key);    // Enter, Space
+    public bool HandleMouse(MouseEvent mouse);    // press, drag, release where it was drawn
+}
+
+public sealed class CheckboxBuilder { public CheckboxBuilder State(CheckboxState state); /* existing */ }
+public sealed class ButtonBuilder   { public ButtonBuilder State(ButtonState state);     /* existing */ }
+```
+
+- **With a state,** the builder draws `Checked` (or `IsDown` as pressed) from it and records where it drew, for the
+  mouse. `Checked(...)` and `Pressed(...)` still work without one.
+- **A button fires on release**, as GUI buttons do: pressing and dragging off it cancels. Keys fire at once.
+- The Forms guide replaces its hand-written checkbox component with the state, and the example's form uses them.
+
+### 23.5 Tests
+
+- **Bars:** a value over a short bar goes above it and leaves the glyph whole; whole-cell bars unchanged; an empty
+  bar's value; two short neighbours whose values would touch; no row above; stacks.
+- **Paragraphs:** offsets and clamping, ← → at the edges, Home and End, the edge `…`s, the wheel and Shift+wheel,
+  alignment of short rows, selection while scrolled and dragging past the side edges, `ScrollsHorizontally` off.
+- **States:** Space, clicks on the box and the label, `Changed` only from the user; button Enter, Space, a click,
+  a press dragged off and released (no `Pressed`), `IsDown` while held.
+
+Manual QA: the monitor's chart (rebuilt against the fix), a long-line paragraph in the example, and the form demo.
+
+### 23.6 Migration impact
+
+- New API (§23.3, §23.4) in `PublicAPI.Unshipped.txt`. Nothing removed or changed.
+- **Changed:** where a short bar's value is drawn.
+
+### 23.7 Out of scope
+
+- A horizontal scrollbar (the `…`s show there's more).
+- Horizontal scrolling of wrapped text, lists or tables.
+- Radio buttons and checkbox groups (`SelectState` covers a choice of one).
+
+### 23.8 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | How far ← → and the wheel scroll sideways? | **8 columns**: a few words per step, as `less` steps by half a screen and editors by a few columns. |
+| 2 | Horizontal scrolling opt-in, or on whenever the text is wider than the view? | **Opt-in** (`ScrollsHorizontally`): ← → shouldn't change meaning with the content's width. |
+| 3 | A button fires on press or on release? | **On release over it**, so a mis-click can be dragged off. |
+
+### 23.9 Implementation order
+
+Three PRs, one release (2.1.0):
+1. **29a** (bar values): §23.2.
+2. **29b** (paragraphs): §23.3, the example's long-line demo, the Widgets guide.
+3. **29c** (states): §23.4, the Forms guide, the example's form.
