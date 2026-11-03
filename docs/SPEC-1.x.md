@@ -4074,13 +4074,12 @@ public sealed class TreeState<T> where T : class
 {
     // Existing members unchanged
 
-    /// Children loaded asynchronously (§18.6), instead of the constructor's children function.
-    public TreeState(Func<T, CancellationToken, Task<IReadOnlyList<T>>> loadChildren, Func<T, string> text,
-        IEqualityComparer<T>? comparer = null);
-
     /// Expand each node of path but the last, select the last and scroll it into view (§18.3).
     /// path starts at a root. Returns false, changing nothing, when it doesn't match the tree.
     public bool Reveal(IReadOnlyList<T> path);
+
+    /// Reveal, after loading the children of each node on the path that aren't loaded (§18.3, §18.6).
+    public Task<bool> RevealAsync(IReadOnlyList<T> path, CancellationToken cancellationToken = default);
 
     /// Show only nodes that match and their ancestors (§18.4). Null shows everything.
     public Func<T, bool>? Filter { get; set; }
@@ -4103,7 +4102,17 @@ public sealed class TreeState<T> where T : class
     /// Forget a node's loaded children, so the next expand loads them again (§18.6).
     public void Reload(T node);
 }
+
+public static class TreeState
+{
+    /// A state whose children are loaded asynchronously (§18.6), instead of by a children function.
+    public static TreeState<T> Async<T>(Func<T, CancellationToken, Task<IReadOnlyList<T>>> loadChildren,
+        Func<T, string> text, IEqualityComparer<T>? comparer = null) where T : class;
+}
 ```
+
+- The async state comes from a factory, not a second constructor: the analyzers reject two overloads with
+  optional parameters (RS0026, RS0027), and a static member on the generic type (CA1000).
 
 - Everything is opt-in: a tree that uses none of these behaves as in 1.6.
 - No builder changes: the filter, the check boxes and the loading text are drawn by `TreeBuilder<T>` from the
@@ -4115,9 +4124,10 @@ public sealed class TreeState<T> where T : class
   the state's comparer, reading children as the walk does). If one isn't, it returns false and changes nothing.
 - Otherwise it expands every node but the last (raising `Expanded` for each one that wasn't), selects the last,
   raises `SelectionChanged` if it moved, and scrolls the selection into view at the next draw, as a key move does.
-- With a lazy source (§11.7, or async children before they load), a node's children may not be known yet. Reveal
-  walks what's known. To reveal deep in an unloaded tree, the app loads the path first. With async children
-  (§18.6), `RevealAsync` isn't offered: the app awaits the loads it needs, then calls `Reveal`.
+- With a lazy source (§11.7), a node's children may not be known yet. Reveal walks what's known, so the app loads
+  the path first. With async children (§18.6), `RevealAsync` loads each node on the path that isn't loaded (sharing
+  a load already running), then reveals; the app names the nodes before they load with a comparer by key (a path).
+  It was added during 24b, when the demo showed an app has no other way to wait for the state's loads.
 - With a `Filter` set, revealing a node the filter hides returns false.
 
 ### 18.4 Filter
@@ -4155,7 +4165,7 @@ public sealed class TreeState<T> where T : class
 
 ### 18.6 Async children
 
-- **The loader:** with the new constructor, a node's children come from `loadChildren(node, token)`. They're loaded
+- **The loader:** with `TreeState.Async`, a node's children come from `loadChildren(node, token)`. They're loaded
   when the node is first expanded (by any means: a key, a click, `Expand`, `Reveal`, `ExpandAll`) and cached.
   Until it finishes, the node has no child rows, and its label is followed by `Loading…` in `Theme.TextMuted`.
   When it finishes, the next frame shows the children.
@@ -4170,7 +4180,8 @@ public sealed class TreeState<T> where T : class
   reloaded or the node is reached again), cancels its load if one is running, and loads again at the next expand,
   or at once if the node is expanded.
 - **Filters, checks and reveal** see only loaded children (§18.3 – §18.5). `ExpandAll` with a loader expands what's
-  loaded and starts loads for the rest, one level per frame as they arrive. It doesn't wait for them.
+  loaded and starts loads for the expanded nodes that aren't. It doesn't wait for them, or expand what they bring.
+- A parent checked before its children load checks them when they arrive.
 
 ### 18.7 Example
 

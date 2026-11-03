@@ -105,6 +105,7 @@ public class TreeBuilder<T> where T : class
         var symbolWidth = Math.Min(UnicodeWidth.Of(symbol), rowArea.Width);
         var prefixes = Prefixes(rows, offset, visible);
         var expanders = new int[visible];
+        var checks = new int[visible];
         var selected = rows.Count > 0 && _state.Selected is not null ? IndexOfSelected(rows) : -1;
 
         for (var i = 0; i < visible; i++)
@@ -120,11 +121,26 @@ public class TreeBuilder<T> where T : class
             expanders[i] = x < right && row.HasChildren ? x : -1;
             x += buf.SetString(x, y, Expander(row), muted, Math.Max(0, right - x));
             x += buf.SetString(x, y, " ", style, Math.Max(0, right - x));
-            WidgetText.DrawLine(buf, x, y, _format?.Invoke(row.Node) ?? _state.TextOf(row.Node), right - x, style);
+            checks[i] = -1;
+            if (_state.Checkboxes && right - x >= 3)
+            {
+                // 1.x spec §18.5: [✓], [ ] or [-] before the label
+                checks[i] = x;
+                var mark = _state.IsChecked(row.Node) switch { true => Glyphs.Basic ? "x" : "✓", null => "-", false => " " };
+                x += buf.SetString(x, y, "[", style, right - x);
+                x += buf.SetString(x, y, mark, theme.Success, right - x);
+                x += buf.SetString(x, y, "] ", style, Math.Max(0, right - x));
+            }
+            var label = _format?.Invoke(row.Node) ?? _state.TextOf(row.Node);
+            x += WidgetText.DrawLine(buf, x, y, label, Math.Max(0, right - x), style);
+            // 1.x spec §18.6: a load running or failed, after the label
+            var (loading, error) = _state.LoadStatus(row.Node);
+            if (loading && right - x > 1) buf.SetString(x + 1, y, "Loading…", muted, right - x - 1);
+            else if (error is not null && right - x > 1) buf.SetString(x + 1, y, Sanitizer.SingleLine(error), style.Patch(theme.Error), right - x - 1);
             if (offset + i == selected) buf.SetStyle(new Rect(rowArea.X, y, rowArea.Width, 1), highlight);
             else if (_hover is { } p && p.Y == y && p.X >= rowArea.X && p.X < rowArea.Right) buf.SetStyle(new Rect(rowArea.X, y, rowArea.Width, 1), theme.Hover);
         }
-        _state.Track(area, rowArea with { Height = visible }, expanders);
+        _state.Track(area, rowArea with { Height = visible }, expanders, checks);
 
         if (!overflow) return;
         new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(viewport).Position(offset).Draw(buf, scrollbar);
