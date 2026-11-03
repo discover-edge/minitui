@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0; §21 (Phase 27) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -49,6 +49,7 @@ or add to them:
 | **24. Tree extras** | `TreeState.Reveal(path)`; `Filter` showing matches and their ancestors, opened; tri-state `Checkboxes` (Space, a click, `CheckedNodes`, `CheckedChanged`); async children with a loader, `Loading…` and errors on the row, and `Reload`. Backlog rank 8. | 17 | §18 | 1.13.0 |
 | **25. Chart extras** | Grouped and stacked bar charts (`BarGroup`, `Groups`, `Stacked`, `GroupGap`) with a series legend; time and duration axes (`Axis.Time`, `Axis.Duration`, `ChartTime`, `Formatter`, `LabelCount`); tick marks and grid lines (`Ticks`, `Grid`); area charts (`GraphType.Area`). Backlog rank 9. | 14 | §19 | 1.14.0 |
 | **26. Clipboard and selection extras** | Reading the Unix clipboard with an OSC 52 query (`WithClipboardRead`, `Clipboard.GetTextAsync`); Ctrl+Insert, Shift+Insert and Shift+Delete; selecting text in paragraphs with the mouse (`ScrollState.Selectable`, `Component.HasSelection`), including the message and help dialogs. Backlog rank 10. | 12, 16, 23 | §20 | 1.15.0 |
+| **27. Website** | minitui.org on GitHub Pages, built with DocFX: a landing page with generated recordings and screenshots of the example app, the README's content as guide pages, an API reference from the XML docs, and the changelog. | — | §21 | — (no package) |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -4626,3 +4627,158 @@ Two PRs:
    `ParagraphBuilder` drawing; the dialogs; the Dashboard log; README; CHANGELOG; the manual QA.
 
 Both go out in one release (1.15.0).
+
+---
+
+## 21. Website (Phase 27)
+
+### 21.1 Purpose
+
+MiniTui's documentation is one 1,000-line README, which is also the package page on nuget.org. That's hard to
+navigate, and there's no API reference outside IntelliSense. Phase 27 builds **minitui.org**: a landing page that
+shows the library working, the README's content as guide pages, and an API reference generated from the XML doc
+comments. It's built with DocFX and hosted on GitHub Pages. No library code changes, so no package release.
+
+### 21.2 Layout
+
+```
+site/
+  docfx.json              # metadata from src/MiniTui/MiniTui.csproj, build, the modern template
+  index.md                # the landing page
+  toc.yml                 # top navigation: Guides, API, Changelog, GitHub
+  guides/
+    toc.yml
+    getting-started.md    # Install, Quick Start, A small app
+    async.md              # Async data and HTTP
+    screens.md            # Screens and components
+    layout.md             # Layout, Split panes
+    widgets.md            # Widgets, Box styles
+    keys-and-state.md     # Keys and widget state, Trees, Selection and the clipboard
+    theming.md
+    drawing.md            # Drawing on the Buffer; Color, Style and text
+    terminal.md           # The terminal: queries, keyboard, mouse, running programs, debugging, backends
+    testing.md
+    app-and-helpers.md    # The README's "Reference": App's options, Rect, ParsedCommand, TimedMessage, CommandRegistry
+    extending.md
+  changelog.md            # includes ../CHANGELOG.md
+  images/                 # the logo and favicon
+  media/                  # generated recordings and screenshots (§21.4), not committed
+  template/public/main.css # the modern template's colors, and the landing page
+tools/SiteMedia/          # the console app that records the demos (§21.4)
+dotnet-tools.json         # docfx, pinned
+```
+
+- **The API reference** comes from `src/MiniTui/MiniTui.csproj` (`metadata` in `docfx.json`), so it has every
+  public type with its XML docs; `<see cref>` links resolve to its pages. Internal types aren't shown.
+- **Guides link to the API** with `<xref:MiniTui.App>`-style references, and the build fails on a broken one.
+- **The guides are the README's sections**, split as above and edited where a page needs an introduction. The
+  "Reference" section becomes "The app and helpers", since it has examples the API pages don't. "Upgrading from
+  0.7" is `docs/MIGRATION-0.7-to-1.0.md` itself, published as `docs/` on the site, so the changelog's links to it
+  work. "Project Structure" and "Building and Testing" stay in the README only (they're for contributors).
+- **Search:** the modern template's built-in search (client-side, no service).
+- The specs (`docs/SPEC*.md`) aren't published.
+
+### 21.3 The landing page
+
+- **Hero:** "MiniTui — terminal UIs for .NET", one sentence on what it is, `dotnet add package MiniTui`, and
+  buttons to Get started, the API reference and GitHub.
+- **A recording** of the example app (§21.4) under the hero: the menu, the Dashboard, the Editor, the Tree.
+- **Features**, a short grid with a screenshot each: widgets (lists, tables, trees, charts, text areas),
+  screens and focus, layout and split panes, the mouse and the clipboard, theming and light/dark detection,
+  testing with `ComponentHarness`, and "no dependencies, Windows, Linux and macOS".
+- **The smallest app**, the Quick Start's code, with a screenshot of what it draws.
+- The footer: MIT license, NuGet, GitHub, the changelog.
+
+### 21.4 Recordings and screenshots
+
+Generated from the example app, not captured by hand, so they never drift from the code:
+
+- **`tools/SiteMedia`** runs example screens on an in-memory ANSI backend (the real encoder, a fixed size, the
+  default dark theme, `TimeProvider` stepped by the tool) and feeds them scripted input.
+- **Recordings** are asciicast v2 files (`.cast`): the encoder's output with each frame's time. The site plays
+  them with asciinema-player (from jsDelivr, a pinned version), so text stays sharp and selectable.
+- **Screenshots** are SVGs drawn from the final buffer: one `<text>` run per style, a monospace font stack, the
+  theme's colors.
+- The scripts live in the tool (one per recording or screenshot). The site build runs the tool first, into
+  `site/media/`.
+- Randomness in the demos (the Dashboard's log and values) is seeded for the recordings, so the output is the same
+  every run.
+
+### 21.5 Building and deploying
+
+- **`.github/workflows/site.yml`:** checkout, .NET 10, `dotnet tool restore`, build the library, run
+  `tools/SiteMedia`, `docfx site/docfx.json --warningsAsErrors`, then `actions/upload-pages-artifact` and
+  `actions/deploy-pages`.
+- **When it deploys:** on a `v*` tag (so the API reference matches the released package) and on
+  `workflow_dispatch` (for a guide fix between releases, built from `main`).
+- **CI:** `ci.yml` builds the site on pull requests, without deploying, so a broken link or xref fails the PR.
+- **The domain** is set in the repository's Pages settings (`minitui.org`, HTTPS enforced), with the source set to
+  GitHub Actions.
+
+### 21.6 What the maintainer sets up (outside the repository)
+
+At the registrar for minitui.org:
+
+| Type | Name | Value |
+|---|---|---|
+| A | `@` | `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153` |
+| AAAA | `@` | `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`, `2606:50c0:8003::153` |
+| CNAME | `www` | `discover-edge.github.io` |
+| TXT | `_github-pages-challenge-discover-edge` | the value GitHub shows when verifying the domain |
+
+- **Verify the domain** for the discover-edge organization (Settings → Pages → Add a domain) first, so no other
+  repository can claim it.
+- In the repository: Settings → Pages → Source: GitHub Actions; Custom domain `minitui.org`; Enforce HTTPS once
+  the certificate is issued (it can take up to an hour after DNS resolves).
+- Settings → Environments → `github-pages` → Deployment branches and tags: add the tag rule `v*`, so a release
+  tag can deploy (by default only `main` can).
+- The repository's "Website" field: `https://minitui.org`. The package's `PackageProjectUrl` becomes the site.
+
+### 21.7 README
+
+The README shrinks to what a nuget.org or GitHub visitor needs first: the one-line pitch, a screenshot, install,
+the Quick Start, a feature list linking to the guides, "Project Structure", "Building and Testing", and the
+license. Everything else moves to the guides (§21.2), so it's written once.
+
+### 21.8 Tests and acceptance
+
+Automated:
+- The site builds with `--warningsAsErrors`: no broken links, xrefs or includes.
+- `tools/SiteMedia` produces the same files twice in a row (deterministic output).
+- Every public type has an API page (DocFX's metadata covers the assembly's public surface).
+
+Manual QA (results in the PR): the site served locally (`docfx serve`) in a desktop and a phone-width browser,
+light and dark; the recording plays; search finds `ComponentHarness`; after DNS, `https://minitui.org` and
+`https://www.minitui.org` both load with a valid certificate.
+
+### 21.9 Migration impact
+
+- No library changes. `PackageProjectUrl` changes in the next package release.
+- The README shrinks (§21.7); its content moves to the site. The nuget.org page shows the shorter README from the
+  next release.
+
+### 21.10 Out of scope
+
+- Versioned docs (a version picker): the site shows the latest release.
+- A blog, a custom search service, analytics or cookies.
+- Translating the docs.
+- Running MiniTui in the browser (a WebAssembly terminal).
+
+### 21.11 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Recordings: generated asciicasts, or GIFs recorded with a tool such as VHS? | **Generated asciicasts** (§21.4): sharp, selectable, small, and reproducible in CI without ffmpeg or a browser. |
+| 2 | Deploy on every push to `main`, or on release tags? | **Release tags, plus manual runs** (§21.5), so the API pages match the package people install. |
+| 3 | Shrink the README to a summary, or keep it whole alongside the site? | **Shrink it** (§21.7): one copy of each guide. Nobody depends on the README's anchors yet. |
+| 4 | `www.minitui.org` or the bare domain as the main address? | **The bare domain**, `minitui.org`; `www` redirects to it (GitHub Pages does this when both are set up). |
+
+### 21.12 Implementation order
+
+Two PRs:
+1. **27a** (the site): DocFX setup, the guides from the README, the landing page and template overrides, the
+   changelog page, `site.yml` and the CI build, the shorter README, `PackageProjectUrl`.
+2. **27b** (media): `tools/SiteMedia`, the recordings and screenshots, and the landing page using them.
+
+After 27a merges, the maintainer sets up DNS and Pages (§21.6) and runs the workflow by hand; 27b deploys with
+the next manual run or tag.

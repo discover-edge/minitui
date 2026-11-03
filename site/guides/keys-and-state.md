@@ -1,0 +1,172 @@
+# Keys and widget state
+
+Key bindings, and the state objects behind interactive widgets: lists, text fields, trees, selection and the clipboard.
+
+Widget state is a mutable class that handles its own keys; widgets write render-time facts (viewport
+size, scroll offset) back into it while drawing.
+
+| State | Keys | Used by |
+|---|---|---|
+| [`SelectionState`](xref:MiniTui.SelectionState) | ↑ ↓ j k PgUp PgDn Home End, plus `Next`/`Previous`/`PageDown`/`First`/`Last` | List, Table |
+| [`ScrollState`](xref:MiniTui.ScrollState) | ↑ ↓ j k PgUp PgDn Home End | Paragraph, MessageDialog |
+| [`TextFieldState`](xref:MiniTui.TextFieldState) | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end); Shift with the moves selects, Ctrl+A selects all, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste, Ctrl+Z / Ctrl+Y undo and redo (see [Selection and the clipboard](keys-and-state.md#selection-and-the-clipboard)) | TextField |
+| [`CommandLineState`](xref:MiniTui.CommandLineState) | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
+| [`TextAreaState`](xref:MiniTui.TextAreaState) | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls; opt-in `TabIndents` (Tab and Shift+Tab indent and outdent the selected lines, Backspace deletes an indent level), `AutoIndent` (Enter keeps the indentation) and `IndentSize`; Ctrl+F opens a find bar on the last row (smart case, Enter/↓/F3 next, Shift+Enter/↑/Shift+F3 previous, Esc closes; `FindText`, `FindNext`, `MatchCount`, `FindEnabled = false` to leave Ctrl+F and F3 to the app) | TextArea |
+| [`SelectState`](xref:MiniTui.SelectState) | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the [`App`](xref:MiniTui.App): `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option. With `Filterable`, a typed letter opens it too, and typing in it narrows the options | Select |
+| [`TabBarState`](xref:MiniTui.TabBarState) | ← → h l | TabBar |
+| `TreeState<T>` | ↑ ↓ PgUp PgDn Home End, → (expand, then first child), ← (collapse, then parent), Enter (toggle, or `Activated` on a leaf), letters jump by name; `HandleMouse` selects, toggles on the expander and scrolls | Tree |
+
+[`KeyMap`](xref:MiniTui.KeyMap) binds keys to actions and produces hints and help text from the same list:
+
+```csharp
+var keys = new KeyMap()
+    .Add("r", "Refresh", Refresh)
+    .Add("j,down", "Down", () => selection.Next(count), group: "Navigation")
+    .Add("ctrl+s", "Save", Save)
+    .Add("q,esc", "Quit", app.Quit);
+
+app.OnKey(keys.Handle);                                    // first match wins
+Widget.StatusBar().Left(keys.Hints(40)).Draw(buf, status); // "r Refresh  j Down  ctrl+s Save  q Quit"
+_ = app.Overlays.ShowMessageAsync("Keys", string.Join("\n", keys.HelpLines()));
+```
+
+A multi-line field is a component around a `TextAreaState`. Enter is a line break and Tab moves focus, so
+submit with a binding such as Ctrl+S; tabs in pasted text become spaces:
+
+```csharp
+sealed class Notes : Component
+{
+    public TextAreaState State { get; } = new();
+    public override bool CapturesText => true;
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
+    public override bool HandlePaste(string text) => State.Paste(text);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.TextArea().State(State).Placeholder("Notes").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
+}
+```
+
+For editing a config file or a script, turn on the editor features. With `TabIndents`, Tab no longer moves focus
+out of the text area, so give users another way out (the mouse, or a key of the app's):
+
+```csharp
+public TextAreaState State { get; } = new() { TabIndents = true, AutoIndent = true, IndentSize = 2 };
+// ...
+Widget.TextArea().State(State).LineNumbers().Block(Widget.Block().Title(" config.yaml ")).Focused(ctx.Focused).Draw(buf, area);
+```
+
+A dropdown is a component around a `SelectState`. The state opens a menu overlay, so it takes the `App`:
+
+```csharp
+sealed class PlanField : Component
+{
+    public SelectState State { get; } = new(["Free", "Pro", "Team"]);
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key, App);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse, App);
+    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        Widget.Select().State(State).Placeholder("Choose a plan").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
+}
+```
+
+## Trees
+
+`TreeState<T>` shows your own node objects: give it a function for a node's children and one for its label.
+It reads children only for expanded nodes, recomputes the visible rows at every frame, and keeps the expanded
+set and the selection by node (pass an `IEqualityComparer<T>` to match rebuilt nodes, say by path):
+
+```csharp
+sealed record Folder(string Name, List<Folder> Children);
+
+var tree = new TreeState<Folder>(f => f.Children, f => f.Name) { Roots = [root] };
+tree.Activated += (_, e) => Open(e.Node);              // Enter on a node without children
+Widget.Tree(tree).Title(" Folders ").Guides().Focused(ctx.Focused).Draw(buf, area);
+```
+
+For a slow source, `TreeState.Async` takes a loader that returns a `Task`. A node's children load when it first
+expands, with "Loading…" after its label meanwhile; they're kept until `Reload(node)`. A load that throws shows its
+message on the row and collapses the node, and expanding it again retries. Loads run as app work
+(`App.RunTask`), so `ComponentHarness.RunUntilIdle` waits for them:
+
+```csharp
+var files = TreeState.Async<Entry>(
+    async (e, ct) => await Task.Run(() => Directory.EnumerateFileSystemEntries(e.Path).Select(p => new Entry(p)).ToList(), ct),
+    e => e.Name);
+files.HasChildren = e => e.IsDirectory;        // otherwise every unloaded node shows an expander
+files.Roots = [new Entry(root)];
+```
+
+The synchronous constructor still works for lazy sources too: set `HasChildren` and load in `Expanded`.
+
+`ExpandAll` reads the whole tree, which on a disk or an API can take a while; a node that is its own ancestor
+is shown as a leaf, so cycles can't hang it. Letters typed while a tree is focused jump to the next row whose
+label starts with them, so they don't reach plain-letter bindings such as `q`; bind tree commands to keys with
+Alt or Ctrl (Esc still goes back).
+
+`Reveal(path)` expands the nodes on a path from a root and selects the last one, scrolling to it; it returns
+false if the path doesn't match. `Filter` shows only the nodes a predicate matches and their ancestors, drawn
+open; it reads the children of collapsed nodes too, so keep filtered trees in memory (with a lazy source it
+searches what's loaded). Drive it from a text field:
+
+```csharp
+var text = filterField.State.Text;
+tree.Filter = text.Length == 0 ? null : f => f.Name.Contains(text, StringComparison.OrdinalIgnoreCase);
+tree.Reveal([root, src, app, appCs]);
+```
+
+While filtering, ← and the expander close and open rows without touching the expanded nodes, and clearing the
+filter selects the nearest node still shown. With async children, `await tree.RevealAsync(path)` loads the folders on the
+way first; give the state a comparer by key (a path) so the path's nodes can be made before they load.
+
+`Checkboxes = true` draws `[✓]`, `[ ]` or `[-]` on each row; Space or a click on the box toggles it. Checking a
+parent checks everything under it, and a parent shows `[-]` when only some of its children are checked.
+`CheckedNodes` lists the checked leaves and fully checked parents (not what's under them), and `CheckedChanged`
+fires for each toggle. `IsChecked` and `SetChecked` work from code.
+
+## Selection and the clipboard
+
+Text fields, text areas and command lines select with Shift and the movement keys (or Ctrl+A for
+everything); typing, pasting or a delete key replaces the selection, and ← / → collapse it. From code:
+`Select`, `SelectAll`, `ClearSelection`, `SelectedText`, `SelectionStart` and `SelectionEnd`.
+
+- **Ctrl+C** copies the selection in the focused field. Without a selection, it quits as always; a
+  component that doesn't capture text or have a selection (`Component.HasSelection`), or a key binding, never
+  gets Ctrl+C.
+- **Ctrl+X** cuts, and **Ctrl+V** pastes what was copied. Copying goes to the system clipboard: on
+  Windows through the clipboard API, and on Linux and macOS through the terminal (OSC 52; in tmux, with
+  `set -s set-clipboard on`). It's also kept in the app, so copy and paste within it always work. In
+  Windows Terminal and conhost, Ctrl+V is the terminal's paste, which pastes the system clipboard.
+- **Reading the system clipboard on Linux and macOS:** `app.WithClipboardRead()` makes Ctrl+V ask the terminal
+  for its clipboard (an OSC 52 query) and paste the answer. It works in xterm (with `allowWindowOps`), kitty
+  (which may ask the user), WezTerm, foot, iTerm2 (with "Applications in terminal may access clipboard") and tmux
+  3.3+ (`set -s set-clipboard on`); GNOME Terminal and Windows Terminal don't answer. A refusal pastes the
+  in-app text; no answer within 500 ms does too, and the app stops asking. `Clipboard.GetTextAsync()` does the
+  same read from code.
+- **Ctrl+Insert** copies (and never quits), **Shift+Insert** pastes and **Shift+Delete** cuts, as the CUA keys
+  do. Terminals that keep Shift+Insert for their own paste send it as a paste, which works the same.
+- **Esc** clears the selection; without one it goes on as before (closing a dialog or going back).
+- **Ctrl+Z** undoes and **Ctrl+Y** redoes, by word while typing. Setting [`Text`](xref:MiniTui.Text) clears the history. A
+  text field takes Ctrl+Z even with nothing to undo, so with `WithSuspendKey`, Ctrl+Z suspends only
+  while focus isn't on text.
+- `Clipboard.SetText` and `Clipboard.GetText` use the same clipboard from your own code.
+- **Selecting paragraph text:** a `ScrollState` with `Selectable = true` lets the mouse select the text of the
+  paragraph drawn with it: press and drag (scrolling past the top or bottom), double-click a word, triple-click a
+  row. Ctrl+C or Ctrl+Insert copies the rows as shown, Ctrl+A selects all and Esc clears. A component around it
+  overrides `HasSelection => state.HasSelection` so Ctrl+C reaches it. The message and help dialogs are
+  selectable, so an error message can be copied.
+
+  ```csharp
+  sealed class LogView(ScrollState scroll, List<string> log) : Component
+  {
+      public override bool HasSelection => scroll.HasSelection;
+      public override bool HandleKey(ConsoleKeyInfo key) => scroll.HandleKey(key);
+      public override bool HandleMouse(MouseEvent mouse) => scroll.HandleMouse(mouse);
+      public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+          Widget.Paragraph().Text(string.Join("\n", log)).State(scroll)
+              .Block(Widget.Block().Title(" Log ").Focused(ctx.Focused)).Draw(buf, area);
+  }
+  ```
+
+A binding is `(ctrl|alt|shift "+")* name`, where `name` is a printable character or one of `enter esc
+tab backspace delete insert up down left right home end pgup pgdn space f1`–`f12`. A character binding
+matches what was typed, so `"R"` and `"shift+r"` both mean Shift+R. `KeyBinding.Parse` throws
+`FormatException` for anything else.
