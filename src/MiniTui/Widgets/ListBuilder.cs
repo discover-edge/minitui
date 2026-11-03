@@ -12,6 +12,7 @@ namespace MiniTui;
 /// </example>
 public class ListBuilder
 {
+    private Vec2? _hover;
     private int _count;
     private Func<int, Line> _item = _ => "";
     private SelectionState? _state;
@@ -82,6 +83,11 @@ public class ListBuilder
     /// <summary>A style patched over the theme's selection style.</summary>
     public ListBuilder HighlightStyle(Style style) { _highlightStyle = style; return this; }
 
+    /// <summary>
+    /// The pointer, usually <see cref="RenderContext.Hover"/>. <see cref="Theme.Hover"/> is patched over the row under it, unless it's the selected one (1.x spec §17.6).
+    /// </summary>
+    public ListBuilder Hover(Vec2? position) { _hover = position; return this; }
+
     /// <summary>Draw the list to the buffer.</summary>
     public void Draw(Buffer buf, Rect area)
     {
@@ -121,6 +127,7 @@ public class ListBuilder
             if (selected && symbolWidth > 0) buf.SetString(rows.X, y, symbol, style, symbolWidth);
             WidgetText.DrawLine(buf, rows.X + symbolWidth, y, _item(index), rows.Width - symbolWidth, style);
             if (selected) buf.SetStyle(new Rect(rows.X, y, rows.Width, 1), highlight);
+            else if (_hover is { } p && p.Y == y && p.X >= rows.X && p.X < rows.Right) buf.SetStyle(new Rect(rows.X, y, rows.Width, 1), theme.Hover);
         }
 
         if (!overflow) return;

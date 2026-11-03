@@ -39,7 +39,7 @@ internal sealed class ListScreen : Screen
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
         buf.SetString(area.X + 2, area.Y + 1, "Select a fruit:", ctx.Theme.Text.Bold());
-        Widget.List().Title("Fruit").Items(Fruits).State(_selection).Focused(ctx.Focused)
+        Widget.List().Title("Fruit").Items(Fruits).State(_selection).Focused(ctx.Focused).Hover(ctx.Hover)
             .Draw(buf, new Rect(area.X + 2, area.Y + 3, 30, 10));
         buf.SetString(area.X + 35, area.Y + 3, "Selected:", ctx.Theme.TextMuted);
         buf.SetString(area.X + 35, area.Y + 4, Fruits[_selection.Selected], ctx.Theme.Info);
@@ -292,7 +292,7 @@ internal sealed class CommandScreen : Screen
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
     {
         IReadOnlyList<string> items = _notes.Count > 0 ? _notes : ["No notes yet. Press : and type add Hello world"];
-        Widget.List().Title("Notes").Items(items).State(_selection).Focused(ctx.Focused).Draw(buf, area);
+        Widget.List().Title("Notes").Items(items).State(_selection).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
     }
 
     // The selected note's row inside the list's border
@@ -366,7 +366,7 @@ internal sealed class TabsScreen : Screen
     public TabsScreen()
     {
         _bar = AddChild(Component.From(
-            (buf, area, ctx) => Widget.TabBar().Tabs("Daily", "Weekly", "All").State(_tabs).Focused(ctx.Focused).Draw(buf, area),
+            (buf, area, ctx) => Widget.TabBar().Tabs("Daily", "Weekly", "All").State(_tabs).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area),
             key => _tabs.HandleKey(key)));
         _list = AddChild(new ListView(" Tasks ", () => Items[_tabs.Selected]));
         Focus.Add(_bar).Add(_list);

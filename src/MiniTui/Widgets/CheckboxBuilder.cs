@@ -9,6 +9,7 @@ public sealed class CheckboxBuilder
     private bool _checked;
     private bool _focused;
     private Style? _style;
+    private Vec2? _hover;
 
     /// <summary>The label.</summary>
     public CheckboxBuilder Label(string label) { _label = label ?? ""; return this; }
@@ -18,6 +19,11 @@ public sealed class CheckboxBuilder
 
     /// <summary>Use the focused style for the brackets.</summary>
     public CheckboxBuilder Focused(bool focused = true) { _focused = focused; return this; }
+
+    /// <summary>
+    /// The pointer, usually <see cref="RenderContext.Hover"/>. <see cref="Theme.Hover"/> is patched over the checkbox, when it's on it (1.x spec §17.6).
+    /// </summary>
+    public CheckboxBuilder Hover(Vec2? position) { _hover = position; return this; }
 
     /// <summary>A style patched over the theme's text style for the label.</summary>
     public CheckboxBuilder Style(Style style) { _style = style; return this; }
@@ -34,6 +40,7 @@ public sealed class CheckboxBuilder
         x += buf.SetString(x, area.Y, "[", brackets, right - x);
         x += buf.SetString(x, area.Y, _checked ? "✓" : " ", theme.Success, right - x);
         x += buf.SetString(x, area.Y, "]", brackets, right - x);
-        if (right - x > 1) WidgetText.DrawString(buf, x + 1, area.Y, _label, right - x - 1, theme.Text.Patch(_style ?? default));
+        if (right - x > 1) x += 1 + WidgetText.DrawString(buf, x + 1, area.Y, _label, right - x - 1, theme.Text.Patch(_style ?? default));
+        if (_hover is { } p && p.Y == area.Y && p.X >= area.X && p.X < x) buf.SetStyle(new Rect(area.X, area.Y, x - area.X, 1), theme.Hover);
     }
 }

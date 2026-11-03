@@ -45,12 +45,12 @@ public class DragTests
     }
 
     [Fact]
-    public void X10_MotionWithAButton_IsADrag_AndWithoutOne_IsDropped()
+    public void X10_MotionWithAButton_IsADrag_AndWithoutOne_IsAMove()
     {
         static string X10(int b, int x, int y) => "\x1b[M" + (char)(32 + b) + (char)(33 + x) + (char)(33 + y);
 
         Assert.Equal([M(MouseAction.Drag, 7, 1)], Decode(X10(32, 7, 1)));
-        Assert.Equal(['x'], Decode(X10(35, 7, 1) + "x").Cast<ConsoleKeyInfo>().Select(k => k.KeyChar));
+        Assert.Equal([new MouseEvent(MouseAction.Move, MouseButton.None, 7, 1)], Decode(X10(35, 7, 1)));
     }
 
     // Routing

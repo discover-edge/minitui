@@ -9,7 +9,7 @@ using MiniTui.Example;
 // On Linux and macOS, Ctrl+Z suspends to the shell, and fg brings the demos back.
 
 // Fixed dark and light themes, picked by the terminal's background
-var app = App.Create().WithTheme(Theme.Dark, Theme.Light).WithMouse().WithSuspendKey().WithDebugKey();
+var app = App.Create().WithTheme(Theme.Dark, Theme.Light).WithHover().WithSuspendKey().WithDebugKey();
 app.Keys.Add("q", "Back", () => app.Screens.Pop());   // popping the menu quits
 app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette());
 app.WithMenuBar(AppMenu.Create(app));                  // F10 or Alt+F/V/H

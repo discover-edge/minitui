@@ -12,9 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A double-click selects the word under the pointer in text fields, text areas and command lines (a run of letters, digits and `_`, of other symbols, or of spaces), and a triple-click selects the line (all of a text field).
 - `SelectionState.Activated`: raised when a list or table row is double-clicked. A double-click on a tree row does what Enter does: a leaf raises `TreeState.Activated`, a parent expands or collapses. A double-click on a tree's expander toggles it once.
 - Example: double-clicking a log row in the Panes demo moves focus to its details.
+- Hover: `App.WithHover()` turns on all-motion mouse reports (`?1003`; conhost's moves without a button) and delivers them as `MouseAction.Move`, routed to `App.OnEvent`, `App.OnMouse` and the component under the pointer without focusing it. Queued moves are coalesced, and a move draws a frame only when the hovered component changes, something handled it, or the hovered components drew with the pointer. `App.PointerPosition`.
+- `RenderContext.Hover`: the pointer, for the component under it and its ancestors (null under an overlay or without hover). `Hover(position)` on the list, table, tree, button, checkbox and tab bar builders patches the new `Theme.Hover` over the row, widget or tab under it (never over the selection). `Theme.Hover` is a subtle background in the dark and light themes and an underline in the default and monochrome themes.
+- With hover, popup menus, the command palette and the filterable select's list select the item under the pointer, and while a menu bar menu is open, moving over another title switches to it; with none open, the title under the pointer shows hover.
+- Example: hover is on, in the demo list, the menus and the demos' lists, tables, trees, buttons, checkboxes and tabs.
 - `docs/SPEC-1.x.md` §17: the double-click and hover spec.
 
 ### Changed
+- The SGR and X10 decoders and the Windows input translator report motion without a button as `MouseAction.Move` instead of dropping it; the app drops moves unless `WithHover` is on.
 - The second press of a double-click in a text field or text area selects a word instead of placing the cursor again.
 
 ## [1.11.0] - 2026-11-03

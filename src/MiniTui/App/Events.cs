@@ -55,6 +55,12 @@ public enum MouseAction
     /// Drags go to the component that got the press, even outside it.
     /// </summary>
     Drag,
+
+    /// <summary>
+    /// The pointer moved with no button held (1.x spec §17.5). Only delivered while <see cref="App.WithHover"/> is
+    /// on; <see cref="MouseEvent.Button"/> is <see cref="MouseButton.None"/>.
+    /// </summary>
+    Move,
 }
 
 /// <summary>

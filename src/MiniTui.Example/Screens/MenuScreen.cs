@@ -55,7 +55,7 @@ internal sealed class MenuScreen : Screen
             .Add("list", Constraint.Length(30))
             .Add("about", Constraint.Fill())
             .Build();
-        Widget.List().Items(Demos, d => d.Name).State(_selection).HighlightSymbol("> ").Focused(ctx.Focused)
+        Widget.List().Items(Demos, d => d.Name).State(_selection).HighlightSymbol("> ").Focused(ctx.Focused).Hover(ctx.Hover)
             .Draw(buf, columns["list"] with { Height = Math.Min(columns["list"].Height, Demos.Length + 2) });
         Widget.Paragraph()
             .Text(new Text([new Line(Demos[_selection.Selected].Description, ctx.Theme.TextMuted)]))

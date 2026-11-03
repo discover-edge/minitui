@@ -70,7 +70,7 @@ internal sealed class Toggle(string label) : Component
     }
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
-        Widget.Checkbox().Label(label).Checked(Checked).Focused(ctx.Focused).Draw(buf, area);
+        Widget.Checkbox().Label(label).Checked(Checked).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
 }
 
 /// <summary>A scrolling list of strings with its own selection.</summary>
@@ -87,7 +87,7 @@ internal sealed class ListView(string title, Func<IReadOnlyList<string>> items) 
     public override bool HandleMouse(MouseEvent mouse) => Selection.HandleMouse(mouse, items().Count);
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
-        Widget.List().Title(title).Items(items()).State(Selection).HighlightSymbol("> ").Focused(ctx.Focused).Draw(buf, area);
+        Widget.List().Title(title).Items(items()).State(Selection).HighlightSymbol("> ").Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
 }
 
 /// <summary>Helpers for demos that animate.</summary>

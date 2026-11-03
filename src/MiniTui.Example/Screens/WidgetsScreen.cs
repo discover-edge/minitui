@@ -30,13 +30,13 @@ internal sealed class WidgetsScreen : Screen
     public WidgetsScreen()
     {
         _tabBar = AddChild(Component.From(
-            (buf, area, ctx) => Widget.TabBar().Tabs("List", "Table").State(_tabs).Focused(ctx.Focused).Draw(buf, area),
+            (buf, area, ctx) => Widget.TabBar().Tabs("List", "Table").State(_tabs).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area),
             key => _tabs.HandleKey(key)));
         _items = AddChild(Component.From(DrawItems, HandleItemKey));
         _name = AddChild(new TextInput("Name", "Your name (any script: 日本, émoji 😀)"));
         _agree = AddChild(new Toggle("I agree"));
         _greet = AddChild(Component.From(
-            (buf, area, ctx) => Widget.Button().Label("Greet").Focused(ctx.Focused).Draw(buf, area),
+            (buf, area, ctx) => Widget.Button().Label("Greet").Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area),
             key => key.Key is ConsoleKey.Enter or ConsoleKey.Spacebar && Greet()));
         Focus.Add(_tabBar).Add(_items).Add(_name).Add(_agree).Add(_greet);
         Focus.Focus(_items);
@@ -117,7 +117,7 @@ internal sealed class WidgetsScreen : Screen
     {
         if (_tabs.Selected == 0)
         {
-            Widget.List().Title(" Fruit ").Items(Fruits).State(_list).HighlightSymbol("> ").Focused(ctx.Focused).Draw(buf, area);
+            Widget.List().Title(" Fruit ").Items(Fruits).State(_list).HighlightSymbol("> ").Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
             return;
         }
 
@@ -128,7 +128,7 @@ internal sealed class WidgetsScreen : Screen
             .Columns(Constraint.Fill(), Constraint.Length(7), Constraint.Length(6))
             .Rows(data, f => new Row(f, new Line($"{f.Length}") with { Alignment = Alignment.Right }, f.Length > 6 ? "yes" : "no"))
             .State(_table)
-            .Focused(ctx.Focused)
+            .Focused(ctx.Focused).Hover(ctx.Hover)
             .Draw(buf, area);
     }
 

@@ -24,6 +24,13 @@ public sealed class RenderContext
     /// <summary>The app.</summary>
     public App App { get; }
 
+    /// <summary>
+    /// The pointer, while <see cref="App.WithHover"/> is on and the pointer is over this component (or a child of
+    /// it) in the last frame, with no overlay above it (1.x spec §17.6). Null otherwise. Pass it to a builder's
+    /// <c>Hover</c> to show what's under the pointer.
+    /// </summary>
+    public Vec2? Hover => App.PointerFor(_owner);
+
     /// <summary>The context for rendering a child: focused when this one is and its focus scope focuses the child.</summary>
     public RenderContext For(Component child)
     {

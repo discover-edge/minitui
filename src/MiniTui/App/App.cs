@@ -25,6 +25,7 @@ public partial class App
     private Func<string, bool>? _onPaste;
     private Func<MouseEvent, bool>? _onMouse;
     private bool _mouse;
+    private bool _hover;
     private bool _suspendKey;
     private Action<Event>? _onEvent;
     private Func<Exception, ErrorAction>? _onError;
@@ -191,6 +192,24 @@ public partial class App
         _mouse = enabled;
         return this;
     }
+
+    /// <summary>
+    /// Ask the terminal to report every pointer move too (all-motion tracking, 1.x spec §17.5), so components can
+    /// show what's under the pointer through <see cref="RenderContext.Hover"/>, and menus follow it. Turns
+    /// <see cref="WithMouse"/> on as well. Off by default: each move is an event, and often a frame.
+    /// </summary>
+    public App WithHover(bool enabled = true)
+    {
+        _hover = enabled;
+        if (enabled) _mouse = true;
+        return this;
+    }
+
+    /// <summary>Where the pointer was last reported (by any mouse event), or null before the first report.</summary>
+    public Vec2? PointerPosition => _pointer is { } p ? new Vec2(p.X, p.Y) : null;
+
+    /// <summary>True when <see cref="WithHover"/> is on.</summary>
+    internal bool HoverEnabled => _hover;
 
     /// <summary>
     /// Make an unhandled Ctrl+Z call <see cref="SuspendProcess"/>, so it returns to the shell as in most terminal

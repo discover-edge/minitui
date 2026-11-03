@@ -54,7 +54,6 @@ public class MouseTests
     }
 
     [Theory]
-    [InlineData("\x1b[<35;1;1M")]   // motion, no button
     [InlineData("\x1b[<96;1;1M")]   // motion and the wheel
     [InlineData("\x1b[<128;1;1M")]  // extra buttons
     [InlineData("\x1b[<0;0;1M")]    // column 0
@@ -64,6 +63,12 @@ public class MouseTests
     public void Sgr_MotionAndMalformedReports_AreDropped(string input)
     {
         Assert.Equal(['x'], Decode(input + "x").Cast<ConsoleKeyInfo>().Select(k => k.KeyChar));
+    }
+
+    [Fact]
+    public void Sgr_MotionWithoutAButton_IsAMove()
+    {
+        Assert.Equal([M(MouseAction.Move, MouseButton.None, 4, 2, ConsoleModifiers.Control)], Decode("\x1b[<51;5;3M"));
     }
 
     [Fact]

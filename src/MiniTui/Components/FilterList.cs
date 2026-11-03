@@ -86,6 +86,10 @@ internal sealed class FilterList
         {
             case MouseAction.ScrollUp: Move(-1, wrap: false); return null;
             case MouseAction.ScrollDown: Move(1, wrap: false); return null;
+            case MouseAction.Move:
+                // 1.x spec §17.7: the selection follows the pointer
+                if (_rowsArea.Contains(mouse.X, mouse.Y) && _offset + (mouse.Y - _rowsArea.Y) is var under && under < _matches.Count) _selected = under;
+                return null;
         }
         if (mouse.IsClick && _rowsArea.Contains(mouse.X, mouse.Y))
         {

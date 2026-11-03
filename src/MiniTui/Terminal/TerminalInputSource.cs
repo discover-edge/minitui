@@ -40,6 +40,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
     private TimeSpan _lastModeCheck;
     private TimeSpan _fastModeCheckUntil;
     private int _mouseRefs;
+    private int _hoverRefs;
     private KeyboardProtocol _keyboard;
 
     /// <summary>Create a source with the <see cref="DefaultEscapeTimeout"/>.</summary>
@@ -136,7 +137,7 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             }
             _closed = false;
             _lastModeCheck = Now;
-            if (_raw && _mouseRefs > 0) ApplyMouse(true);
+            if (_raw && _mouseRefs > 0) ApplyMouse(true, _hoverRefs > 0);
 
             // The kitty protocol and modifyOtherKeys come back from the replies to the next queries; win32-input-mode has none
             if (_raw && _keyboard == KeyboardProtocol.Win32InputMode) ApplyKeyboard(_keyboard);
@@ -150,7 +151,18 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
             var before = _mouseRefs > 0;
             _mouseRefs = Math.Max(0, _mouseRefs + (enabled ? 1 : -1));
             var after = _mouseRefs > 0;
-            if (before != after && _raw) ApplyMouse(after);
+            if (before != after && _raw) ApplyMouse(after, _hoverRefs > 0);
+        }
+    }
+
+    void IMouseCapture.SetHoverCapture(bool enabled)
+    {
+        lock (_lock)
+        {
+            var before = _hoverRefs > 0;
+            _hoverRefs = Math.Max(0, _hoverRefs + (enabled ? 1 : -1));
+            var after = _hoverRefs > 0;
+            if (before != after && _raw && _mouseRefs > 0) ApplyMouse(true, after);
         }
     }
 
@@ -170,10 +182,10 @@ public sealed class TerminalInputSource : IInputSource, IInputItemSource, IInput
         else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.SetKeyboard(protocol);
     }
 
-    private static void ApplyMouse(bool enabled)
+    private static void ApplyMouse(bool enabled, bool hover)
     {
-        if (OperatingSystem.IsWindows()) WindowsConsoleInput.SetMouse(enabled);
-        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.SetMouse(enabled);
+        if (OperatingSystem.IsWindows()) WindowsConsoleInput.SetMouse(enabled, hover);
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) UnixTerminal.SetMouse(enabled, hover);
     }
 
     void IInputLifecycle.Deactivate()

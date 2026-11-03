@@ -38,6 +38,7 @@ public sealed class TableBuilder
     private int _count;
     private Func<int, Row> _row = _ => new Row();
     private SelectionState? _state;
+    private Vec2? _hover;
     private bool _focused;
     private string? _highlightSymbol;
     private BlockBuilder? _block;
@@ -74,6 +75,11 @@ public sealed class TableBuilder
         _row = i => format(items[i]);
         return this;
     }
+
+    /// <summary>
+    /// The pointer, usually <see cref="RenderContext.Hover"/>. <see cref="Theme.Hover"/> is patched over the row under it, unless it's the selected one (1.x spec §17.6).
+    /// </summary>
+    public TableBuilder Hover(Vec2? position) { _hover = position; return this; }
 
     /// <summary>The selection. The table clamps it and scrolls to keep it visible. Without one, no row is highlighted.</summary>
     public TableBuilder State(SelectionState state) { _state = state; return this; }
@@ -168,6 +174,7 @@ public sealed class TableBuilder
             for (var c = 0; c < columns.Length && c < row.Cells.Count; c++)
                 WidgetText.DrawLine(buf, x0 + columns[c].Offset, y, row.Cells[c], columns[c].Size, rowStyle);
             if (selected) buf.SetStyle(new Rect(body.X, y, body.Width, 1), highlight);
+            else if (_hover is { } p && p.Y == y && p.X >= body.X && p.X < body.Right) buf.SetStyle(new Rect(body.X, y, body.Width, 1), theme.Hover);
             y++;
         }
 

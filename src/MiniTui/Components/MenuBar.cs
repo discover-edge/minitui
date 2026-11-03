@@ -117,7 +117,15 @@ public sealed class MenuBar
     /// <returns>True if the bar took the press.</returns>
     internal bool HandleMouse(MouseEvent mouse, Rect row)
     {
-        if (_app is not { } app || mouse.Action != MouseAction.Press || !row.Contains(mouse.X, mouse.Y)) return false;
+        if (_app is not { } app || !row.Contains(mouse.X, mouse.Y)) return false;
+        if (mouse.Action == MouseAction.Move)
+        {
+            // 1.x spec §17.7: with a menu open, moving over another title switches to it
+            if (_open is null || _titles.Find(t => t.Rect.Contains(mouse.X, mouse.Y)) is not { Rect.Width: > 0 } over || over.Index == _openIndex) return false;
+            Switch(app, over.Index);
+            return true;
+        }
+        if (mouse.Action != MouseAction.Press) return false;
         if (app.Overlays.Any && _open is null) return false;
         var hit = _titles.FindIndex(t => t.Rect.Contains(mouse.X, mouse.Y));
         if (hit < 0 || mouse.Button != MouseButton.Left)
@@ -140,6 +148,8 @@ public sealed class MenuBar
         buf.SetStyle(row, theme.Text.Patch(theme.StatusBar));
         _titles.Clear();
         var x = row.X;
+        // 1.x spec §17.7: with no menu (or other overlay) open, the title under the pointer shows hover
+        var pointer = _open is null && _app is { } app && !app.Overlays.Any ? app.BarPointer(row) : null;
         for (var i = 0; i < _menus.Length; i++)
         {
             var (text, mnemonic) = _menus[i].Display;
@@ -147,6 +157,7 @@ public sealed class MenuBar
             if (x + width > row.Right) break;
             var rect = new Rect(x, row.Y, width, 1);
             var style = i == OpenIndex ? theme.Text.Patch(theme.Selection) : theme.Text.Patch(theme.StatusBar);
+            if (pointer is { } p && rect.Contains(p.X, p.Y)) style = style.Patch(theme.Hover);
             buf.SetStyle(rect, style);
             buf.SetString(x + 1, row.Y, text, style, width - 2);
             if (mnemonic >= 0)

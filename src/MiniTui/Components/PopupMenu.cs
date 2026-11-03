@@ -278,6 +278,13 @@ public sealed class PopupMenu : Overlay
         {
             case MouseAction.ScrollUp: Move(-1, wrap: false); return true;
             case MouseAction.ScrollDown: Move(1, wrap: false); return true;
+            case MouseAction.Move:
+                // 1.x spec §17.7: the selection follows the pointer over items it can choose; a redraw only when it moved
+                if (!_rows.Contains(mouse.X, mouse.Y)) return false;
+                var under = _offset + (mouse.Y - _rows.Y);
+                if (under >= _items.Length || !_items[under].CanChoose || under == _selected) return false;
+                _selected = under;
+                return true;
         }
 
         if (!mouse.IsClick || !_rows.Contains(mouse.X, mouse.Y)) return true;
