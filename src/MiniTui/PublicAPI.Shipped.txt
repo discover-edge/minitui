@@ -66,6 +66,12 @@ MiniTui.Axis
 MiniTui.Axis.<Clone>$() -> MiniTui.Axis!
 MiniTui.Axis.Axis() -> void
 MiniTui.Axis.Equals(MiniTui.Axis? other) -> bool
+MiniTui.Axis.Formatter.get -> System.Func<double, string!>?
+MiniTui.Axis.Formatter.init -> void
+MiniTui.Axis.Grid.get -> bool
+MiniTui.Axis.Grid.init -> void
+MiniTui.Axis.LabelCount.get -> int
+MiniTui.Axis.LabelCount.init -> void
 MiniTui.Axis.LabelFormat.get -> string!
 MiniTui.Axis.LabelFormat.init -> void
 MiniTui.Axis.Labels.get -> System.Collections.Generic.IReadOnlyList<string!>?
@@ -74,6 +80,8 @@ MiniTui.Axis.Max.get -> double?
 MiniTui.Axis.Max.init -> void
 MiniTui.Axis.Min.get -> double?
 MiniTui.Axis.Min.init -> void
+MiniTui.Axis.Ticks.get -> bool
+MiniTui.Axis.Ticks.init -> void
 MiniTui.Axis.Title.get -> string?
 MiniTui.Axis.Title.init -> void
 MiniTui.Bar
@@ -98,9 +106,23 @@ MiniTui.BarChartBuilder.Bars(params MiniTui.Bar![]! bars) -> MiniTui.BarChartBui
 MiniTui.BarChartBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Direction(MiniTui.Direction direction) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Draw(MiniTui.Buffer! buf, MiniTui.Rect area) -> void
+MiniTui.BarChartBuilder.GroupGap(int gap) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Groups(System.Collections.Generic.IReadOnlyList<MiniTui.BarGroup!>! groups) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Groups(params MiniTui.BarGroup![]! groups) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Legend(MiniTui.LegendPosition position) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Max(double? max) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Stacked(bool stacked = true) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.Style(MiniTui.Style style) -> MiniTui.BarChartBuilder!
 MiniTui.BarChartBuilder.ValueFormat(string! format) -> MiniTui.BarChartBuilder!
+MiniTui.BarGroup
+MiniTui.BarGroup.<Clone>$() -> MiniTui.BarGroup!
+MiniTui.BarGroup.BarGroup(string! Label, System.Collections.Generic.IReadOnlyList<MiniTui.Bar!>! Bars) -> void
+MiniTui.BarGroup.Bars.get -> System.Collections.Generic.IReadOnlyList<MiniTui.Bar!>!
+MiniTui.BarGroup.Bars.init -> void
+MiniTui.BarGroup.Deconstruct(out string! Label, out System.Collections.Generic.IReadOnlyList<MiniTui.Bar!>! Bars) -> void
+MiniTui.BarGroup.Equals(MiniTui.BarGroup? other) -> bool
+MiniTui.BarGroup.Label.get -> string!
+MiniTui.BarGroup.Label.init -> void
 MiniTui.BlockBuilder
 MiniTui.BlockBuilder.BlockBuilder() -> void
 MiniTui.BlockBuilder.BorderStyle(MiniTui.Style style) -> MiniTui.BlockBuilder!
@@ -207,6 +229,7 @@ MiniTui.ChartBuilder.Legend(MiniTui.LegendPosition position) -> MiniTui.ChartBui
 MiniTui.ChartBuilder.Style(MiniTui.Style style) -> MiniTui.ChartBuilder!
 MiniTui.ChartBuilder.XAxis(MiniTui.Axis! axis) -> MiniTui.ChartBuilder!
 MiniTui.ChartBuilder.YAxis(MiniTui.Axis! axis) -> MiniTui.ChartBuilder!
+MiniTui.ChartTime
 MiniTui.CheckboxBuilder
 MiniTui.CheckboxBuilder.CheckboxBuilder() -> void
 MiniTui.CheckboxBuilder.Checked(bool isChecked = true) -> MiniTui.CheckboxBuilder!
@@ -387,6 +410,7 @@ MiniTui.GaugeBuilder.GaugeBuilder() -> void
 MiniTui.GaugeBuilder.Label(MiniTui.Line? label) -> MiniTui.GaugeBuilder!
 MiniTui.GaugeBuilder.Ratio(double ratio) -> MiniTui.GaugeBuilder!
 MiniTui.GraphType
+MiniTui.GraphType.Area = 2 -> MiniTui.GraphType
 MiniTui.GraphType.Line = 0 -> MiniTui.GraphType
 MiniTui.GraphType.Scatter = 1 -> MiniTui.GraphType
 MiniTui.HelpOverlay
@@ -1276,6 +1300,9 @@ override MiniTui.Axis.ToString() -> string!
 override MiniTui.Bar.Equals(object? obj) -> bool
 override MiniTui.Bar.GetHashCode() -> int
 override MiniTui.Bar.ToString() -> string!
+override MiniTui.BarGroup.Equals(object? obj) -> bool
+override MiniTui.BarGroup.GetHashCode() -> int
+override MiniTui.BarGroup.ToString() -> string!
 override MiniTui.Cell.GetHashCode() -> int
 override MiniTui.CellUpdate.GetHashCode() -> int
 override MiniTui.Color.GetHashCode() -> int
@@ -1404,15 +1431,22 @@ override sealed MiniTui.ResumeEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.TerminalInfoEvent.Equals(MiniTui.Event? other) -> bool
 override sealed MiniTui.TickEvent.Equals(MiniTui.Event? other) -> bool
 static MiniTui.App.Create() -> MiniTui.App!
+static MiniTui.Axis.Duration(string! format = "m\\:ss") -> MiniTui.Axis!
+static MiniTui.Axis.Time(string! format = "HH:mm:ss") -> MiniTui.Axis!
 static MiniTui.Axis.operator !=(MiniTui.Axis? left, MiniTui.Axis? right) -> bool
 static MiniTui.Axis.operator ==(MiniTui.Axis? left, MiniTui.Axis? right) -> bool
 static MiniTui.Bar.operator !=(MiniTui.Bar? left, MiniTui.Bar? right) -> bool
 static MiniTui.Bar.operator ==(MiniTui.Bar? left, MiniTui.Bar? right) -> bool
+static MiniTui.BarGroup.operator !=(MiniTui.BarGroup? left, MiniTui.BarGroup? right) -> bool
+static MiniTui.BarGroup.operator ==(MiniTui.BarGroup? left, MiniTui.BarGroup? right) -> bool
 static MiniTui.Cell.Empty.get -> MiniTui.Cell
 static MiniTui.Cell.operator !=(MiniTui.Cell left, MiniTui.Cell right) -> bool
 static MiniTui.Cell.operator ==(MiniTui.Cell left, MiniTui.Cell right) -> bool
 static MiniTui.CellUpdate.operator !=(MiniTui.CellUpdate left, MiniTui.CellUpdate right) -> bool
 static MiniTui.CellUpdate.operator ==(MiniTui.CellUpdate left, MiniTui.CellUpdate right) -> bool
+static MiniTui.ChartTime.FromValue(double value) -> System.DateTimeOffset
+static MiniTui.ChartTime.ToValue(System.DateTimeOffset time) -> double
+static MiniTui.ChartTime.ToValue(System.TimeSpan duration) -> double
 static MiniTui.Clipboard.GetText() -> string?
 static MiniTui.Clipboard.SetText(string! text) -> void
 static MiniTui.Color.Black.get -> MiniTui.Color
