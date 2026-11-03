@@ -48,6 +48,7 @@ MiniTui.App.TerminalInfo.get -> MiniTui.TerminalInfo!
 MiniTui.App.Toasts.get -> MiniTui.ToastQueue!
 MiniTui.App.WithBackend(MiniTui.ITerminalBackend! backend) -> MiniTui.App!
 MiniTui.App.WithChrome(bool statusBar = true, bool breadcrumb = true) -> MiniTui.App!
+MiniTui.App.WithClipboardRead(bool enabled = true) -> MiniTui.App!
 MiniTui.App.WithColorMode(MiniTui.ColorMode mode) -> MiniTui.App!
 MiniTui.App.WithDebugKey(string? key = "f12") -> MiniTui.App!
 MiniTui.App.WithDoubleClickTime(System.TimeSpan interval) -> MiniTui.App!
@@ -765,13 +766,20 @@ MiniTui.ScriptedInputSource.Pending.get -> int
 MiniTui.ScriptedInputSource.ScriptedInputSource() -> void
 MiniTui.ScriptedInputSource.TryRead(out System.ConsoleKeyInfo key) -> bool
 MiniTui.ScrollState
+MiniTui.ScrollState.ClearSelection() -> void
 MiniTui.ScrollState.ContentHeight.get -> int
+MiniTui.ScrollState.Copy() -> bool
 MiniTui.ScrollState.HandleKey(System.ConsoleKeyInfo key) -> bool
 MiniTui.ScrollState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.ScrollState.HasSelection.get -> bool
 MiniTui.ScrollState.Offset.get -> int
 MiniTui.ScrollState.Offset.set -> void
 MiniTui.ScrollState.ScrollBy(int rows) -> void
 MiniTui.ScrollState.ScrollState() -> void
+MiniTui.ScrollState.SelectAll() -> void
+MiniTui.ScrollState.Selectable.get -> bool
+MiniTui.ScrollState.Selectable.set -> void
+MiniTui.ScrollState.SelectedText.get -> string!
 MiniTui.ScrollState.ViewportHeight.get -> int
 MiniTui.ScrollbarBuilder
 MiniTui.ScrollbarBuilder.ContentLength(int length) -> MiniTui.ScrollbarBuilder!
@@ -1344,6 +1352,7 @@ override MiniTui.FrameStats.GetHashCode() -> int
 override MiniTui.FuzzyMatch.GetHashCode() -> int
 override MiniTui.HelpOverlay.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.HelpOverlay.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+override MiniTui.HelpOverlay.HasSelection.get -> bool
 override MiniTui.HelpOverlay.Placement(MiniTui.Rect screen) -> MiniTui.Rect
 override MiniTui.HelpOverlay.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.HelpOverlay.Title.get -> string?
@@ -1365,6 +1374,7 @@ override MiniTui.MenuItem.GetHashCode() -> int
 override MiniTui.MenuItem.ToString() -> string!
 override MiniTui.MessageDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
 override MiniTui.MessageDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+override MiniTui.MessageDialog.HasSelection.get -> bool
 override MiniTui.MessageDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
 override MiniTui.MessageDialog.Render(MiniTui.Buffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
 override MiniTui.MessageDialog.Title.get -> string?
@@ -1448,6 +1458,7 @@ static MiniTui.ChartTime.FromValue(double value) -> System.DateTimeOffset
 static MiniTui.ChartTime.ToValue(System.DateTimeOffset time) -> double
 static MiniTui.ChartTime.ToValue(System.TimeSpan duration) -> double
 static MiniTui.Clipboard.GetText() -> string?
+static MiniTui.Clipboard.GetTextAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string?>!
 static MiniTui.Clipboard.SetText(string! text) -> void
 static MiniTui.Color.Black.get -> MiniTui.Color
 static MiniTui.Color.Blue.get -> MiniTui.Color
@@ -1612,6 +1623,7 @@ virtual MiniTui.Component.CapturesText.get -> bool
 virtual MiniTui.Component.HandleKey(System.ConsoleKeyInfo key) -> bool
 virtual MiniTui.Component.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 virtual MiniTui.Component.HandlePaste(string! text) -> bool
+virtual MiniTui.Component.HasSelection.get -> bool
 virtual MiniTui.Component.KeysGroup.get -> string!
 virtual MiniTui.Component.OnActivated() -> void
 virtual MiniTui.Component.OnDeactivated() -> void
