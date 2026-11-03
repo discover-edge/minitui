@@ -166,7 +166,10 @@ internal sealed class FormScreen : Screen
     }
 }
 
-/// <summary>A layout of panels updated by an async loop.</summary>
+/// <summary>
+/// A layout of panels updated by an async loop. The log follows new lines while it's scrolled to the end, and its
+/// text can be selected with the mouse and copied (1.x spec §20.6).
+/// </summary>
 internal sealed class DashboardScreen : Screen
 {
     private static readonly string[] Stats = ["Users: 1,234", "Revenue: $45,678", "Orders: 567", "Growth: +12.3%"];
@@ -175,9 +178,18 @@ internal sealed class DashboardScreen : Screen
     private readonly List<string> _logs = ["System started", "Connected to database", "Cache initialized"];
     private readonly List<double> _requests = [];
     private readonly System.Diagnostics.Stopwatch _uptime = new();
+    private readonly ScrollState _logScroll = new() { Selectable = true, Offset = int.MaxValue };
+    private readonly LogView _logView;
     private double _elapsed;
 
     public override string Title => "Dashboard";
+
+    public DashboardScreen()
+    {
+        _logView = AddChild(new LogView(this));
+        Focus.Add(_logView);
+        Focus.Focus(_logView);
+    }
 
     protected override void OnMount()
     {
@@ -189,6 +201,8 @@ internal sealed class DashboardScreen : Screen
             if (_requests.Count > 200) _requests.RemoveAt(0);
             if (Random.Shared.NextDouble() < 0.1)
             {
+                // At the end, stay there as the line arrives; the draw clamps the offset
+                if (_logScroll.Offset >= _logScroll.ContentHeight - _logScroll.ViewportHeight) _logScroll.Offset = int.MaxValue;
                 _logs.Add($"{DateTime.Now:HH:mm:ss} - {Messages[Random.Shared.Next(Messages.Length)]}");
                 if (_logs.Count > 50) _logs.RemoveAt(0);
             }
@@ -212,9 +226,7 @@ internal sealed class DashboardScreen : Screen
         }
 
         var panels = Layout.Horizontal(layout["panels"]).Add("logs", Constraint.Fill()).Add("activity", Constraint.Fill()).Build();
-        var logs = Widget.Block().Title(" Logs ").Draw(buf, panels["logs"]);
-        var visible = _logs.Skip(Math.Max(0, _logs.Count - logs.Height)).ToList();
-        Widget.Paragraph().Text(string.Join("\n", visible)).Draw(buf, logs);
+        ctx.Render(_logView, buf, panels["logs"]);
 
         var activity = Widget.Block().Title(" Activity ").Padding(new Margin(1, 0)).Draw(buf, panels["activity"]);
         for (var i = 0; i < 5 && i * 2 < activity.Height; i++)
@@ -226,6 +238,19 @@ internal sealed class DashboardScreen : Screen
 
         Widget.Sparkline().Data(_requests).Block(Widget.Block().Title($" Requests/s · up {TimeSpan.FromSeconds((int)_elapsed):mm\\:ss} "))
             .Draw(buf, layout["requests"]);
+    }
+
+    private sealed class LogView(DashboardScreen screen) : Component
+    {
+        public override string KeysGroup => "Logs";
+        public override bool HasSelection => screen._logScroll.HasSelection;
+        public override bool HandleKey(ConsoleKeyInfo key) => screen._logScroll.HandleKey(key);
+        public override bool HandleMouse(MouseEvent mouse) => screen._logScroll.HandleMouse(mouse);
+
+        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+            Widget.Paragraph().Text(string.Join("\n", screen._logs)).State(screen._logScroll)
+                .Block(Widget.Block().Title(" Logs ").TitleBottom(" drag to select · Ctrl+C copies ").Focused(ctx.Focused))
+                .Draw(buf, area);
     }
 }
 

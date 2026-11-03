@@ -4553,8 +4553,8 @@ public class ScrollState
   The wheel and the scrollbar still scroll, and keep the selection.
 - **`SelectedText`** is the selected part of each row, with `\n` between rows: the text as it's shown, so a
   wrapped line copies as several. Trailing spaces of a row are kept.
-- **Drawing:** the selected cells get `Theme.Selection` when the paragraph's block is focused, otherwise
-  `Theme.SelectionUnfocused`, patched over the text.
+- **Drawing:** the selected cells get `Theme.Selection` when the paragraph's block is focused, or when it has no
+  block (as in the dialogs, whose border is the overlay's); otherwise `Theme.SelectionUnfocused`, patched over the text.
 - **When the text changes** (a log grows): the selection is kept by row and column, so it stays where it was on
   screen relative to the text, until the next press. If the rows it covered are gone, it's cleared.
 - **Ctrl+C:** the §10.4 step now sends Ctrl+C (and Ctrl+Insert) to the focused component's `HandleKey` when it

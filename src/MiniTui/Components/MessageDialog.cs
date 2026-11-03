@@ -8,7 +8,7 @@ public sealed class MessageDialog : Overlay
     private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly string _title;
     private readonly Text _body;
-    private readonly ScrollState _scroll = new();
+    private readonly ScrollState _scroll = new() { Selectable = true };
 
     /// <summary>Create a dialog. Show it with <see cref="OverlayStack.Show"/>.</summary>
     public MessageDialog(string title, Text body)
@@ -36,6 +36,9 @@ public sealed class MessageDialog : Overlay
         }
         return _scroll.HandleKey(key);
     }
+
+    /// <inheritdoc/>
+    public override bool HasSelection => _scroll.HasSelection;
 
     /// <inheritdoc/>
     public override bool HandleMouse(MouseEvent mouse) => _scroll.HandleMouse(mouse);

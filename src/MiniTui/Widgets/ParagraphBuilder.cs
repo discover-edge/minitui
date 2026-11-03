@@ -72,6 +72,7 @@ public sealed class ParagraphBuilder
         if (inner.IsEmpty)
         {
             _state?.Fit(0, 0);
+            _state?.TrackRows(inner, [], _alignment);
             return;
         }
 
@@ -89,6 +90,7 @@ public sealed class ParagraphBuilder
         if (_state is { } state)
         {
             state.Fit(rows.Count, inner.Height);
+            state.TrackRows(inner, rows, _alignment);
             offset = state.Offset;
         }
 
@@ -98,6 +100,7 @@ public sealed class ParagraphBuilder
             var line = rows[offset + i];
             var alignment = line.Alignment != MiniTui.Alignment.Left ? line.Alignment : _alignment;
             WidgetText.DrawLine(buf, inner.X, inner.Y + i, line, inner.Width, style, alignment);
+            DrawSelection(buf, inner, i, offset + i);
         }
 
         if (_state is not null && rows.Count > inner.Height)
@@ -106,6 +109,17 @@ public sealed class ParagraphBuilder
             new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(inner.Height).Position(offset).Draw(buf, bar);
             _state.TrackScrollbar(bar);
         }
+    }
+
+    // 1.x spec §20.5: the selected cells of a row, focused unless the block says otherwise
+    private void DrawSelection(Buffer buf, Rect inner, int y, int row)
+    {
+        if (_state is not { HasSelection: true } state) return;
+        var (from, to) = state.SelectedColumns(row);
+        to = Math.Min(to, inner.Width);
+        if (to <= from) return;
+        var style = _block?.IsFocused == false ? Theme.Current.SelectionUnfocused : Theme.Current.Selection;
+        buf.SetStyle(new Rect(inner.X + from, inner.Y + y, to - from, 1), style);
     }
 }
 

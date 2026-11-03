@@ -5,6 +5,7 @@ namespace MiniTui.Tests;
 
 /// <summary>Selection, the clipboard and undo in text fields and text areas (1.x spec §10). The in-app clipboard is
 /// process-wide, so every test that uses it is in this class, which xUnit runs one test at a time.</summary>
+[Collection("Console")]
 public sealed class SelectionTests : IDisposable
 {
     public SelectionTests() => Clipboard.Reset();
