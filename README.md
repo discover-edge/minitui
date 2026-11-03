@@ -227,6 +227,17 @@ sealed class FilesScreen : Screen
       return true;
   }
   ```
+- **Menu bar:** `app.WithMenuBar(new MenuBar(menus))` puts a row of menus on the top line, above the
+  screens. F10 opens the first menu, Alt and a title's mnemonic opens that one (after the focus chain and
+  `App.Keys`, so your own Alt bindings win), and a click on a title opens or closes it. In an open menu, ← →
+  move between menus and F10 or Esc closes it. A `Menu` takes a fixed item list, or a factory run at each
+  opening so marks follow your state; the palette lists every menu item that has a `Run`:
+
+  ```csharp
+  app.WithMenuBar(new MenuBar(
+      new Menu("&File", [new("&Save") { Hint = "Ctrl+S", Run = Save }, MenuItem.Separator, new("&Quit") { Run = app.Quit }]),
+      new Menu("&View", () => [new("&Wrap") { Checked = _wrap, Run = () => _wrap = !_wrap }])));
+  ```
 - **Command palette:** `ShowPalette()` opens a `CommandPalette` listing every key binding in scope (the ones
   help shows, hidden ones included) with its group and key, plus the commands of an optional `CommandRegistry`.
   Typing filters them with fuzzy matching (matched letters in bold), ↑ ↓ PgUp PgDn move, and Enter or a click

@@ -16,6 +16,9 @@ internal static class MouseRouter
     public static bool Route(App app, MouseEvent mouse, List<Hit> hits, Rect frame)
     {
         if (!frame.Contains(mouse.X, mouse.Y)) return false;
+
+        // 1.x spec §15.5: a press on the menu bar's row goes to the bar, even while one of its menus is open
+        if (app.MenuBar is { } bar && bar.HandleMouse(mouse, app.MenuBarRow)) return true;
         if (app.Overlays.Top is { CloseOnClickOutside: true } top && mouse.Action == MouseAction.Press
             && HitRect(hits, top) is { } rect && !rect.Contains(mouse.X, mouse.Y))
         {

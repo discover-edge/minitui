@@ -5,7 +5,7 @@ namespace MiniTui.Example;
 /// <summary>The first screen: pick a demo to push.</summary>
 internal sealed class MenuScreen : Screen
 {
-    private static readonly (string Name, string Description, Func<Screen> Create)[] Demos =
+    internal static readonly (string Name, string Description, Func<Screen> Create)[] Demos =
     [
         ("Counter", "The smallest screen: state and key bindings", () => new CounterScreen()),
         ("List Selection", "A list with a selection that scrolls", () => new ListScreen()),

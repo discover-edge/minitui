@@ -1,4 +1,16 @@
 #nullable enable
+MiniTui.App.MenuBar.get -> MiniTui.MenuBar?
+MiniTui.App.WithMenuBar(MiniTui.MenuBar? menuBar) -> MiniTui.App!
+MiniTui.Menu
+MiniTui.Menu.Items() -> System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>!
+MiniTui.Menu.Menu(string! title, System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items) -> void
+MiniTui.Menu.Menu(string! title, System.Func<System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>!>! items) -> void
+MiniTui.Menu.Title.get -> string!
+MiniTui.MenuBar
+MiniTui.MenuBar.IsOpen.get -> bool
+MiniTui.MenuBar.MenuBar(params MiniTui.Menu![]! menus) -> void
+MiniTui.MenuBar.Menus.get -> System.Collections.Generic.IReadOnlyList<MiniTui.Menu!>!
+MiniTui.MenuBar.Open(int index = 0) -> void
 MiniTui.MenuItem.Checked.get -> bool?
 MiniTui.MenuItem.Checked.init -> void
 MiniTui.MenuItem.Mnemonic.get -> char?

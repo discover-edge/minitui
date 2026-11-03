@@ -3545,7 +3545,7 @@ when the palette opens, so factories run then. The help overlay doesn't list men
 
 ### 15.7 Example
 
-- The example app gets a menu bar: **File** (New demo… as a submenu of the demos, Quit), **View** (Theme as radio
+- The example app gets a menu bar: **File** (Open demo, a submenu of the demos, and Quit), **View** (Theme as radio
   items: Auto, Default, Dark, Light, Monochrome; a "Debug overlay" check item), and **Help** (Keys, About).
   Its items run the same code as the existing keys.
 - The Command Registry demo's right-click menu gains a "Sort" submenu with radio items and mnemonics.
