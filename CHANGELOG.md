@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-03
+
+MiniTui 1.11: the text area as an editor, with Tab to indent, auto-indent, line numbers, a scrollbar and find.
+
 ### Added
 - Text area editor features: `TextAreaState.TabIndents` (Tab inserts spaces to the next indent stop, or indents every selected line; Shift+Tab outdents; Backspace in the indentation deletes back to the previous stop; Tab no longer moves focus out of the text area), `AutoIndent` (Enter starts the new line with the current line's indentation) and `IndentSize` (the indent stop width, 1–8, also used to expand tabs; 4 by default). Each indent or outdent is one undo step.
 - `TextAreaBuilder.LineNumbers()`: a gutter of line numbers, the cursor's line highlighted. Clicking in it moves the cursor to the start of that row.
