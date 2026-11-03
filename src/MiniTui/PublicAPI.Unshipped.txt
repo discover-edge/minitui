@@ -1,1 +1,20 @@
 #nullable enable
+MiniTui.BarChartBuilder.GroupGap(int gap) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Groups(System.Collections.Generic.IReadOnlyList<MiniTui.BarGroup!>! groups) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Groups(params MiniTui.BarGroup![]! groups) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Legend(MiniTui.LegendPosition position) -> MiniTui.BarChartBuilder!
+MiniTui.BarChartBuilder.Stacked(bool stacked = true) -> MiniTui.BarChartBuilder!
+MiniTui.BarGroup
+MiniTui.BarGroup.<Clone>$() -> MiniTui.BarGroup!
+MiniTui.BarGroup.BarGroup(string! Label, System.Collections.Generic.IReadOnlyList<MiniTui.Bar!>! Bars) -> void
+MiniTui.BarGroup.Bars.get -> System.Collections.Generic.IReadOnlyList<MiniTui.Bar!>!
+MiniTui.BarGroup.Bars.init -> void
+MiniTui.BarGroup.Deconstruct(out string! Label, out System.Collections.Generic.IReadOnlyList<MiniTui.Bar!>! Bars) -> void
+MiniTui.BarGroup.Equals(MiniTui.BarGroup? other) -> bool
+MiniTui.BarGroup.Label.get -> string!
+MiniTui.BarGroup.Label.init -> void
+override MiniTui.BarGroup.Equals(object? obj) -> bool
+override MiniTui.BarGroup.GetHashCode() -> int
+override MiniTui.BarGroup.ToString() -> string!
+static MiniTui.BarGroup.operator !=(MiniTui.BarGroup? left, MiniTui.BarGroup? right) -> bool
+static MiniTui.BarGroup.operator ==(MiniTui.BarGroup? left, MiniTui.BarGroup? right) -> bool

@@ -8,6 +8,7 @@ internal sealed class ChartsScreen : Screen
     private const double Window = 10;
     private static readonly string[] Services = ["api", "auth", "db", "cache", "queue", "web"];
     private static readonly Marker[] Markers = [Marker.Braille, Marker.HalfBlock, Marker.Dot];
+    private static readonly string[] BarModes = ["single", "grouped", "stacked"];
 
     private readonly List<(double X, double Y)> _sin = [];
     private readonly List<(double X, double Y)> _cos = [];
@@ -17,6 +18,7 @@ internal sealed class ChartsScreen : Screen
     private int _marker;
     private bool _scatter;
     private bool _horizontal;
+    private int _barMode;
 
     public override string Title => "Charts";
 
@@ -24,7 +26,8 @@ internal sealed class ChartsScreen : Screen
     {
         Keys.Add("m", "Marker", () => _marker = (_marker + 1) % Markers.Length)
             .Add("s", "Line/scatter", () => _scatter = !_scatter)
-            .Add("d", "Bar direction", () => _horizontal = !_horizontal);
+            .Add("d", "Bar direction", () => _horizontal = !_horizontal)
+            .Add("g", "Bar groups", () => _barMode = (_barMode + 1) % BarModes.Length);
     }
 
     protected override void OnMount()
@@ -59,13 +62,26 @@ internal sealed class ChartsScreen : Screen
             .Block(Widget.Block().Title($" Line chart · {marker} (m), {type} (s) "))
             .Draw(buf, rows["chart"]);
 
-        Widget.BarChart()
-            .Bars([.. Services.Select((name, i) => new Bar(name, Math.Round(_requests[i])))])
+        // 1.x spec §19.3: the same requests split into GET, POST and DELETE, side by side or stacked
+        var bars = Widget.BarChart()
             .Direction(_horizontal ? Direction.Horizontal : Direction.Vertical)
-            .BarWidth(5)
-            .Max(100)
-            .Block(Widget.Block().Title($" Requests · {(_horizontal ? "horizontal" : "vertical")} (d) "))
-            .Draw(buf, bottom["bars"]);
+            .Block(Widget.Block().Title($" Requests · {(_horizontal ? "horizontal" : "vertical")} (d), {BarModes[_barMode]} (g) "));
+        if (_barMode == 0)
+        {
+            bars.Bars([.. Services.Select((name, i) => new Bar(name, Math.Round(_requests[i])))]).BarWidth(5).Max(100);
+        }
+        else
+        {
+            var groups = Services.Select((name, i) => new BarGroup(name,
+            [
+                new Bar("GET", Math.Round(_requests[i] * 0.6)) { ValueText = "" },
+                new Bar("POST", Math.Round(_requests[i] * 0.3)) { ValueText = "" },
+                new Bar("DELETE", Math.Round(_requests[i] * 0.1)) { ValueText = "" },
+            ])).ToList();
+            bars.Groups(groups).Stacked(_barMode == 2).BarWidth(_barMode == 2 ? 5 : 1).BarGap(_barMode == 2 ? 1 : 0).GroupGap(1)
+                .Max(_barMode == 2 ? 100 : 60).Legend(LegendPosition.TopRight);
+        }
+        bars.Draw(buf, bottom["bars"]);
 
         var angle = _time;
         Widget.Canvas()

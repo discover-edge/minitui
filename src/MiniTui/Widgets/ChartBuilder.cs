@@ -208,27 +208,8 @@ public sealed class ChartBuilder
     // A bordered box in the chosen corner, omitted when it would cover more than half the plot's width or height
     private void DrawLegend(Buffer buf, Rect plot, List<Dataset> datasets, Theme theme, Style style)
     {
-        if (_legend == LegendPosition.None) return;
-        var entries = datasets.Select((d, i) => (Dataset: d, Index: i)).Where(e => !string.IsNullOrEmpty(e.Dataset.Name))
-            .Select(e => (e.Dataset, e.Index, Name: Sanitizer.SingleLine(e.Dataset.Name))).ToList();
-        if (entries.Count == 0) return;
-
-        var width = entries.Max(e => UnicodeWidth.Of(e.Name)) + 4;
-        var height = entries.Count + 2;
-        if (width > plot.Width / 2.0 || height > plot.Height / 2.0) return;
-
-        var x = _legend is LegendPosition.TopLeft or LegendPosition.BottomLeft ? plot.X : plot.Right - width;
-        var y = _legend is LegendPosition.TopLeft or LegendPosition.TopRight ? plot.Y : plot.Bottom - height;
-        var box = new Rect(x, y, width, height);
-        WidgetText.Clear(buf, box);
-        buf.SetStyle(box.Intersect(buf.Area), style);
-        var inner = Widget.Block().BorderStyle(theme.Border).Draw(buf, box);
-        for (var i = 0; i < entries.Count; i++)
-        {
-            var (dataset, index, name) = entries[i];
-            buf.SetString(inner.X, inner.Y + i, Sample(dataset.Marker), style.Patch(dataset.Style ?? SeriesStyle(theme, index)), 1);
-            WidgetText.DrawString(buf, inner.X + 2, inner.Y + i, name, inner.Width - 2, style);
-        }
+        var entries = datasets.Select((d, i) => (Name: d.Name, Sample: Sample(d.Marker), Style: style.Patch(d.Style ?? SeriesStyle(theme, i)))).ToList();
+        ChartLegend.Draw(buf, plot, _legend, entries, theme, style);
     }
 
     private static string Sample(Marker marker) => marker switch
@@ -238,7 +219,7 @@ public sealed class ChartBuilder
         _ => "█",
     };
 
-    private static Style SeriesStyle(Theme theme, int index) =>
+    internal static Style SeriesStyle(Theme theme, int index) =>
         theme.ChartSeries is { Count: > 0 } series ? series[index % series.Count] : default;
 
     // Position i of count spread over length cells: 0 for the first, length - 1 for the last
@@ -277,4 +258,35 @@ public sealed class ChartBuilder
     }
 
     private static string Title(Axis axis) => Sanitizer.SingleLine(axis.Title ?? "");
+}
+
+/// <summary>The legend box shared by <see cref="ChartBuilder"/> and <see cref="BarChartBuilder"/> (1.x spec §8.4, §19.3).</summary>
+internal static class ChartLegend
+{
+    /// <summary>
+    /// Draw one row per named entry (its sample in its style, then its name) in a bordered box in the corner of
+    /// <paramref name="area"/>, unless it would cover more than half its width or height.
+    /// </summary>
+    public static void Draw(Buffer buf, Rect area, LegendPosition position, IEnumerable<(string Name, string Sample, Style Style)> entries, Theme theme, Style style)
+    {
+        if (position == LegendPosition.None) return;
+        var named = entries.Where(e => !string.IsNullOrEmpty(e.Name)).Select(e => e with { Name = Sanitizer.SingleLine(e.Name) }).ToList();
+        if (named.Count == 0) return;
+
+        var width = named.Max(e => UnicodeWidth.Of(e.Name)) + 4;
+        var height = named.Count + 2;
+        if (width > area.Width / 2.0 || height > area.Height / 2.0) return;
+
+        var x = position is LegendPosition.TopLeft or LegendPosition.BottomLeft ? area.X : area.Right - width;
+        var y = position is LegendPosition.TopLeft or LegendPosition.TopRight ? area.Y : area.Bottom - height;
+        var box = new Rect(x, y, width, height);
+        WidgetText.Clear(buf, box);
+        buf.SetStyle(box.Intersect(buf.Area), style);
+        var inner = Widget.Block().BorderStyle(theme.Border).Draw(buf, box);
+        for (var i = 0; i < named.Count; i++)
+        {
+            buf.SetString(inner.X, inner.Y + i, named[i].Sample, named[i].Style, 1);
+            WidgetText.DrawString(buf, inner.X + 2, inner.Y + i, named[i].Name, inner.Width - 2, style);
+        }
+    }
 }
