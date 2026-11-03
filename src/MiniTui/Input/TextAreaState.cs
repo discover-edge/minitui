@@ -42,6 +42,10 @@ public class TextAreaState
     private char? _pendingHighSurrogate;
     private int _indentSize = 4;
     private readonly ScrollbarDrag _bar = new();
+    private readonly TextFieldState _find = new();
+    private TextPosition _findStart;
+    private int _version;
+    private (int Version, string Pattern, List<TextMatch> Matches)? _matches;
 
     /// <summary>Create a state with optional initial text. The cursor starts at the end.</summary>
     public TextAreaState(string text = "")
@@ -142,6 +146,86 @@ public class TextAreaState
         }
     }
 
+    /// <summary>
+    /// Ctrl+F opens the find bar and F3 / Shift+F3 find again (1.x spec §16.5). On by default; turn it off to leave
+    /// those keys to the app's bindings.
+    /// </summary>
+    public bool FindEnabled { get; set; } = true;
+
+    /// <summary>True while the find bar is open: keys and pastes go to it (1.x spec §16.5).</summary>
+    public bool IsFinding { get; private set; }
+
+    /// <summary>The text being found. Setting it searches again from the selection's start (or the cursor).</summary>
+    public string FindText
+    {
+        get => _find.Text;
+        set
+        {
+            _find.Text = value ?? "";
+            _findStart = SelectionStart;
+            SearchFromStart();
+        }
+    }
+
+    /// <summary>The number of matches of <see cref="FindText"/> in the text.</summary>
+    public int MatchCount => Matches.Count;
+
+    /// <summary>The index of the match that is the selection, or −1 when the selection isn't a match.</summary>
+    public int MatchIndex
+    {
+        get
+        {
+            if (!HasSelection) return -1;
+            var (start, end) = (SelectionStart, SelectionEnd);
+            var matches = Matches;
+            for (var i = 0; i < matches.Count; i++)
+            {
+                if (matches[i].Start == start && matches[i].End == end) return i;
+            }
+            return -1;
+        }
+    }
+
+    /// <summary>
+    /// Open the find bar, as Ctrl+F does: it starts with the selection when that's within a line, or else the last
+    /// find text, all selected so typing replaces it.
+    /// </summary>
+    public void OpenFind()
+    {
+        if (HasSelection && SelectionStart.Line == SelectionEnd.Line) _find.Text = SelectedText;
+        _find.SelectAll();
+        _findStart = SelectionStart;
+        IsFinding = true;
+        SearchFromStart();
+    }
+
+    /// <summary>Close the find bar, as Esc does. The current match stays selected, with the cursor at its end.</summary>
+    public void CloseFind() => IsFinding = false;
+
+    /// <summary>Select the next match after the cursor, wrapping around the text.</summary>
+    /// <returns>False when there are no matches.</returns>
+    public bool FindNext()
+    {
+        var matches = Matches;
+        if (matches.Count == 0) return false;
+        var cursor = Cursor;
+        var next = matches.FindIndex(m => m.Start >= cursor);
+        SelectMatch(matches[next < 0 ? 0 : next]);
+        return true;
+    }
+
+    /// <summary>Select the previous match before the selection, wrapping around the text.</summary>
+    /// <returns>False when there are no matches.</returns>
+    public bool FindPrevious()
+    {
+        var matches = Matches;
+        if (matches.Count == 0) return false;
+        var start = SelectionStart;
+        var previous = matches.FindLastIndex(m => m.Start < start);
+        SelectMatch(matches[previous < 0 ? matches.Count - 1 : previous]);
+        return true;
+    }
+
     /// <summary>The first visible row (a wrapped row, not a line). Written by the widget while drawing, and by the wheel.</summary>
     public int ScrollOffset { get; internal set; }
 
@@ -178,6 +262,11 @@ public class TextAreaState
     public bool Paste(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
+        if (IsFinding)
+        {
+            EditFind(() => _find.Paste(text));
+            return true;
+        }
         if (text.Length > 0) InsertText(text, EditKind.Other);
         else DeleteSelection();
         return true;
@@ -253,6 +342,19 @@ public class TextAreaState
         var ctrl = KeyInput.HasControl(key);
         var alt = (key.Modifiers & ConsoleModifiers.Alt) != 0;
         var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
+        if (IsFinding) return HandleFindKey(key, ctrl, alt, shift);
+        if (FindEnabled && KeyInput.IsCtrl(key, 'F'))
+        {
+            OpenFind();
+            return true;
+        }
+        if (FindEnabled && key.Key == ConsoleKey.F3 && !ctrl && !alt)
+        {
+            if (shift) FindPrevious();
+            else FindNext();
+            return true;
+        }
+
         switch (key.Key)
         {
             case ConsoleKey.Enter:
@@ -344,6 +446,7 @@ public class TextAreaState
     public bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
+        if (IsFinding && _find.HandleMouse(mouse)) return true;
         var offset = ScrollOffset;
         if (_bar.Handle(mouse, ref offset))
         {
@@ -408,6 +511,101 @@ public class TextAreaState
         ViewWrap = wrap;
         ViewRowCount = rowCount;
     }
+
+    /// <summary>The find field, which the widget draws in the find bar.</summary>
+    internal TextFieldState FindField => _find;
+
+    /// <summary>The matches of <see cref="FindText"/>, found again when it or the text changes.</summary>
+    internal List<TextMatch> Matches
+    {
+        get
+        {
+            var pattern = _find.Text;
+            if (_matches is { } cached && cached.Version == _version && cached.Pattern == pattern) return cached.Matches;
+            var matches = FindMatches(pattern);
+            _matches = (_version, pattern, matches);
+            return matches;
+        }
+    }
+
+    // 1.x spec §16.5: within lines, left to right, not overlapping; smart case; never splitting a cluster
+    private List<TextMatch> FindMatches(string pattern)
+    {
+        var matches = new List<TextMatch>();
+        if (pattern.Length == 0) return matches;
+        var comparison = pattern.Any(char.IsUpper) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        for (var l = 0; l < _lines.Count; l++)
+        {
+            var line = _lines[l];
+            for (var i = line.IndexOf(pattern, comparison); i >= 0 && i < line.Length;)
+            {
+                var end = i + pattern.Length;
+                if (TextFieldState.SnapToBoundary(line, i) == i && TextFieldState.SnapToBoundary(line, end) == end)
+                {
+                    matches.Add(new TextMatch(new TextPosition(l, i), new TextPosition(l, end)));
+                    i = end;
+                }
+                else
+                {
+                    i++;
+                }
+                i = i < line.Length ? line.IndexOf(pattern, i, comparison) : -1;
+            }
+        }
+        return matches;
+    }
+
+    // Keys while the find bar is open: they edit the find text or move between matches
+    private bool HandleFindKey(ConsoleKeyInfo key, bool ctrl, bool alt, bool shift)
+    {
+        switch (key.Key)
+        {
+            case ConsoleKey.Escape when !ctrl && !alt:
+                CloseFind();
+                return true;
+            case ConsoleKey.Enter or ConsoleKey.F3 when !ctrl && !alt:
+                if (shift) FindPrevious();
+                else FindNext();
+                return true;
+            case ConsoleKey.DownArrow when !ctrl && !alt && !shift:
+                FindNext();
+                return true;
+            case ConsoleKey.UpArrow when !ctrl && !alt && !shift:
+                FindPrevious();
+                return true;
+        }
+        if (KeyInput.IsCtrl(key, 'F'))
+        {
+            _find.SelectAll();
+            return true;
+        }
+        var handled = false;
+        EditFind(() => handled = _find.HandleKey(key));
+        return handled;
+    }
+
+    // Edit the find text; when it changed, search again from where the search started
+    private void EditFind(Func<bool> edit)
+    {
+        var before = _find.Text;
+        edit();
+        if (_find.Text != before) SearchFromStart();
+    }
+
+    private void SearchFromStart()
+    {
+        var matches = Matches;
+        if (matches.Count == 0)
+        {
+            if (HasSelection) MoveTo(_findStart);
+            return;
+        }
+        var start = _findStart;
+        var first = matches.FindIndex(m => m.Start >= start);
+        SelectMatch(matches[first < 0 ? 0 : first]);
+    }
+
+    private void SelectMatch(TextMatch match) => Select(match.Start, match.End);
 
     /// <summary>Called by the widget while drawing, after scrolling: where the scrollbar was drawn.</summary>
     internal void TrackScrollbar(Rect bar) => _bar.Track(bar, ViewRowCount, ViewHeight);
@@ -578,6 +776,7 @@ public class TextAreaState
 
         _history.Record(EditKind.Other, Current);
         _history.Break();
+        _version++;
         for (var l = first; l <= last; l++)
         {
             var c = changes[l - first];
@@ -608,6 +807,7 @@ public class TextAreaState
     {
         _anchor = null;
         if (end <= start) return;
+        _version++;
         var joined = _lines[start.Line][..start.Index] + _lines[end.Line][end.Index..];
         _lines[start.Line] = joined;
         if (end.Line > start.Line) _lines.RemoveRange(start.Line + 1, end.Line - start.Line);
@@ -663,6 +863,7 @@ public class TextAreaState
 
     private void Restore(Snapshot snapshot)
     {
+        _version++;
         _lines.Clear();
         _lines.AddRange(snapshot.Lines);
         (_line, _index) = snapshot.Cursor;
@@ -676,6 +877,7 @@ public class TextAreaState
     // Insert at the cursor: line breaks split lines, tabs become spaces, other control characters are dropped
     private void InsertNormalized(string text)
     {
+        _version++;
         var line = _lines[_line];
         var after = line[_index..];
         var current = new StringBuilder(line, 0, _index, _index + text.Length);
@@ -717,6 +919,9 @@ public class TextAreaState
         _index = TextFieldState.SnapToBoundary(_lines[_line], cursor);
     }
 }
+
+/// <summary>A match of a text area's find text: from <paramref name="Start"/> to <paramref name="End"/>, on one line.</summary>
+internal readonly record struct TextMatch(TextPosition Start, TextPosition End);
 
 /// <summary>Splits a text area's lines into rows of UTF-16 index ranges (1.x spec §6.5).</summary>
 internal static class TextAreaLayout

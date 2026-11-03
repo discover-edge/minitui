@@ -3727,8 +3727,10 @@ inserting and removing spaces.
 ### 16.5 Find
 
 **Opening and closing.** Ctrl+F opens the find bar. It's the last row of the text area (inside the block), so
-the text gets one row less. The bar shows `Find:`, the find field, and `3 of 12`, `No matches`, or nothing while
-the field is empty, right-aligned in `Theme.TextMuted`.
+the text gets one row less. The bar shows `Find:`, the find field, and `3 of 12`, `12 matches` (when the
+selection isn't one of them), `No matches`, or nothing while the field is empty, right-aligned in
+`Theme.TextMuted`. While the bar is open, the text's cursor isn't drawn: the terminal cursor is in the find field,
+and pastes go to it.
 - The find field starts with the selection when there's one within a line, or else the last find text. All of
   it is selected, so typing replaces it.
 - **While the bar is open, keys go to it:**
