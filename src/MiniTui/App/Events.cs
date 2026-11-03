@@ -68,6 +68,12 @@ public sealed record MouseEvent(MouseAction Action, MouseButton Button, int X, i
 
     /// <summary>True for a left-button press, the event clicks act on.</summary>
     public bool IsClick => Action == MouseAction.Press && Button == MouseButton.Left;
+
+    /// <summary>
+    /// For a press: 1, or 2 and 3 for the second and third press of a double- or triple-click, counted by the app
+    /// (1.x spec §17.3). 0 for other actions, and for presses the app hasn't counted.
+    /// </summary>
+    public int ClickCount { get; init; }
 }
 
 /// <summary>The terminal was resized. The next frame is a full redraw.</summary>

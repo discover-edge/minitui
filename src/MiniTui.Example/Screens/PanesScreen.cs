@@ -40,6 +40,8 @@ internal sealed class PanesScreen : Screen
         _table = AddChild(new LogTable(Visible));
         _details = AddChild(new Detail(() => _table.SelectedEntry));
         Focus.Add(_sources).Add(_table).Add(_details);
+        // A double-click on a log row moves focus to its details, where ↑ ↓ scroll them
+        _table.Selection.Activated += (_, _) => Focus.Focus(_details);
 
         Keys.Add("s", "Sort", () => _table.Selection.ToggleSort(((_table.Selection.SortColumn ?? -1) + 1) % Columns.Length));
     }

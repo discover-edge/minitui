@@ -100,9 +100,16 @@ public sealed class SelectionState
     public event EventHandler? SortChanged;
 
     /// <summary>
+    /// Raised on the UI thread when a row is double-clicked (1.x spec §17.4), after the first press selected it, so
+    /// the row is <see cref="Selected"/>.
+    /// </summary>
+    public event EventHandler? Activated;
+
+    /// <summary>
     /// Handle the mouse over the list or table drawn last (1.x spec §4.8, §14.4, §14.5): the wheel scrolls by one
     /// item, a left press on a visible row selects it, the scrollbar's thumb drags and its track pages, and a press
-    /// on a sortable header cell calls <see cref="ToggleSort"/>. Scrolling doesn't move the selection.
+    /// on a sortable header cell calls <see cref="ToggleSort"/>. Scrolling doesn't move the selection. A double-click
+    /// on a row raises <see cref="Activated"/>.
     /// </summary>
     /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse, int count)
@@ -130,6 +137,7 @@ public sealed class SelectionState
         var index = Offset + (mouse.Y - _mouseRows.Y);
         if (index >= count) return false;
         Selected = index;
+        if (mouse.ClickCount == 2) Activated?.Invoke(this, EventArgs.Empty);
         return true;
     }
 

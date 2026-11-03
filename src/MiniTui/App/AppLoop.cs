@@ -345,10 +345,23 @@ public partial class App
         if (mouse.Action == MouseAction.Drag && !_lastFrame.IsEmpty)
             mouse = mouse with { X = Math.Clamp(mouse.X, _lastFrame.X, _lastFrame.Right - 1), Y = Math.Clamp(mouse.Y, _lastFrame.Y, _lastFrame.Bottom - 1) };
         _pointer = (mouse.X, mouse.Y);
+        if (mouse.Action == MouseAction.Press) mouse = mouse with { ClickCount = CountClick(mouse) };
         _onEvent?.Invoke(mouse);
         if (_onMouse?.Invoke(mouse) == true) return;
         if (_onRender is not null) return;
         MouseRouter.Route(this, mouse, _lastHits, _lastFrame);
+    }
+
+    // 1.x spec §17.3: the same button in the same cell within the double-click time counts on, up to 3
+    private int CountClick(MouseEvent press)
+    {
+        var now = _time.GetTimestamp();
+        var count = _lastPress is { } last && last.Button == press.Button && last.X == press.X && last.Y == press.Y
+            && last.Count < 3 && _time.GetElapsedTime(last.Time, now) <= _doubleClickTime
+            ? last.Count + 1
+            : 1;
+        _lastPress = (press.Button, press.X, press.Y, now, count);
+        return count;
     }
 
     /// <summary>Record a hit target for this frame (1.x spec §4.7) and set its <see cref="Component.Area"/>.</summary>
