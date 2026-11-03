@@ -1,14 +1,1 @@
 #nullable enable
-MiniTui.TreeState
-MiniTui.TreeState<T>.Checkboxes.get -> bool
-MiniTui.TreeState<T>.Checkboxes.set -> void
-MiniTui.TreeState<T>.CheckedChanged -> System.EventHandler<MiniTui.TreeNodeEventArgs<T!>!>?
-MiniTui.TreeState<T>.CheckedNodes.get -> System.Collections.Generic.IReadOnlyList<T!>!
-MiniTui.TreeState<T>.Filter.get -> System.Func<T!, bool>?
-MiniTui.TreeState<T>.Filter.set -> void
-MiniTui.TreeState<T>.IsChecked(T! node) -> bool?
-MiniTui.TreeState<T>.Reload(T! node) -> void
-MiniTui.TreeState<T>.Reveal(System.Collections.Generic.IReadOnlyList<T!>! path) -> bool
-MiniTui.TreeState<T>.RevealAsync(System.Collections.Generic.IReadOnlyList<T!>! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<bool>!
-MiniTui.TreeState<T>.SetChecked(T! node, bool isChecked) -> void
-static MiniTui.TreeState.Async<T>(System.Func<T!, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<T!>!>!>! loadChildren, System.Func<T!, string!>! text, System.Collections.Generic.IEqualityComparer<T!>? comparer = null) -> MiniTui.TreeState<T!>!
