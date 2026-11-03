@@ -457,13 +457,14 @@ public class HintsAndHelpTests
     [Fact]
     public void Breadcrumb_JoinsTitles_AndTruncatesFromTheLeft()
     {
-        using var harness = new ComponentHarness(new ProbeScreen([], "Home"), 30, 5);
+        using var harness = new ComponentHarness(new ProbeScreen([], "Home"), 40, 5);
         harness.App.Screens.Push(new ProbeScreen([], "Services"));
         harness.App.Screens.Push(new ProbeScreen([], "api-gateway"));
         harness.RunUntilIdle();
 
-        // The breadcrumb gets at most half the row (15 columns)
-        Assert.EndsWith(" … › api-gateway ", harness.Lines[^1], StringComparison.Ordinal);
+        // 1.x spec §22.3: the hints first, then the breadcrumb in what's left, cut from the left
+        Assert.StartsWith(" esc Back  ? Help", harness.Lines[^1], StringComparison.Ordinal);
+        Assert.EndsWith("…rvices › api-gateway ", harness.Lines[^1], StringComparison.Ordinal);
     }
 }
 

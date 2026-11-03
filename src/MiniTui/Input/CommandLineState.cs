@@ -61,6 +61,7 @@ public sealed class CommandLineState : TextFieldState
     public bool HandleKey(ConsoleKeyInfo key, out ParsedCommand? submitted)
     {
         submitted = null;
+        if ((key.Modifiers & ConsoleModifiers.Alt) != 0 && IsMovementKey(key.Key)) return false;
         switch (key.Key)
         {
             case ConsoleKey.Enter when KeyInput.IsEnter(key):

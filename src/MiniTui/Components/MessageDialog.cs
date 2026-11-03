@@ -48,12 +48,8 @@ public sealed class MessageDialog : Overlay
         Widget.Paragraph().Text(_body).Wrap(WrapMode.Word).State(_scroll).Draw(buf, area);
 
     /// <inheritdoc/>
-    protected override void OnMount() => App.BeginUserWait();
-
-    /// <inheritdoc/>
     protected override void OnUnmount()
     {
-        App.EndUserWait();
         _closed.TrySetResult();
     }
 

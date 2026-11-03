@@ -94,15 +94,14 @@ sealed class FilesScreen : Screen
   along the focus chain from the innermost focused component outwards (`HandleKey`, then `Keys`), then
   `App.Keys`; finally an unhandled Esc pops the screen. An unhandled Tab cycles the innermost focus scope.
   Popping the last screen quits.
-- **Going back:** the hints don't show that Esc goes back. To show it, bind it:
-  `Keys.Add("esc", "Back", () => App.Screens.Pop())`. A popped screen can be pushed again and keeps its state;
-  its `OnMount` runs again with a new `Lifetime`.
+- **Going back:** on a pushed screen the hints show `esc Back`, unless something in scope binds Esc. A popped
+  screen can be pushed again and keeps its state; its `OnMount` runs again with a new `Lifetime`.
 - **Hints and help** list the bindings in `Keys`. Keys a component handles itself in `HandleKey` (a list's
   arrows, say) don't appear; add a binding with `showInHints: false` if you want one in the help only.
-- **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and
-  the screen titles. Turn it off with `WithChrome(statusBar: false)`.
-- **Overlays:** `app.Overlays.ConfirmAsync(message)` (Yes is selected first; `y` and `n` answer even when
-  you pass other labels), `ShowMessageAsync(title, text)`,
+- **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and,
+  in the room the hints leave, the screen titles. Turn it off with `WithChrome(statusBar: false)`.
+- **Overlays:** `app.Overlays.ConfirmAsync(message)` (Yes is selected first, or No with `yesFirst: false` for a
+  destructive action; `y` and `n` answer even when you pass other labels), `ShowMessageAsync(title, text)`,
   `ShowMenuAsync(items, anchor)`, `ShowHelp()`, `ShowPalette(registry)`, or `Show(new CommandLineOverlay(registry))` and your own
   [`Overlay`](xref:MiniTui.Overlay) subclasses. An overlay with `Framed => false` draws its own border; one with
   `CloseOnClickOutside => true` closes when the user clicks elsewhere.
@@ -145,7 +144,8 @@ sealed class FilesScreen : Screen
   help shows, hidden ones included) with its group and key, plus the commands of an optional [`CommandRegistry`](xref:MiniTui.CommandRegistry).
   Typing filters them with fuzzy matching (matched letters in bold), ↑ ↓ PgUp PgDn move, and Enter or a click
   runs the item once the palette has closed. A command with a usage opens the command line with its name
-  typed. Nothing is bound by default; `Fuzzy.Match(pattern, text)` is public for filtering your own lists, and
+  typed. An action that's both a binding and a menu item is listed once, with its key, when both were given the
+  same method (`Run = Save` and `Keys.Add("ctrl+s", "Save", Save)`); two lambdas that call it are two actions. Nothing is bound by default; `Fuzzy.Match(pattern, text)` is public for filtering your own lists, and
   `new CommandPalette(items)` takes [`PaletteItem`](xref:MiniTui.PaletteItem)s of your own:
 
   ```csharp
@@ -164,7 +164,7 @@ sealed class NameDialog : Overlay
     readonly TextFieldState name = new();
 
     public Task<string?> Result => result.Task;
-    public override string? Title => " Your name ";        // drawn on the border as is, so pad it
+    public override string? Title => "Your name";
     public override bool CapturesText => true;             // typing q types a q
     public override Rect Placement(Rect screen) => Centered(screen, 40, 3);
 

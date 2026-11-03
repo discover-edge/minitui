@@ -10,14 +10,18 @@ public sealed class ConfirmDialog : Overlay
     private readonly string _message;
     private readonly string _yes;
     private readonly string _no;
-    private bool _yesSelected = true;
+    private bool _yesSelected;
 
-    /// <summary>Create a dialog. Show it with <see cref="OverlayStack.Show"/> and await <see cref="Result"/>.</summary>
-    public ConfirmDialog(string message, string yes = "Yes", string no = "No")
+    /// <summary>
+    /// Create a dialog. Show it with <see cref="OverlayStack.Show"/> and await <see cref="Result"/>. With
+    /// <paramref name="yesFirst"/> false, No is selected when it opens (1.x spec §22.4).
+    /// </summary>
+    public ConfirmDialog(string message, string yes = "Yes", string no = "No", bool yesFirst = true)
     {
         _message = message ?? "";
         _yes = yes ?? "Yes";
         _no = no ?? "No";
+        _yesSelected = yesFirst;
     }
 
     /// <summary>The answer: true for yes; false for no, or when the dialog is closed any other way.</summary>
@@ -96,12 +100,8 @@ public sealed class ConfirmDialog : Overlay
     }
 
     /// <inheritdoc/>
-    protected override void OnMount() => App.BeginUserWait();
-
-    /// <inheritdoc/>
     protected override void OnUnmount()
     {
-        App.EndUserWait();
         _result.TrySetResult(false);
     }
 

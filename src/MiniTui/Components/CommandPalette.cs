@@ -63,7 +63,9 @@ public sealed class CommandPalette : Overlay
     /// The items for the app's current state (1.x spec §13.4, §15.6): the key bindings in scope, innermost first, as
     /// the help overlay lists them (not the binding whose handler is running, which is the one opening the palette),
     /// then the menu bar's items with a <see cref="MenuItem.Run"/>, with their paths, then each command of <paramref name="commands"/> and its subcommands, in add order. A command with a usage
-    /// opens a <see cref="CommandLineOverlay"/> with its name typed; one without runs at once.
+    /// opens a <see cref="CommandLineOverlay"/> with its name typed; one without runs at once. An action listed
+    /// more than once (the same delegate: the same method and target, such as a binding and a menu item both given
+    /// <c>Save</c>) appears only the first time.
     /// </summary>
     public static IReadOnlyList<PaletteItem> ItemsFor(App app, CommandRegistry? commands = null)
     {
@@ -80,7 +82,11 @@ public sealed class CommandPalette : Overlay
         }
         if (app.MenuBar is { } bar) items.AddRange(bar.PaletteItems());
         if (commands is not null) AddCommands(items, app, commands, commands, "");
-        return items;
+
+        // 1.x spec §22.3: an action that's both a binding and a menu item (the same method on the same object) is
+        // listed once, as the first one, which has its key
+        var seen = new HashSet<Delegate>();
+        return [.. items.Where(item => seen.Add(item.Run))];
     }
 
     /// <summary>
@@ -136,12 +142,8 @@ public sealed class CommandPalette : Overlay
     }
 
     /// <inheritdoc/>
-    protected override void OnMount() => App.BeginUserWait();
-
-    /// <inheritdoc/>
     protected override void OnUnmount()
     {
-        App.EndUserWait();
         _result.TrySetResult(_choice);
     }
 

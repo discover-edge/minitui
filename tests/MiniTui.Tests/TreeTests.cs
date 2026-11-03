@@ -220,7 +220,8 @@ public class TreeTests
         Assert.Null(empty.Selected);
         Assert.True(empty.HandleKey(K(ConsoleKey.DownArrow)));
         Assert.True(empty.HandleKey(K(ConsoleKey.Enter)));
-        Assert.True(empty.HandleKey(Char('a')));
+        // 1.x spec §22.3: type-ahead with nothing to match leaves the key for the app
+        Assert.False(empty.HandleKey(Char('a')));
         Assert.Null(empty.Selected);
     }
 

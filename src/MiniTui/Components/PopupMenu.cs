@@ -354,12 +354,8 @@ public sealed class PopupMenu : Overlay
     }
 
     /// <inheritdoc/>
-    protected override void OnMount() => App.BeginUserWait();
-
-    /// <inheritdoc/>
     protected override void OnUnmount()
     {
-        App.EndUserWait();
         if (_child is { } child)
         {
             _child = null;

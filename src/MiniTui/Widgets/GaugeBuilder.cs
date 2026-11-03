@@ -72,7 +72,8 @@ public sealed class GaugeBuilder
         var y = inner.Y + inner.Height / 2;
         var width = Math.Min(label.Width, inner.Width);
         var x = inner.X + (inner.Width - width) / 2;
-        WidgetText.DrawLine(buf, x, y, label, width, new Style(Color.Reset));
+        // 1.x spec §22.3: the theme's text color, not the terminal's, so it reads on Theme.Dark and Theme.Light alike
+        WidgetText.DrawLine(buf, x, y, label, width, new Style(Color.Reset).Patch(Theme.Current.Text));
 
         var onBar = Math.Clamp(inner.X + filledCells - x, 0, width);
         if (onBar > 0) buf.SetStyle(new Rect(x, y, onBar, 1), filled.Reversed());

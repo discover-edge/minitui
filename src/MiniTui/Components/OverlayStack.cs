@@ -44,6 +44,8 @@ public sealed class OverlayStack
                 throw;
             }
             overlay.Activate();
+            // 1.x spec §22.3: an open overlay waits for the user, so a task awaiting it doesn't keep ComponentHarness busy
+            _app.BeginUserWait();
             _app.RequestRedraw();
         });
     }
@@ -62,6 +64,7 @@ public sealed class OverlayStack
             finally
             {
                 overlay.Unmount();
+                _app.EndUserWait();
                 _app.RequestRedraw();
             }
         });
@@ -69,11 +72,13 @@ public sealed class OverlayStack
 
     /// <summary>
     /// Ask a yes/no question. Enter on Yes and <c>y</c> answer true; Enter on No, <c>n</c>, Esc and closing the
-    /// dialog answer false. Awaited on the UI thread, the continuation runs there.
+    /// dialog answer false; <c>y</c> and <c>n</c> answer whatever the labels are. Yes is selected when it opens, or No
+    /// with <paramref name="yesFirst"/> false, for a destructive action. Awaited on the UI thread, the continuation
+    /// runs there.
     /// </summary>
-    public Task<bool> ConfirmAsync(string message, string yes = "Yes", string no = "No")
+    public Task<bool> ConfirmAsync(string message, string yes = "Yes", string no = "No", bool yesFirst = true)
     {
-        var dialog = new ConfirmDialog(message, yes, no);
+        var dialog = new ConfirmDialog(message, yes, no, yesFirst);
         Show(dialog);
         return dialog.Result;
     }

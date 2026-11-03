@@ -327,8 +327,7 @@ public sealed class TreeState<T> where T : class
             return true;
         }
         if (KeyInput.HasCommandModifier(key) || char.IsControl(key.KeyChar) || key.KeyChar == ' ') return false;
-        TypeAhead(key.KeyChar);
-        return true;
+        return TypeAhead(key.KeyChar);
     }
 
     /// <summary>
@@ -367,8 +366,8 @@ public sealed class TreeState<T> where T : class
             return true;
         }
         var onExpander = visible < _expanderColumns.Length && _expanderColumns[visible] == mouse.X && _rows[index].HasChildren;
-        // The first press of a double-click on the expander already toggled it; later presses don't toggle it back
-        if (onExpander && mouse.ClickCount <= 1) ToggleRow(_rows[index]);
+        // 1.x spec §22.3: every click on the expander toggles it, so two quick clicks open and close it
+        if (onExpander) ToggleRow(_rows[index]);
         else if (!onExpander && mouse.ClickCount == 2) Enter();
         return true;
     }
@@ -666,18 +665,22 @@ public sealed class TreeState<T> where T : class
     }
 
     // As PopupMenu (1.x spec §7.3): a prefix cleared 1 s after the last character; the same character again moves on
-    private void TypeAhead(char c)
+    // 1.x spec §22.3: a key that matches no row isn't handled, so ? and the app's other keys still work
+    private bool TypeAhead(char c)
     {
-        if (_rows.Count == 0) return;
+        if (_rows.Count == 0) return false;
         var time = Time ?? App.Current?.Time ?? TimeProvider.System;
         if (_search.Length > 0 && time.GetElapsedTime(_lastTyped) >= TypeAheadReset) _search = "";
-        _lastTyped = time.GetTimestamp();
-        _search += c;
+        var search = _search + c;
 
-        var first = _search[0];
-        var repeated = _search.Length > 1 && _search.All(ch => char.ToUpperInvariant(ch) == char.ToUpperInvariant(first));
-        var match = repeated ? Find(_index + 1, first.ToString()) : Find(_index, _search);
-        if (match >= 0) Move(match);
+        var first = search[0];
+        var repeated = search.Length > 1 && search.All(ch => char.ToUpperInvariant(ch) == char.ToUpperInvariant(first));
+        var match = repeated ? Find(_index + 1, first.ToString()) : Find(_index, search);
+        if (match < 0) return false;
+        _search = search;
+        _lastTyped = time.GetTimestamp();
+        Move(match);
+        return true;
     }
 
     private int Find(int start, string prefix)

@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `TextFieldState.Changed`, raised after the text changes (typing, deleting, pasting, undo and redo, or setting `Text`), but not for cursor or selection moves.
+- `ConfirmAsync(message, yes, no, yesFirst)` and `ConfirmDialog(..., yesFirst)`: with `yesFirst: false`, No is selected when the dialog opens, for destructive actions. The example's Services demo asks that way before deleting.
+- On a pushed screen, the status bar hints `esc Back` (after the screen's own hints) unless something in scope binds Esc.
+
 ### Changed
 - **Breaking:** `Buffer` is now `CellBuffer`, so it no longer clashes with `System.Buffer` in projects with implicit usings (every `Render(Buffer buf, ...)` override failed to compile without an alias). Every `Render`, `Draw` and render callback takes a `CellBuffer`. [Migrating from 1.x to 2.0](https://minitui.org/docs/MIGRATION-1-to-2.html) has a one-line `sed`.
+- **Breaking (binary):** `ConfirmAsync` and `ConfirmDialog`'s constructor have the new `yesFirst` parameter; source compiles unchanged.
+- A tree's type-ahead handles a key only when it matches a row, so `?` and other app keys work while a tree is focused.
+- Every click on a tree's expander toggles it; two quick clicks used to open it and leave it open.
+- A gauge's label over the empty part is drawn in the theme's text color, not the terminal's default, so it reads with `Theme.Light` on a dark terminal.
+- Text fields, text areas and the command line leave Alt with the arrows, Home and End unhandled, so a split's Alt+Shift+arrows work while one is focused.
+- The command palette lists an action once when a key binding and a menu item have the same delegate.
+- Toasts start below the menu bar instead of covering it.
+- The status bar gives the key hints room first, and the breadcrumb what's left.
+- Overlay titles are drawn with a space on each side whether or not the title has them.
+- Every open overlay counts as waiting for the user, so `ComponentHarness` doesn't time out while a task awaits a custom dialog.
 
 ## [1.15.1] - 2026-11-03
 

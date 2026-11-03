@@ -24,13 +24,21 @@ public class TextFieldState
         get => _text;
         set
         {
+            var before = _text;
             _text = value ?? "";
             _cursor = _text.Length;
             _anchor = null;
             _pendingHighSurrogate = null;
             _history.Clear();
+            Notify(before);
         }
     }
+
+    /// <summary>
+    /// Raised after the text changes (1.x spec §22.4): typing, deleting, pasting, cutting, undo and redo, or setting
+    /// <see cref="Text"/> to something else. Moving the cursor or the selection doesn't raise it.
+    /// </summary>
+    public event EventHandler? Changed;
 
     /// <summary>
     /// The cursor as a UTF-16 index into <see cref="Text"/>. Set values snap to the next cluster boundary, and clear
@@ -215,6 +223,8 @@ public class TextFieldState
     {
         var ctrl = KeyInput.HasControl(key);
         var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
+        // 1.x spec §22.3: Alt with the movement keys is left for the app (a split's Alt+Shift+arrows)
+        if ((key.Modifiers & ConsoleModifiers.Alt) != 0 && IsMovementKey(key.Key)) return false;
         // 1.x spec §20.4: Ctrl+Insert copies (and never quits), Shift+Insert pastes, Shift+Delete cuts
         if (key.Key == ConsoleKey.Insert && ctrl != shift) return ctrl ? Copy() : MiniTui.Clipboard.PasteInto(Paste);
         if (key.Key == ConsoleKey.Delete && shift && !ctrl && Cut()) return true;
@@ -327,16 +337,20 @@ public class TextFieldState
         // Replacing a selection is a group of its own, which the typing after it joins
         if (HasSelection) _history.Break();
         _history.Record(kind, Current, typedSpace);
+        var before = _text;
         RemoveSelection();
         _text = _text.Insert(_cursor, text);
         _cursor = SnapToBoundary(_text, _cursor + text.Length);
+        Notify(before);
     }
 
     private bool DeleteSelection()
     {
         if (!HasSelection) return false;
         _history.Record(EditKind.Other, Current);
+        var before = _text;
         RemoveSelection();
+        Notify(before);
         return true;
     }
 
@@ -357,9 +371,11 @@ public class TextFieldState
     {
         if (end <= start) return;
         _history.Record(kind, Current);
+        var before = _text;
         _text = _text.Remove(start, end - start);
         _cursor = SnapToBoundary(_text, start);
         _anchor = null;
+        Notify(before);
     }
 
     // The start of the cluster at a display column; the end of the text past it
@@ -382,8 +398,15 @@ public class TextFieldState
 
     private void Restore(Snapshot snapshot)
     {
+        var before = _text;
         (_text, _cursor, _anchor) = snapshot;
         _pendingHighSurrogate = null;
+        Notify(before);
+    }
+
+    private void Notify(string before)
+    {
+        if (!string.Equals(before, _text, StringComparison.Ordinal)) Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private readonly record struct Snapshot(string Text, int Cursor, int? Anchor);
@@ -401,6 +424,9 @@ public class TextFieldState
         while (index < _text.Length && !char.IsWhiteSpace(_text[index])) index = NextBoundary(_text, index);
         return index;
     }
+
+    internal static bool IsMovementKey(ConsoleKey key) => key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow
+        or ConsoleKey.UpArrow or ConsoleKey.DownArrow or ConsoleKey.Home or ConsoleKey.End;
 
     /// <summary>
     /// The word a double-click at <paramref name="index"/> selects (1.x spec §17.4): the run of word characters
