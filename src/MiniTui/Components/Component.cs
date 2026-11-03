@@ -33,6 +33,12 @@ public abstract class Component
     /// </summary>
     public virtual bool CapturesText => false;
 
+    /// <summary>
+    /// True while the component has something selected to copy, such as a selectable <see cref="ScrollState"/>:
+    /// Ctrl+C then goes to its <see cref="HandleKey"/> instead of quitting, as it does for one that captures text.
+    /// </summary>
+    public virtual bool HasSelection => false;
+
     /// <summary>Handle a key before <see cref="Keys"/>. Return true if handled.</summary>
     public virtual bool HandleKey(ConsoleKeyInfo key) => false;
 

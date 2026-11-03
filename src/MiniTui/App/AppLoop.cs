@@ -483,10 +483,11 @@ public partial class App
         if (_onKey?.Invoke(key) == true) return;
         if (HandleDebugKey(key)) return;
 
-        // Ctrl+C quits unless OnKey took it, or the focused text component copied with it (1.x spec §10.4)
+        // Ctrl+C quits unless OnKey took it, or the focused text component, or one with a selection, copied with it
+        // (1.x spec §10.4, §20.5)
         if (KeyInput.IsCtrlC(key))
         {
-            if (KeyRouter.Chain(this) is [.., { CapturesText: true } focused] && focused.HandleKey(key)) return;
+            if (KeyRouter.Chain(this) is [.., var focused] && (focused.CapturesText || focused.HasSelection) && focused.HandleKey(key)) return;
             Quit();
             return;
         }

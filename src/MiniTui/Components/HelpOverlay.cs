@@ -7,7 +7,7 @@ namespace MiniTui;
 public sealed class HelpOverlay : Overlay
 {
     private readonly Text _text;
-    private readonly ScrollState _scroll = new();
+    private readonly ScrollState _scroll = new() { Selectable = true };
 
     internal HelpOverlay(IReadOnlyList<string> lines) =>
         _text = new Text([.. lines.Select(l => l.StartsWith(' ') || l.Length == 0 ? new Line(l) : new Line(l, Theme.Current.Title))]);
@@ -28,6 +28,9 @@ public sealed class HelpOverlay : Overlay
         }
         return _scroll.HandleKey(key);
     }
+
+    /// <inheritdoc/>
+    public override bool HasSelection => _scroll.HasSelection;
 
     /// <inheritdoc/>
     public override bool HandleMouse(MouseEvent mouse) => _scroll.HandleMouse(mouse);

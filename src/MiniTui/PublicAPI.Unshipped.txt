@@ -1,3 +1,13 @@
 #nullable enable
 MiniTui.App.WithClipboardRead(bool enabled = true) -> MiniTui.App!
+MiniTui.ScrollState.ClearSelection() -> void
+MiniTui.ScrollState.Copy() -> bool
+MiniTui.ScrollState.HasSelection.get -> bool
+MiniTui.ScrollState.SelectAll() -> void
+MiniTui.ScrollState.Selectable.get -> bool
+MiniTui.ScrollState.Selectable.set -> void
+MiniTui.ScrollState.SelectedText.get -> string!
+override MiniTui.HelpOverlay.HasSelection.get -> bool
+override MiniTui.MessageDialog.HasSelection.get -> bool
 static MiniTui.Clipboard.GetTextAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string?>!
+virtual MiniTui.Component.HasSelection.get -> bool

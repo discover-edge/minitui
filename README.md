@@ -532,7 +532,8 @@ everything); typing, pasting or a delete key replaces the selection, and â† / â
 `Select`, `SelectAll`, `ClearSelection`, `SelectedText`, `SelectionStart` and `SelectionEnd`.
 
 - **Ctrl+C** copies the selection in the focused field. Without a selection, it quits as always; a
-  component that doesn't capture text, or a key binding, never gets Ctrl+C.
+  component that doesn't capture text or have a selection (`Component.HasSelection`), or a key binding, never
+  gets Ctrl+C.
 - **Ctrl+X** cuts, and **Ctrl+V** pastes what was copied. Copying goes to the system clipboard: on
   Windows through the clipboard API, and on Linux and macOS through the terminal (OSC 52; in tmux, with
   `set -s set-clipboard on`). It's also kept in the app, so copy and paste within it always work. In
@@ -545,10 +546,28 @@ everything); typing, pasting or a delete key replaces the selection, and â† / â
   same read from code.
 - **Ctrl+Insert** copies (and never quits), **Shift+Insert** pastes and **Shift+Delete** cuts, as the CUA keys
   do. Terminals that keep Shift+Insert for their own paste send it as a paste, which works the same.
+- **Esc** clears the selection; without one it goes on as before (closing a dialog or going back).
 - **Ctrl+Z** undoes and **Ctrl+Y** redoes, by word while typing. Setting `Text` clears the history. A
   text field takes Ctrl+Z even with nothing to undo, so with `WithSuspendKey`, Ctrl+Z suspends only
   while focus isn't on text.
 - `Clipboard.SetText` and `Clipboard.GetText` use the same clipboard from your own code.
+- **Selecting paragraph text:** a `ScrollState` with `Selectable = true` lets the mouse select the text of the
+  paragraph drawn with it: press and drag (scrolling past the top or bottom), double-click a word, triple-click a
+  row. Ctrl+C or Ctrl+Insert copies the rows as shown, Ctrl+A selects all and Esc clears. A component around it
+  overrides `HasSelection => state.HasSelection` so Ctrl+C reaches it. The message and help dialogs are
+  selectable, so an error message can be copied.
+
+  ```csharp
+  sealed class LogView(ScrollState scroll, List<string> log) : Component
+  {
+      public override bool HasSelection => scroll.HasSelection;
+      public override bool HandleKey(ConsoleKeyInfo key) => scroll.HandleKey(key);
+      public override bool HandleMouse(MouseEvent mouse) => scroll.HandleMouse(mouse);
+      public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+          Widget.Paragraph().Text(string.Join("\n", log)).State(scroll)
+              .Block(Widget.Block().Title(" Log ").Focused(ctx.Focused)).Draw(buf, area);
+  }
+  ```
 
 A binding is `(ctrl|alt|shift "+")* name`, where `name` is a printable character or one of `enter esc
 tab backspace delete insert up down left right home end pgup pgdn space f1`â€“`f12`. A character binding

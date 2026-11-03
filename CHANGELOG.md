@@ -10,11 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `App.WithClipboardRead()`: on Linux and macOS, Ctrl+V (and Shift+Insert) in text fields, text areas and command lines asks the terminal for its clipboard with an OSC 52 query and pastes the reply when it arrives. A refusal (an empty reply) pastes the in-app text; no reply within 500 ms does too, and the app stops asking for the rest of the run. The decoder reads OSC 52 replies of any length, never as keys. `Clipboard.GetTextAsync()` reads the same way from code (the Win32 clipboard on Windows).
 - Ctrl+Insert copies the selection (and never quits), Shift+Insert pastes, and Shift+Delete cuts (or deletes, without a selection) in text fields, text areas and command lines.
-- Example: the example app reads the clipboard through the terminal, and the Form demo's footer lists the Insert keys.
+- Selecting paragraph text: `ScrollState.Selectable` lets the mouse select the text of the paragraph drawn with the state (press and drag, scrolling past the edges; a double-click selects a word, a triple-click a row), drawn in `Theme.Selection` (or `SelectionUnfocused` when the paragraph's block isn't focused). `SelectedText` is the rows as shown, a line break between them. `HandleKey` copies with Ctrl+C or Ctrl+Insert, selects all with Ctrl+A and clears with Esc; `SelectAll`, `ClearSelection` and `Copy` do the same from code. When the text changes, the selection stays on its rows, and is cleared when they're gone.
+- `Component.HasSelection`: while it's true, Ctrl+C goes to the focused component's `HandleKey` instead of quitting, as it does for one that captures text.
+- The message and help dialogs' text can be selected and copied.
+- Example: the example app reads the clipboard through the terminal, the Form demo's footer lists the Insert keys, and the Dashboard's log can be selected and copied (and follows new lines while scrolled to the end).
 - `docs/SPEC-1.x.md` §20: the clipboard and selection extras spec.
 
 ### Changed
 - Ctrl+Insert and Shift+Insert used to be unhandled in the text states, and Shift+Delete deleted a cluster even with a selection.
+- Esc clears a selection in text fields, text areas, command lines and the command line overlay; without one it goes on as before (closing or going back, or clearing a command line). It used to go on with the selection left in place.
+- The message and help dialogs handle a press and drag (selecting) where they ignored them, and Esc clears a selection before it closes them.
 
 ## [1.14.0] - 2026-11-03
 
