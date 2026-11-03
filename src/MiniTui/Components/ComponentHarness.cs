@@ -109,6 +109,20 @@ public sealed class ComponentHarness : IDisposable
     }
 
     /// <summary>
+    /// Press and release the left button twice at (<paramref name="x"/>, <paramref name="y"/>), a double-click
+    /// (1.x spec §17.3), then <see cref="RunUntilIdle"/>.
+    /// </summary>
+    public void DoubleClick(int x, int y)
+    {
+        for (var i = 0; i < 2; i++)
+        {
+            App.InjectMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, x, y));
+            App.InjectMouse(new MouseEvent(MouseAction.Release, MouseButton.Left, x, y));
+        }
+        RunUntilIdle();
+    }
+
+    /// <summary>
     /// Scroll the wheel at (<paramref name="x"/>, <paramref name="y"/>), one event per row: positive
     /// <paramref name="rows"/> scroll down, negative up. Then <see cref="RunUntilIdle"/>.
     /// </summary>

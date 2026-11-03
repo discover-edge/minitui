@@ -186,7 +186,8 @@ public sealed class TreeState<T> where T : class
     /// <summary>
     /// Handle the mouse over the tree drawn last: the wheel scrolls by one row, a left press on a row selects it
     /// and, on its expander, also toggles it, and the scrollbar's thumb drags and its track pages (1.x spec §14.4).
-    /// Scrolling doesn't move the selection.
+    /// A double-click on a row activates it as Enter does: a leaf raises <see cref="Activated"/>, a parent expands or
+    /// collapses (§17.4). Scrolling doesn't move the selection.
     /// </summary>
     /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse)
@@ -212,8 +213,10 @@ public sealed class TreeState<T> where T : class
         if (index >= _rows.Count) return false;
         Move(index);
         _reveal = true;
-        if (visible < _expanderColumns.Length && _expanderColumns[visible] == mouse.X && _rows[index].HasChildren)
-            Toggle(_rows[index].Node);
+        var onExpander = visible < _expanderColumns.Length && _expanderColumns[visible] == mouse.X && _rows[index].HasChildren;
+        // The first press of a double-click on the expander already toggled it; later presses don't toggle it back
+        if (onExpander && mouse.ClickCount <= 1) Toggle(_rows[index].Node);
+        else if (!onExpander && mouse.ClickCount == 2) Enter();
         return true;
     }
 

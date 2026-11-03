@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Double- and triple-click: the app counts quick presses of the same button in the same cell and sets `MouseEvent.ClickCount` (1, 2 or 3) on each press, before `App.OnMouse` and the components see it. `App.WithDoubleClickTime(interval)` sets the time between presses (500 ms by default, 100 ms to 2 s). Windows' own `DOUBLE_CLICK` records are counted the same way. `ComponentHarness.DoubleClick(x, y)`.
+- A double-click selects the word under the pointer in text fields, text areas and command lines (a run of letters, digits and `_`, of other symbols, or of spaces), and a triple-click selects the line (all of a text field).
+- `SelectionState.Activated`: raised when a list or table row is double-clicked. A double-click on a tree row does what Enter does: a leaf raises `TreeState.Activated`, a parent expands or collapses. A double-click on a tree's expander toggles it once.
+- Example: double-clicking a log row in the Panes demo moves focus to its details.
+- `docs/SPEC-1.x.md` §17: the double-click and hover spec.
+
+### Changed
+- The second press of a double-click in a text field or text area selects a word instead of placing the cursor again.
+
 ## [1.11.0] - 2026-11-03
 
 MiniTui 1.11: the text area as an editor, with Tab to indent, auto-indent, line numbers, a scrollbar and find.

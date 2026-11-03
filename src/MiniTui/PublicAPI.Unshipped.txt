@@ -1,1 +1,6 @@
 #nullable enable
+MiniTui.App.WithDoubleClickTime(System.TimeSpan interval) -> MiniTui.App!
+MiniTui.ComponentHarness.DoubleClick(int x, int y) -> void
+MiniTui.MouseEvent.ClickCount.get -> int
+MiniTui.MouseEvent.ClickCount.init -> void
+MiniTui.SelectionState.Activated -> System.EventHandler?

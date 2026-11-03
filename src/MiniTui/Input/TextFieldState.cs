@@ -162,8 +162,8 @@ public class TextFieldState
 
     /// <summary>
     /// A left press in the text moves the cursor there (Shift+press extends the selection to there), and a drag after
-    /// it extends the selection, scrolling a column at a time past either edge (1.x spec §10.7). Uses the area from
-    /// the last draw.
+    /// it extends the selection, scrolling a column at a time past either edge (1.x spec §10.7). A double-click
+    /// selects the word under the pointer and a triple-click all the text (§17.4). Uses the area from the last draw.
     /// </summary>
     /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse)
@@ -175,7 +175,20 @@ public class TextFieldState
             case MouseAction.Press when mouse.Button == MouseButton.Left:
                 _dragging = area.Contains(mouse.X, mouse.Y);
                 if (!_dragging) return false;
-                MoveTo(IndexAtColumn(ScrollOffset + mouse.X - area.X), (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
+                var at = IndexAtColumn(ScrollOffset + mouse.X - area.X);
+                if (mouse.ClickCount == 2)
+                {
+                    var (start, end) = WordAt(_text, at);
+                    Select(start, end);
+                }
+                else if (mouse.ClickCount >= 3)
+                {
+                    SelectAll();
+                }
+                else
+                {
+                    MoveTo(at, (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
+                }
                 return true;
             case MouseAction.Drag when mouse.Button == MouseButton.Left && _dragging:
                 var column = mouse.X < area.X ? ScrollOffset - 1
@@ -378,6 +391,36 @@ public class TextFieldState
         while (index < _text.Length && char.IsWhiteSpace(_text[index])) index = NextBoundary(_text, index);
         while (index < _text.Length && !char.IsWhiteSpace(_text[index])) index = NextBoundary(_text, index);
         return index;
+    }
+
+    /// <summary>
+    /// The word a double-click at <paramref name="index"/> selects (1.x spec §17.4): the run of word characters
+    /// (letters, digits and <c>_</c>), of other non-space characters, or of spaces that the cluster there (or, at the
+    /// end, the one before) belongs to.
+    /// </summary>
+    internal static (int Start, int End) WordAt(string text, int index)
+    {
+        if (text.Length == 0) return (0, 0);
+        if (index >= text.Length) index = PreviousBoundary(text, text.Length);
+        var kind = WordKind(text, index);
+        var start = index;
+        while (start > 0)
+        {
+            var previous = PreviousBoundary(text, start);
+            if (WordKind(text, previous) != kind) break;
+            start = previous;
+        }
+        var end = index;
+        while (end < text.Length && WordKind(text, end) == kind) end = NextBoundary(text, end);
+        return (start, end);
+    }
+
+    // 0 spaces, 1 word characters, 2 anything else, by the cluster's first code point
+    private static int WordKind(string text, int index)
+    {
+        var rune = Rune.GetRuneAt(text, index);
+        if (Rune.IsWhiteSpace(rune)) return 0;
+        return Rune.IsLetterOrDigit(rune) || rune.Value == '_' ? 1 : 2;
     }
 
     internal static int NextBoundary(string text, int index) =>

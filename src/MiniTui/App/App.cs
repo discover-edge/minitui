@@ -30,6 +30,8 @@ public partial class App
     private Func<Exception, ErrorAction>? _onError;
     private TimeSpan? _tickRate = DefaultTickRate;
     private TimeProvider _time = TimeProvider.System;
+    private TimeSpan _doubleClickTime = TimeSpan.FromMilliseconds(500);
+    private (MouseButton Button, int X, int Y, long Time, int Count)? _lastPress;
     private ITerminalBackend? _backend;
     private IInputSource? _input;
     private ColorMode? _colorMode;
@@ -238,6 +240,18 @@ public partial class App
     {
         if (rate is { } value) ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero, nameof(rate));
         _tickRate = rate;
+        return this;
+    }
+
+    /// <summary>
+    /// The longest time between the presses of a double- or triple-click (1.x spec §17.3). 500 ms by default.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="interval"/> is outside 100 ms to 2 s.</exception>
+    public App WithDoubleClickTime(TimeSpan interval)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(interval, TimeSpan.FromMilliseconds(100));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(interval, TimeSpan.FromSeconds(2));
+        _doubleClickTime = interval;
         return this;
     }
 

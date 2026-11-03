@@ -439,8 +439,8 @@ public class TextAreaState
     /// <summary>
     /// A left press inside the text moves the cursor there (Shift+press extends the selection to there), and a drag
     /// after it extends the selection, scrolling a row (or, without wrapping, a column) at a time past the edges; the
-    /// wheel scrolls by three rows without moving the cursor (1.x spec §6.6 and §10.7). Uses the area from the last
-    /// draw.
+    /// wheel scrolls by three rows without moving the cursor (1.x spec §6.6 and §10.7). A double-click selects the word
+    /// under the pointer and a triple-click its line (§17.4). Uses the area from the last draw.
     /// </summary>
     /// <returns>True if the event did any of these.</returns>
     public bool HandleMouse(MouseEvent mouse)
@@ -470,7 +470,21 @@ public class TextAreaState
                 if (!_dragging) return false;
                 // A press in the gutter goes to the start of the row
                 var x = inGutter ? (ViewWrap == WrapMode.None ? -HorizontalOffset : 0) : mouse.X - area.X;
-                MoveTo(PositionAt(ScrollOffset + mouse.Y - area.Y, x), (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
+                var at = PositionAt(ScrollOffset + mouse.Y - area.Y, x);
+                // 1.x spec §17.4: a double-click selects a word, a triple-click the line
+                if (mouse.ClickCount == 2)
+                {
+                    var (start, end) = TextFieldState.WordAt(_lines[at.Line], at.Index);
+                    Select(at with { Index = start }, at with { Index = end });
+                }
+                else if (mouse.ClickCount >= 3)
+                {
+                    Select(at with { Index = 0 }, at with { Index = _lines[at.Line].Length });
+                }
+                else
+                {
+                    MoveTo(at, (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
+                }
                 return true;
             case MouseAction.Drag when mouse.Button == MouseButton.Left && _dragging:
                 // Past the top or bottom, scroll a row and select to the first or last visible row

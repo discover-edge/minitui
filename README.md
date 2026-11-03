@@ -650,14 +650,19 @@ default because, while an app captures the mouse, selecting text in the terminal
 - **Drags** (`MouseAction.Drag`, the pointer moving with a button held) and the release after them go to
   the component the press hit, even after the pointer leaves it, and are kept inside the screen. They
   don't move focus.
+- **Double-click:** the app counts quick presses of the same button in the same cell and sets
+  `MouseEvent.ClickCount` to 1, 2 or 3 on each press (`WithDoubleClickTime`, 500 ms by default). A
+  double-click is still two presses, so the first one does what a single click does.
 - **Hit testing** uses where components were drawn in the last frame: the top screen, overlays, and
   children rendered with `ctx.Render(child, buf, rect)`, which also sets `child.Area`. A child rendered
   with `child.Render(buf, rect, ctx.For(child))` isn't a target; its clicks go to its parent.
 - **Built in:** `SelectionState.HandleMouse(mouse, count)` (lists and tables: the wheel scrolls by a
-  row without moving the selection, a click selects a row, and on a `Sortable()` table a header click sorts),
+  row without moving the selection, a click selects a row, a double-click raises `Activated`, and on a
+  `Sortable()` table a header click sorts), `TreeState.HandleMouse` (a double-click on a row does what Enter does),
   `ScrollState.HandleMouse` (the wheel scrolls text by three rows), `TabBarState.HandleMouse` (a click
   selects a tab), `TextFieldState.HandleMouse` and `TextAreaState.HandleMouse` (a click places the
-  cursor, Shift+click and dragging select, and a drag past an edge scrolls). In lists, tables, trees and
+  cursor, Shift+click and dragging select, a double-click selects a word and a triple-click the line, and a
+  drag past an edge scrolls). In lists, tables, trees and
   paragraphs, dragging the scrollbar's thumb scrolls and a press on its track pages. Confirm dialogs take clicks on Yes and No; message
   and help dialogs scroll with the wheel.
 - **Your own controls** handle clicks themselves; `IsClick` is a left-button press:
@@ -671,7 +676,7 @@ public override bool HandleMouse(MouseEvent mouse)
 }
 ```
 
-`ComponentHarness.Click(x, y)`, `Scroll(x, y, rows)` and `Mouse(event)` test it, and
+`ComponentHarness.Click(x, y)`, `DoubleClick(x, y)`, `Scroll(x, y, rows)` and `Mouse(event)` test it, and
 `ScriptedInputSource.EnqueueMouse` scripts it for whole apps. In conhost, mouse capture also turns off
 Quick Edit while the app runs.
 

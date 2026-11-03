@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -45,6 +45,7 @@ or add to them:
 | **20. Split panes, scrollbar dragging and sortable tables** | `SplitState` and `Widget.Split()`, by ratio or with a fixed-size pane, with a divider dragged by the mouse or moved with Alt+Shift+arrows; dragging the scrollbar thumbs of lists, tables, trees and paragraphs, and paging on a track press; clicking a table header to sort (`TableBuilder.Sortable`, `SelectionState.ToggleSort` and `SortChanged`). Backlog rank 3. | 10, 16 | §14 | 1.9.0 |
 | **21. Menu bar and richer menus** | Mnemonics (`&File`), check and radio items, submenus and `Run` actions in `PopupMenu`; a `MenuBar` along the top opened with F10, Alt+mnemonic or a click, with ← → between menus; the palette lists its items. Backlog rank 4. | 13, 19 | §15 | 1.10.0 |
 | **22. Text area as an editor** | Opt-in Tab-to-indent (Tab, Shift+Tab, Backspace by indent stops), auto-indent on Enter and `IndentSize`; a line number gutter; a draggable scrollbar on the block; a find bar (Ctrl+F, F3, Shift+F3) with smart case and highlighted matches (`Theme.SearchMatch`). Backlog rank 5. | 12, 16, 20 | §16 | 1.11.0 |
+| **23. Double-click and hover** | `MouseEvent.ClickCount` counted by the app (`WithDoubleClickTime`): double-click selects a word and triple-click a line in text states, and activates list, table and tree rows (`SelectionState.Activated`). Opt-in hover (`WithHover`, `?1003`, `MouseAction.Move`): `ctx.Pointer` and `.Hover()` on rows, buttons, checkboxes and tabs (`Theme.Hover`), and menus that follow the pointer. Backlog rank 7. | 10, 16 | §17 | 1.12.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -64,7 +65,7 @@ picked, as in §0 rule 3.
 | 4 | **Menu bar and richer menus** (Phase 21, §15). A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
 | 5 | **Text area as an editor** (Phase 22, §16). An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
 | 6 | **Terminal queries** (Phase 18, §12). Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
-| 7 | **Hover and double-click.** Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
+| 7 | **Hover and double-click** (Phase 23, §17). Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
 | 8 | **Tree extras.** Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
 | 9 | **Chart extras.** Grouped and stacked bar charts, time axes (`DateTime` and `TimeSpan`), tick marks and grid lines, and area charts. | Dashboards want them, but the 1.4 charts cover the common cases. | §8.11 | 14 |
 | 10 | **Clipboard and selection extras.** Reading the Unix clipboard through OSC 52 queries (needs rank 6), Ctrl+Insert, Shift+Insert and Shift+Delete, and selecting text in paragraphs and the log view. | Edge cases. Terminals' own Shift+drag already selects screen text. | §10.12 | 16 |
@@ -3841,3 +3842,207 @@ Two PRs, like Phase 21:
    built-in theme; the demo's find; README; CHANGELOG; the manual QA.
 
 Both go out in one release (1.11.0).
+
+---
+
+## 17. Double-click and hover (Phase 23)
+
+### 17.1 Purpose
+
+Clicking in a MiniTui app works, but it doesn't feel native yet:
+- **Double-click.** Nothing reacts to one. A double-click on a word doesn't select it, and one on a list row or a
+  tree leaf doesn't open it. Terminals report presses, not clicks, so the app has to time them itself.
+- **Hover.** Nothing shows what's under the pointer. GUI menus follow the pointer, and buttons and rows light up
+  under it. That needs all-motion reports (`?1003`), which the app doesn't ask for today (§10.7).
+
+Phase 23 adds both (backlog rank 7, §1.1). Double-click works for every app with `WithMouse`. Hover is opt-in,
+because it means an event, and usually a frame, for every cell the pointer crosses.
+
+### 17.2 Public API
+
+```csharp
+public sealed record MouseEvent(...)
+{
+    // Existing members unchanged
+
+    /// For a press: 1, or 2 and 3 for the second and third press of a double- or triple-click (§17.3).
+    /// 0 for every other action.
+    public int ClickCount { get; init; }
+}
+
+public enum MouseAction
+{
+    // Existing members unchanged
+
+    /// The pointer moved with no button held. Only while App.WithHover is on (§17.5).
+    Move,
+}
+
+public class App
+{
+    /// The longest time between the presses of a double-click. 500 ms by default; ArgumentOutOfRangeException
+    /// outside 100 ms to 2 s.
+    public App WithDoubleClickTime(TimeSpan interval);
+
+    /// Ask for all-motion reports (?1003) and show hover (§17.5). Turns the mouse on too. Off by default.
+    public App WithHover(bool enabled = true);
+
+    /// Where the pointer was last reported, or null before the first report.
+    public Vec2? Pointer { get; }
+}
+
+public sealed class RenderContext
+{
+    // Existing members unchanged
+
+    /// The pointer, while hover is on and the pointer is over this component (§17.6). Null otherwise.
+    public Vec2? Pointer { get; }
+}
+
+public class SelectionState
+{
+    /// A row was double-clicked (§17.4). The row is Selected.
+    public event EventHandler? Activated;
+}
+
+// List, Table, Tree, Button, Checkbox and TabBar builders:
+//     public XBuilder Hover(Vec2? pointer);    // usually ctx.Pointer (§17.6)
+
+public sealed record Theme
+{
+    /// What's under the pointer: rows, buttons, checkboxes and tabs (§17.6). Every built-in theme sets it.
+    public Style Hover { get; init; }
+}
+```
+
+### 17.3 Counting clicks
+
+- The app counts presses before routing them, so `App.OnMouse`, `App.OnEvent` and every component see the same
+  `ClickCount`. A press counts on from the last one when it's the same button, in the same cell, and within the
+  double-click time of it; otherwise it's 1. After 3 the count starts at 1 again, so a fourth quick press is a
+  new single click.
+- Times come from the app's `TimeProvider`, so tests can step the clock.
+- Windows marks the second press with `DOUBLE_CLICK`, with its own timing (§10.12). It's treated as a plain press and
+  counted the same way, so all platforms agree.
+- Presses still do what they did. A double-click is a press with count 1 followed by a press with count 2, so a
+  component that reacts to presses reacts to both, as GUIs do. A double-click acts on top of what the first press
+  did (it selected the row, then the second press opens it).
+- Presses injected through `ComponentHarness.Click` and `AppHarness` are counted too. `ComponentHarness`
+  gets `DoubleClick(x, y)`, two presses and releases in a row without moving the clock.
+
+### 17.4 What double-click does
+
+| Where | Count 2 | Count 3 |
+|---|---|---|
+| Text field, text area, command line | Select the word under the pointer: a run of letters, digits and `_`, or of other non-space characters, or of spaces. Clusters are never split. | Select the line (text area: the line, without its line break) or all the text (text field). |
+| List and table rows (`SelectionState`) | Raise `Activated` for the row. | As count 2 (not raised again). |
+| Tree rows | A leaf raises `Activated`; a parent expands or collapses, as Enter does. A double-click on the expander toggles it only once. | Nothing more. |
+
+- Dragging after a double- or triple-click extends the selection by characters, as after a single press. Extending
+  by words and lines is out of scope (§17.10).
+- The demos: a double-click on a file in the Tree demo shows its path (the demo's `Activated` handler, which Enter
+  already ran), one on a log row in the Panes demo moves focus to its details, and one on a word in the Form demo
+  selects it. The menu screen already opens a demo on a single click.
+
+### 17.5 Hover: the reports
+
+- `WithHover` turns on `?1003h` (any-event tracking) instead of `?1002h` on Unix and in Windows Terminal, and
+  `?1003l` on every restore path. In conhost, `MOUSE_MOVED` records without a button become `Move` events instead of
+  being dropped.
+- The SGR and X10 decoders turn a motion report with no button (button 3 + 32) into `MouseAction.Move`, with
+  `MouseButton.None`. Without `WithHover` they're still dropped, so a terminal that sends them anyway changes
+  nothing.
+- Every report (presses, drags and moves) sets `App.Pointer`. Terminals don't report the pointer leaving the window,
+  so hover stays where the pointer last was until it comes back. Focus reports (`?1004`) to clear it are out of
+  scope.
+- **Routing.** A move goes to `App.OnEvent` and `App.OnMouse` first, then to the component under the pointer and
+  its ancestors, without click to focus. Built-in components use moves only as §17.7 says; others ignore them,
+  as they ignore drags.
+- **Frames.** A move requests a redraw only when the hovered component changes or that component is hover-aware
+  (it called `ctx.Pointer` in its last render). Moves already waiting in the queue are coalesced: only the last one
+  is routed. The frame diff then sends only the cells that changed.
+
+### 17.6 Hover: drawing
+
+- `ctx.Pointer` is the pointer's position for the component under the pointer in the last frame's hit list (the
+  topmost one, as for clicks) and for each of its ancestors, and null for everything else. An overlay above a
+  component hides the hover from it. It's null without `WithHover`.
+- Builders take it with `.Hover(ctx.Pointer)` and decide what's under it:
+  - **List, Table and Tree:** the row under the pointer is patched with `Theme.Hover`, under the selection, so the
+    selected row stays the selection color.
+  - **Button and Checkbox:** the whole widget, when the pointer is inside its area.
+  - **TabBar:** the tab under the pointer, unless it's the active one.
+- **Built-in themes:** `Hover` is a subtle background in the dark (`#2A303B`) and light (`#E8ECF0`) themes, and
+  underlined in the default theme (it uses the terminal's 16 colors, and none is a subtle background) and in
+  monochrome.
+
+### 17.7 Hover in menus and the menu bar
+
+- **Popup menus and submenus:** moving over an enabled item selects it, as in GUI menus, so Enter or a click
+  chooses it. Moving over a submenu item opens nothing; Enter, → or a click does (§15.4). Moving off the menu
+  leaves the selection where it was.
+- **Menu bar:** while one of its menus is open, moving over another title switches to that menu, as F10's ← → do.
+  With no menu open, a title under the pointer gets `Theme.Hover`.
+- **The palette and filterable select** (`FilterList`): moving over a row selects it, as in the menus.
+
+### 17.8 Tests and acceptance
+
+Automated:
+- **Counting:** counts 1, 2 and 3 and back to 1; a different cell, a different button, and a gap longer than the
+  double-click time each reset it; `WithDoubleClickTime` limits; `ClickCount` 0 on non-press actions; Windows
+  `DOUBLE_CLICK` records counted like any press; the count seen by `App.OnMouse` and by components.
+- **Text states:** word selection over letters, punctuation, spaces, surrogate pairs and combining marks, at a
+  line's end and on an empty line; triple-click lines and all; a drag after a double-click.
+- **Lists, tables and trees:** `Activated` once per double-click and not on single clicks; tree leaves and parents;
+  the expander toggled once.
+- **Hover decoding:** SGR and X10 motion without a button with and without hover; conhost `MOUSE_MOVED`; `?1003h`
+  and `?1003l` in the mode strings and every restore path.
+- **Hover routing:** `ctx.Pointer` for the target and its ancestors, null under an overlay and without hover;
+  redraws only when needed; coalesced moves.
+- **Drawing:** the hover row in a list, table and tree under and beside the selection; buttons, checkboxes and tabs;
+  snapshots in each built-in theme.
+- **Menus:** moving selects items, skipping disabled ones and separators; the bar switches menus while one is open
+  and shows hover while none is; the palette's rows.
+
+Manual QA (results in the PR): in Windows Terminal, conhost, a Linux terminal and tmux, double-click a word in the
+Form demo, double-click demos and tree leaves, and with hover on in the example, move over the menus, the menu bar,
+the demo list and the buttons in the Widgets demo.
+
+### 17.9 Migration impact
+
+- New public API (§17.2) in `PublicAPI.Unshipped.txt`.
+- **Changed:** a double-click in a text field or text area selects a word (and a triple-click the line), where the
+  second press used to just place the cursor again. Apps with their own `OnMouse` see `ClickCount` on presses, and,
+  with `WithHover`, `Move` events.
+- README: double-click, `WithHover`, `ctx.Pointer` and `.Hover()`, and `Theme.Hover`.
+
+### 17.10 Out of scope
+
+- Extending a selection by words or lines when dragging after a double- or triple-click.
+- Hover tooltips, and hover effects in widgets other than those in §17.6 and §17.7 (paragraphs, charts, the
+  split divider).
+- Mouse cursor shapes (OSC 22).
+- Focus reports (`?1004`) and clearing hover when the pointer leaves the window.
+- Reading the system's double-click time (Windows `GetDoubleClickTime`, desktop settings on Linux).
+- Double-click on buttons, checkboxes and tabs (a second press acts as a second click, as before).
+
+### 17.11 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Hover opt-in (`WithHover`) or on whenever the mouse is? | **Opt-in** (§17.5): moves cost an event each, tmux and SSH links carry them all, and many apps don't need hover. |
+| 2 | Does hover in a menu move the selection (GUI menus) or only highlight (keeping the keyboard selection)? | **Move it** (§17.7): one highlight, and Enter does what the pointer shows. |
+| 3 | Lists and tables: a double-click raises a new `SelectionState.Activated`, or the app reads `ClickCount` itself? | **`Activated`** (§17.4), like `TreeState.Activated`; `ClickCount` is there for anything else. |
+| 4 | The default theme's hover: underline, or the `DarkGray` background (which `SelectionUnfocused` already uses)? | **Underline** (§17.6), so hover is never mistaken for a selection. |
+
+### 17.12 Implementation order
+
+Two PRs, like Phase 22:
+1. **23a** (double-click): `ClickCount` and the counting in the app, `WithDoubleClickTime`, `ComponentHarness.DoubleClick`;
+   word and line selection in the text states; `SelectionState.Activated` and the tree's double-click; the demos;
+   README; CHANGELOG.
+2. **23b** (hover): `MouseAction.Move`, `?1003`, the decoders and conhost; `WithHover`, `App.Pointer`, routing,
+   coalescing and redraws; `ctx.Pointer`, `.Hover()` and `Theme.Hover`; menus, the menu bar and the palette;
+   the example turns hover on; README; CHANGELOG; the manual QA.
+
+Both go out in one release (1.12.0).
