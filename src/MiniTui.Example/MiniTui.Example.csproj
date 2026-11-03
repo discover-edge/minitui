@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SiteMedia" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MiniTui\MiniTui.csproj" />
   </ItemGroup>
 

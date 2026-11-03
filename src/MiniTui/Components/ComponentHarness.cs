@@ -56,6 +56,9 @@ public sealed class ComponentHarness : IDisposable
     /// <summary>The screen, one string per row.</summary>
     public string[] Lines => _backend.Lines;
 
+    /// <summary>The backend, for the site's recordings (tools/SiteMedia), which read its cursor.</summary>
+    internal TestBackend Backend => _backend;
+
     /// <summary>The cell at a position, as last drawn.</summary>
     public Cell CellAt(int x, int y) => _backend.CellAt(x, y);
 

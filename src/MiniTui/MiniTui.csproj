@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="MiniTui.Tests" />
+    <InternalsVisibleTo Include="SiteMedia" />
   </ItemGroup>
 
   <ItemGroup>

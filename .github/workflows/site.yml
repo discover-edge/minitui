@@ -31,6 +31,9 @@ jobs:
       - name: Restore tools
         run: dotnet tool restore
 
+      - name: Record the demos (1.x spec §21.4)
+        run: dotnet run --project tools/SiteMedia --configuration Release -- site/media
+
       - name: Build the site
         run: dotnet docfx site/docfx.json --warningsAsErrors
 

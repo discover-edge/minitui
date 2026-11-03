@@ -4702,7 +4702,13 @@ Generated from the example app, not captured by hand, so they never drift from t
 - The scripts live in the tool (one per recording or screenshot). The site build runs the tool first, into
   `site/media/`.
 - Randomness in the demos (the Dashboard's log and values) is seeded for the recordings, so the output is the same
-  every run.
+  every run. The example takes its clock, random numbers and time of day from a `Demo` class the tool replaces, and
+  its animations are timers on that clock rather than app tasks (the harness waits for app tasks to finish).
+- The tool reaches MiniTui's ANSI encoder and the harness's backend (for the cursor) through `InternalsVisibleTo`,
+  so the library's public API doesn't change.
+- **What's recorded:** `tour.cast` (the menu, the Dashboard, the Editor's find bar, the Tree and the Widgets with a
+  theme switch); a screenshot for each feature card except "Testable", which shows a test instead; and the Quick
+  Start's counter, drawn by its render code into a buffer, without an app around it.
 
 ### 21.5 Building and deploying
 
@@ -4740,9 +4746,10 @@ At the registrar for minitui.org:
 
 ### 21.7 README
 
-The README shrinks to what a nuget.org or GitHub visitor needs first: the one-line pitch, a screenshot, install,
+The README shrinks to what a nuget.org or GitHub visitor needs first: the one-line pitch, install,
 the Quick Start, a feature list linking to the guides, "Project Structure", "Building and Testing", and the
-license. Everything else moves to the guides (§21.2), so it's written once.
+license. Everything else moves to the guides (§21.2), so it's written once. No screenshot: the generated ones are
+SVGs, which nuget.org doesn't show from other sites; the site has them.
 
 ### 21.8 Tests and acceptance
 
