@@ -344,6 +344,8 @@ public class TextAreaState
         var alt = (key.Modifiers & ConsoleModifiers.Alt) != 0;
         var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
         if (IsFinding) return HandleFindKey(key, ctrl, alt, shift);
+        // 1.x spec §22.3: Alt with the movement keys is left for the app (a split's Alt+Shift+arrows)
+        if (alt && TextFieldState.IsMovementKey(key.Key)) return false;
         // 1.x spec §20.4: Ctrl+Insert copies (and never quits), Shift+Insert pastes, Shift+Delete cuts
         if (key.Key == ConsoleKey.Insert && !alt && ctrl != shift) return ctrl ? Copy() : MiniTui.Clipboard.PasteInto(Paste);
         if (key.Key == ConsoleKey.Delete && shift && !ctrl && Cut()) return true;

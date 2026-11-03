@@ -572,7 +572,8 @@ public partial class App
                 continue;
             }
             var inner = Widget.Block()
-                .Title(overlay.Title is { } title ? new Line(title) : null)
+                // 1.x spec §22.3: a space each side, so " Keys " and "Keys" look the same
+                .Title(overlay.Title?.Trim() is { Length: > 0 } title ? new Line($" {title} ") : null)
                 .BorderStyle(theme.ModalBorder)
                 .TitleStyle(theme.ModalTitle)
                 .Padding(new Margin(1, 0))
@@ -581,16 +582,19 @@ public partial class App
             overlay.Render(buf, inner, new RenderContext(this, overlay, focused: ReferenceEquals(overlay, Overlays.Top)));
         }
 
-        Widget.Toasts().Queue(Toasts).Draw(buf, area);
+        // 1.x spec §22.3: below the menu bar, not over it
+        var toasts = _menuBarRow.IsEmpty ? area : area with { Y = _menuBarRow.Bottom, Height = area.Bottom - _menuBarRow.Bottom };
+        Widget.Toasts().Queue(Toasts).Draw(buf, toasts);
     }
 
-    // Hints on the left; the breadcrumb (screen titles, truncated from the left) on the right
+    // Hints on the left; the breadcrumb (screen titles, truncated from the left) on the right. 1.x spec §22.3: the
+    // hints get the room first, and the breadcrumb what's left
     private void DrawStatusBar(CellBuffer buf, Rect row)
     {
+        var hints = KeyRouter.Hints(this, row.Width - 2);
         var crumb = _chromeBreadcrumb ? string.Join(" › ", Screens.All.Select(s => s.Title)) : "";
-        crumb = WidgetText.TruncateStart(crumb, row.Width / 2);
-        var crumbWidth = UnicodeWidth.Of(crumb);
-        var hints = KeyRouter.Hints(this, row.Width - 2 - crumbWidth - (crumbWidth > 0 ? 1 : 0));
+        var room = row.Width - 2 - UnicodeWidth.Of(hints) - 1;
+        crumb = room > 0 ? WidgetText.TruncateStart(crumb, room) : "";
         Widget.StatusBar().Left(hints).Right(crumb).Draw(buf, row);
     }
 

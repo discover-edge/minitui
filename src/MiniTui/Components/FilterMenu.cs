@@ -76,11 +76,8 @@ internal sealed class FilterMenu : Overlay
         _list.Draw(buf, area, title: null, placeholder: "Type to filter");
     }
 
-    protected override void OnMount() => App.BeginUserWait();
-
     protected override void OnUnmount()
     {
-        App.EndUserWait();
         Closed?.Invoke(_choice);
     }
 

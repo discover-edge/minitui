@@ -292,7 +292,7 @@ public class DoubleClickTests
     }
 
     [Fact]
-    public void ADoubleClickOnTheExpander_TogglesOnce()
+    public void ADoubleClickOnTheExpander_TogglesTwice()
     {
         var state = Tree(out _);
         var row = Draw(state);
@@ -303,7 +303,8 @@ public class DoubleClickTests
         state.HandleMouse(Press(expander, 1, 2));
         Redraw(state);
 
-        Assert.True(state.IsExpanded(state.Roots[0]));
+        // 1.x spec §22.3: every click on the expander toggles, so two quick clicks open and close it
+        Assert.False(state.IsExpanded(state.Roots[0]));
     }
 
     private static CellBuffer Draw(TreeState<Node> state)

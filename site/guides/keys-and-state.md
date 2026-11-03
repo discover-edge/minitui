@@ -83,8 +83,8 @@ void Submit()
 }
 ```
 
-`TextFieldState` has no change event; compare its `Text` with the last value you saw (in `Render`, say) to react
-to typing. `SelectState` has `Changed`.
+`TextFieldState.Changed` fires after the text changes (typing, deleting, pasting, undo, or setting `Text`), to
+validate or filter as the user types. `SelectState` has `Changed` too.
 
 `Widget.Checkbox()` and `Widget.Button()` only draw. A component around one keeps the value and handles the
 keys and clicks:

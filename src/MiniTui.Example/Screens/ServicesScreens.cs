@@ -92,7 +92,7 @@ internal sealed class ServicesScreen : Screen
     private async Task DeleteAsync()
     {
         if (Selected is not { } service) return;
-        if (!await App.Overlays.ConfirmAsync($"Delete {service.Name}?")) return;
+        if (!await App.Overlays.ConfirmAsync($"Delete {service.Name}?", yesFirst: false)) return;
         try
         {
             await _api.DeleteAsync(service.Id, Lifetime);  // the continuation resumes on the UI thread

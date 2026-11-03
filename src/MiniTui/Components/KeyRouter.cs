@@ -127,9 +127,15 @@ internal static class KeyRouter
     public static string Hints(App app, int maxWidth)
     {
         var hints = new List<string>();
-        foreach (var (_, entries) in Visible(app))
+        var visible = Visible(app);
+        var escBound = visible.Any(g => g.Entries.Any(e => e.Entry.Bindings.Contains(Escape)));
+        // Without an overlay, the last group is Global
+        var global = app.Overlays.Any ? -1 : visible.Count - 1;
+        for (var g = 0; g < visible.Count; g++)
         {
-            foreach (var (entry, keys) in entries)
+            // 1.x spec §22.3: on a pushed screen, Esc goes back, after the screen's own hints
+            if (g == global && !escBound && app.Screens is { Count: > 1, Top.PopOnEscape: true }) hints.Add("esc Back");
+            foreach (var (entry, keys) in visible[g].Entries)
             {
                 if (!entry.ShowInHints) continue;
                 var hint = $"{keys.Split(", ")[0]} {entry.Description}";
@@ -138,6 +144,8 @@ internal static class KeyRouter
         }
         return KeyMap.FitHints(hints, maxWidth);
     }
+
+    private static readonly KeyBinding Escape = KeyBinding.Parse("esc");
 
     /// <summary>
     /// Help text for the screens' focus chain: a group per component under its <see cref="Component.KeysGroup"/>,
