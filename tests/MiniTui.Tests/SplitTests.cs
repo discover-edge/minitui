@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -7,8 +6,8 @@ public class SplitTests
 {
     private static MouseEvent M(MouseAction action, int x, int y, MouseButton button = MouseButton.Left) => new(action, button, x, y);
 
-    private static (Rect First, Rect Second) Draw(SplitState state, int width = 21, int height = 5, Buffer? buf = null) =>
-        Widget.Split(state).Draw(buf ?? new Buffer(width, height), new Rect(0, 0, width, height));
+    private static (Rect First, Rect Second) Draw(SplitState state, int width = 21, int height = 5, CellBuffer? buf = null) =>
+        Widget.Split(state).Draw(buf ?? new CellBuffer(width, height), new Rect(0, 0, width, height));
 
     // Layout
 
@@ -73,7 +72,7 @@ public class SplitTests
     [InlineData(0)]
     public void AnAreaWithoutRoom_GivesTheFirstPaneEverything(int width)
     {
-        var buf = new Buffer(Math.Max(1, width), 3);
+        var buf = new CellBuffer(Math.Max(1, width), 3);
         var (a, b) = Draw(new SplitState(Direction.Horizontal), width, 3, buf);
 
         Assert.Equal(new Rect(0, 0, width, 3), a);
@@ -96,7 +95,7 @@ public class SplitTests
     {
         using var _ = Theme.Use(Theme.Dark);
         var state = new SplitState(Direction.Horizontal);
-        var buf = new Buffer(21, 3);
+        var buf = new CellBuffer(21, 3);
         Draw(state, 21, 3, buf);
 
         Assert.Equal(["          │          ", "          │          ", "          │          "], buf.ToLines());
@@ -106,7 +105,7 @@ public class SplitTests
         Draw(state, 21, 3, buf);
         Assert.Equal(Theme.Dark.BorderFocused.Fg, buf.Get(10, 0).Fg);
 
-        var vertical = new Buffer(5, 7);
+        var vertical = new CellBuffer(5, 7);
         Widget.Split(new SplitState(Direction.Vertical)).Focused().Draw(vertical, new Rect(0, 0, 5, 7));
         Assert.Equal("─────", vertical.ToLines()[3]);
         Assert.Equal(Theme.Dark.BorderFocused.Fg, vertical.Get(0, 3).Fg);
@@ -200,7 +199,7 @@ public class SplitTests
     {
         var outer = new SplitState(Direction.Horizontal);
         var inner = new SplitState(Direction.Vertical);
-        var buf = new Buffer(21, 11);
+        var buf = new CellBuffer(21, 11);
         var (_, right) = Widget.Split(outer).Draw(buf, new Rect(0, 0, 21, 11));
         Widget.Split(inner).Draw(buf, right);
 
@@ -262,7 +261,7 @@ public class SplitTests
 
     private sealed class Pane : Component
     {
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private sealed class Panes : Screen
@@ -281,7 +280,7 @@ public class SplitTests
 
         public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             var (a, b) = Widget.Split(State).Draw(buf, area);
             ctx.Render(_left, buf, a);

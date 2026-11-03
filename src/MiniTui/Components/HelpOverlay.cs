@@ -36,6 +36,6 @@ public sealed class HelpOverlay : Overlay
     public override bool HandleMouse(MouseEvent mouse) => _scroll.HandleMouse(mouse);
 
     /// <inheritdoc/>
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Paragraph().Text(_text).State(_scroll).Draw(buf, area);
 }

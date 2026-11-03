@@ -101,7 +101,7 @@ public partial class App
     }
 
     /// <summary>Outline the recorded rects and draw the panel, over the frame in progress.</summary>
-    private void DrawDebug(Buffer buf, Rect area, TimeSpan renderTime)
+    private void DrawDebug(CellBuffer buf, Rect area, TimeSpan renderTime)
     {
         var chain = KeyRouter.Chain(this);
         var focused = chain.Count > 0 ? chain[^1] : null;
@@ -116,7 +116,7 @@ public partial class App
         DrawPanel(buf, area, PanelLines(area, chain, renderTime), Plain(DebugPanel, Style.Default.Reversed()));
     }
 
-    private static void Outline(Buffer buf, Rect r, Style style)
+    private static void Outline(CellBuffer buf, Rect r, Style style)
     {
         if (r.IsEmpty) return;
         buf.SetStyle(r with { Height = 1 }, style);
@@ -152,7 +152,7 @@ public partial class App
     }
 
     // Top-right, or bottom-left while the pointer is over it; nothing when the screen is too small
-    private void DrawPanel(Buffer buf, Rect area, List<string> lines, Style style)
+    private void DrawPanel(CellBuffer buf, Rect area, List<string> lines, Style style)
     {
         var width = Math.Min(Math.Min(PanelWidth, lines.Max(l => UnicodeWidth.Of(l)) + 4), area.Width);
         var height = lines.Count + 2;

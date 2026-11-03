@@ -70,7 +70,7 @@ internal sealed class FilterMenu : Overlay
         return true;
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         ArgumentNullException.ThrowIfNull(buf);
         _list.Draw(buf, area, title: null, placeholder: "Type to filter");

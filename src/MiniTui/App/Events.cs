@@ -65,7 +65,7 @@ public enum MouseAction
 
 /// <summary>
 /// A mouse report, delivered while <see cref="App.WithMouse"/> is on (1.x spec §4). <paramref name="X"/> and
-/// <paramref name="Y"/> are 0-based cells, like <see cref="Buffer"/> coordinates.
+/// <paramref name="Y"/> are 0-based cells, like <see cref="CellBuffer"/> coordinates.
 /// </summary>
 public sealed record MouseEvent(MouseAction Action, MouseButton Button, int X, int Y, ConsoleModifiers Modifiers = 0) : Event
 {

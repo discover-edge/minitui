@@ -1,18 +1,17 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
 /// <summary>Grouped and stacked bar charts and their legend (1.x spec §19.3).</summary>
 public class BarGroupTests
 {
-    private static string[] Lines(Buffer buf) => [.. buf.ToLines().Select(l => l.TrimEnd())];
+    private static string[] Lines(CellBuffer buf) => [.. buf.ToLines().Select(l => l.TrimEnd())];
 
     private static BarGroup G(string label, params double[] values) =>
         new(label, [.. values.Select((v, i) => new Bar($"s{i}", v) { ValueText = "" })]);
 
-    private static Buffer Draw(Func<BarChartBuilder, BarChartBuilder> configure, int width, int height)
+    private static CellBuffer Draw(Func<BarChartBuilder, BarChartBuilder> configure, int width, int height)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         configure(Widget.BarChart().Legend(LegendPosition.None)).Draw(buf, buf.Area);
         return buf;
     }
@@ -146,7 +145,7 @@ public class BarGroupTests
     public void TheLegend_NamesTheSeries_InACorner(LegendPosition position, int x, int y)
     {
         var groups = new[] { new BarGroup("a", [new Bar("GET", 1), new Bar("POST", 1)]) };
-        var buf = new Buffer(22, 10);
+        var buf = new CellBuffer(22, 10);
         Widget.BarChart().Groups(groups).Legend(position).Draw(buf, buf.Area);
 
         Assert.Equal("┌", buf.Get(x, y).Symbol);
@@ -168,7 +167,7 @@ public class BarGroupTests
             (c => c.Groups(unnamed).Legend(LegendPosition.TopRight), 22, 10),
         })
         {
-            var buf = new Buffer(w, h);
+            var buf = new CellBuffer(w, h);
             configure(Widget.BarChart()).Draw(buf, buf.Area);
             Assert.DoesNotContain("┌", string.Join("\n", Lines(buf)), StringComparison.Ordinal);
         }
@@ -191,7 +190,7 @@ public class BarGroupTests
         foreach (var stacked in new[] { false, true })
         foreach (var direction in new[] { Direction.Vertical, Direction.Horizontal })
         {
-            var buf = new Buffer(Math.Max(1, w), Math.Max(1, h));
+            var buf = new CellBuffer(Math.Max(1, w), Math.Max(1, h));
             Widget.BarChart().Groups(G("a", 1, 2), G("b", 3)).Stacked(stacked).Direction(direction).Draw(buf, new Rect(0, 0, w, h));
         }
     }

@@ -75,7 +75,7 @@ internal sealed class TreeScreen : Screen
         foreach (var entry in below) if (entry.Info is DirectoryInfo) action(entry);
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         // 1.x spec §18.4: the field's text drives the tree's filter
         if (_filter.State.Text != _filterText)
@@ -117,7 +117,7 @@ internal sealed class TreeScreen : Screen
         public override bool HandleKey(ConsoleKeyInfo key) => screen._tree.HandleKey(key);
         public override bool HandleMouse(MouseEvent mouse) => screen._tree.HandleMouse(mouse);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.Tree(screen._tree)
                 .Title(" Files ")
                 .Guides(screen._guides)

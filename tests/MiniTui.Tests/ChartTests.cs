@@ -1,14 +1,13 @@
 using static MiniTui.Tests.Snapshot;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
 public class CanvasTests
 {
-    private static Buffer Paint(int width, int height, Action<CanvasPainter> paint, Marker marker = Marker.Block,
+    private static CellBuffer Paint(int width, int height, Action<CanvasPainter> paint, Marker marker = Marker.Block,
         double xMin = 0, double xMax = 1, double yMin = 0, double yMax = 1)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         Widget.Canvas().XBounds(xMin, xMax).YBounds(yMin, yMax).Marker(marker).Paint(paint).Draw(buf, buf.Area);
         return buf;
     }
@@ -102,7 +101,7 @@ public class CanvasTests
     [InlineData(double.NaN, 1)]
     public void BoundsWithMaxNotAboveMin_DrawNothing(double min, double max)
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
 
         Widget.Canvas().XBounds(min, max).Marker(Marker.Block).Paint(p =>
         {
@@ -117,7 +116,7 @@ public class CanvasTests
     [Fact]
     public void BasicGlyphs_DrawBrailleAsHalfBlocks()
     {
-        var buf = new Buffer(2, 1);
+        var buf = new CellBuffer(2, 1);
 
         using (Glyphs.Use(basic: true)) Widget.Canvas().Paint(p => { p.Point(0, 1); p.Point(1, 0); }).Draw(buf, buf.Area);
 
@@ -231,7 +230,7 @@ public class CanvasTests
     [Fact]
     public void CanvasStyle_IsTheBackground_AndTheDefaultDotStyle()
     {
-        var buf = new Buffer(2, 1);
+        var buf = new CellBuffer(2, 1);
 
         Widget.Canvas().Marker(Marker.Block).Style(new Style(Color.Yellow, Color.Blue)).Paint(p => p.Point(0, 0)).Draw(buf, buf.Area);
 
@@ -242,7 +241,7 @@ public class CanvasTests
     [Fact]
     public void Block_SurroundsTheCanvas()
     {
-        var buf = new Buffer(4, 3);
+        var buf = new CellBuffer(4, 3);
 
         Widget.Canvas().Marker(Marker.Block).Block(Widget.Block()).Paint(p => p.Line(0, 0, 1, 0)).Draw(buf, buf.Area);
 
@@ -256,7 +255,7 @@ public class CanvasTests
     [Fact]
     public void ACanvasPartlyOffTheBuffer_MapsOverItsWholeArea()
     {
-        var buf = new Buffer(2, 1);
+        var buf = new CellBuffer(2, 1);
 
         // The canvas is four cells wide; x = 1 is its fourth cell, off the buffer
         Widget.Canvas().Marker(Marker.Block).Paint(p => p.Line(0, 0, 1, 0)).Draw(buf, new Rect(-2, 0, 4, 1));
@@ -273,7 +272,7 @@ public class ChartTests
     [Fact]
     public void Chart_DrawsAxesLabelsAndALine()
     {
-        var buf = new Buffer(12, 6);
+        var buf = new CellBuffer(12, 6);
 
         Widget.Chart().Datasets(new Dataset("", [(0, 0), (10, 1)]) { Marker = Marker.Block })
             .XAxis(X).YAxis(Y).Draw(buf, buf.Area);
@@ -291,7 +290,7 @@ public class ChartTests
     [Fact]
     public void Scatter_DrawsThePointsOnly()
     {
-        var buf = new Buffer(12, 6);
+        var buf = new CellBuffer(12, 6);
 
         Widget.Chart().Datasets(new Dataset("", [(0, 0), (10, 1)]) { Type = GraphType.Scatter, Marker = Marker.Block })
             .XAxis(X).YAxis(Y).Draw(buf, buf.Area);
@@ -309,7 +308,7 @@ public class ChartTests
     [Fact]
     public void AutoBounds_AndDefaultLabels()
     {
-        var buf = new Buffer(12, 6);
+        var buf = new CellBuffer(12, 6);
 
         Widget.Chart().Datasets(new Dataset("", [(0, 2), (4, 6)]), new Dataset("", [(1, 3), (double.PositiveInfinity, double.NaN)])).Draw(buf, buf.Area);
 
@@ -325,7 +324,7 @@ public class ChartTests
     [InlineData(new double[0], "0", "1")]
     public void AutoBounds_ForOneValueOrNone(double[] values, string min, string max)
     {
-        var buf = new Buffer(12, 6);
+        var buf = new CellBuffer(12, 6);
 
         Widget.Chart().Datasets(new Dataset("", [.. values.Select(v => (v, v))])).Draw(buf, buf.Area);
 
@@ -337,7 +336,7 @@ public class ChartTests
     [Fact]
     public void AnAxisWithOnlyAMin_TakesTheMaxFromTheData()
     {
-        var buf = new Buffer(14, 6);
+        var buf = new CellBuffer(14, 6);
 
         Widget.Chart().Datasets(new Dataset("", [(0, 3), (1, 7)])).YAxis(new Axis { Min = 0, LabelFormat = "0.0" }).Draw(buf, buf.Area);
 
@@ -349,7 +348,7 @@ public class ChartTests
     [Fact]
     public void Titles_GoAboveTheYAxis_AndAtTheEndOfTheXAxis()
     {
-        var buf = new Buffer(12, 7);
+        var buf = new CellBuffer(12, 7);
 
         Widget.Chart().XAxis(X with { Title = "time" }).YAxis(Y with { Title = "load" }).Draw(buf, buf.Area);
 
@@ -367,7 +366,7 @@ public class ChartTests
     [Fact]
     public void Legend_ListsNamedDatasets_InTheChosenCorner()
     {
-        var buf = new Buffer(40, 20);
+        var buf = new CellBuffer(40, 20);
         var none = new Axis { Labels = [] };
 
         Widget.Chart().Datasets(new Dataset("a", []), new Dataset("", []), new Dataset("bb", []) { Marker = Marker.Dot })
@@ -388,7 +387,7 @@ public class ChartTests
     [InlineData(LegendPosition.BottomLeft, 1, 16)]
     public void Legend_Corners(LegendPosition position, int x, int y)
     {
-        var buf = new Buffer(40, 20);
+        var buf = new CellBuffer(40, 20);
         var none = new Axis { Labels = [] };
 
         Widget.Chart().Datasets(new Dataset("a", [])).XAxis(none).YAxis(none).Legend(position).Draw(buf, buf.Area);
@@ -401,19 +400,19 @@ public class ChartTests
     public void Legend_IsOmitted_WhenNoneOrTooBig()
     {
         var none = new Axis { Labels = [] };
-        var big = new Buffer(40, 20);
+        var big = new CellBuffer(40, 20);
         Widget.Chart().Datasets(new Dataset("a", [])).XAxis(none).YAxis(none).Legend(LegendPosition.None).Draw(big, big.Area);
         Assert.DoesNotContain(big.ToLines(), l => l.Contains('┌'));
 
         // The plot is 7×5 and the box 5×3
-        var small = new Buffer(8, 6);
+        var small = new CellBuffer(8, 6);
         Widget.Chart().Datasets(new Dataset("a", [])).XAxis(none).YAxis(none).Draw(small, small.Area);
         Assert.DoesNotContain(small.ToLines(), l => l.Contains('┌'));
 
-        var fits = new Buffer(11, 7);
+        var fits = new CellBuffer(11, 7);
         Widget.Chart().Datasets(new Dataset("a", [])).XAxis(none).YAxis(none).Draw(fits, fits.Area);
         Assert.Contains(fits.ToLines(), l => l.Contains('┌'));
-        small = new Buffer(10, 5);
+        small = new CellBuffer(10, 5);
         Widget.Chart().Datasets(new Dataset("a", [])).XAxis(none).YAxis(none).Draw(small, small.Area);
         Assert.DoesNotContain(small.ToLines(), l => l.Contains('┌'));
     }
@@ -421,7 +420,7 @@ public class ChartTests
     [Fact]
     public void SeriesStyles_ComeFromTheTheme_WrappingAround()
     {
-        var buf = new Buffer(12, 6);
+        var buf = new CellBuffer(12, 6);
         var datasets = Enumerable.Range(0, 7).Select(i => new Dataset("", i == 6 ? [(5, 0.5)] : [])).ToArray();
 
         Widget.Chart().Datasets(datasets).XAxis(X).YAxis(Y).Draw(buf, buf.Area);
@@ -434,7 +433,7 @@ public class ChartTests
     [Fact]
     public void ADatasetStyle_OverridesTheSeries()
     {
-        var buf = new Buffer(12, 6);
+        var buf = new CellBuffer(12, 6);
 
         Widget.Chart().Datasets(new Dataset("", [(5, 0.5)]) { Style = new Style(Color.Red), Marker = Marker.Block })
             .XAxis(X).YAxis(Y).Draw(buf, buf.Area);
@@ -450,7 +449,7 @@ public class ChartTests
         Axis Titled(Axis a) => a with { Title = "t" };
         string[] Draw(int width, int height)
         {
-            var buf = new Buffer(width, height);
+            var buf = new CellBuffer(width, height);
             Widget.Chart().Datasets(new Dataset("", [(0, 0), (10, 1)]) { Marker = Marker.Block })
                 .XAxis(Titled(X)).YAxis(Titled(Y)).Draw(buf, buf.Area);
             return buf.ToLines();
@@ -472,7 +471,7 @@ public class BarChartTests
     [Fact]
     public void Vertical_BarsGrowUp_WithLabelsBelow()
     {
-        var buf = new Buffer(7, 3);
+        var buf = new CellBuffer(7, 3);
 
         Widget.BarChart().Bars(new Bar("A", 1) { ValueText = "" }, new Bar("B", 2) { ValueText = "" }).Draw(buf, buf.Area);
 
@@ -486,7 +485,7 @@ public class BarChartTests
     [Fact]
     public void Vertical_ValuesAreInTheBottomRow_ReversedOnAFullBar()
     {
-        var buf = new Buffer(7, 3);
+        var buf = new CellBuffer(7, 3);
 
         Widget.BarChart().Bars(new Bar("A", 1), new Bar("B", 0)).Max(1).Draw(buf, buf.Area);
 
@@ -502,7 +501,7 @@ public class BarChartTests
     [Fact]
     public void Vertical_ValuesThatDontFit_AreHidden()
     {
-        var buf = new Buffer(3, 2);
+        var buf = new CellBuffer(3, 2);
 
         Widget.BarChart().Bars(new Bar("A", 1234) { }).Draw(buf, buf.Area);
 
@@ -515,7 +514,7 @@ public class BarChartTests
     [Fact]
     public void Vertical_GrowsInEighths()
     {
-        var buf = new Buffer(4, 2);
+        var buf = new CellBuffer(4, 2);
 
         Widget.BarChart().BarWidth(1).BarGap(0).Max(8)
             .Bars(new Bar("", 1) { ValueText = "" }, new Bar("", 4) { ValueText = "" }, new Bar("", 7) { ValueText = "" }, new Bar("", 8) { ValueText = "" })
@@ -527,7 +526,7 @@ public class BarChartTests
     [Fact]
     public void Vertical_BasicGlyphs_RoundToHalfAndFull()
     {
-        var buf = new Buffer(4, 2);
+        var buf = new CellBuffer(4, 2);
 
         using (Glyphs.Use(basic: true))
         {
@@ -542,7 +541,7 @@ public class BarChartTests
     [Fact]
     public void Vertical_LabelsAreTruncated_AndBarsThatDontFitAreDropped()
     {
-        var buf = new Buffer(6, 2);
+        var buf = new CellBuffer(6, 2);
 
         Widget.BarChart().Bars(new Bar("Alpha", 1) { ValueText = "" }, new Bar("Beta", 1) { ValueText = "" }).Draw(buf, buf.Area);
 
@@ -555,7 +554,7 @@ public class BarChartTests
     [Fact]
     public void NegativeAndNaN_DrawAsEmptyBars()
     {
-        var buf = new Buffer(7, 2);
+        var buf = new CellBuffer(7, 2);
 
         Widget.BarChart().Bars(new Bar("A", -3), new Bar("B", double.NaN)).Draw(buf, buf.Area);
 
@@ -568,7 +567,7 @@ public class BarChartTests
     [Fact]
     public void Horizontal_BarsGrowRight_WithValuesAfter()
     {
-        var buf = new Buffer(10, 2);
+        var buf = new CellBuffer(10, 2);
 
         Widget.BarChart().Direction(Direction.Horizontal).BarGap(0).Bars(new Bar("a", 4), new Bar("bb", 2)).Draw(buf, buf.Area);
 
@@ -581,7 +580,7 @@ public class BarChartTests
     [Fact]
     public void Horizontal_GapsAndTruncatedLabels()
     {
-        var buf = new Buffer(9, 3);
+        var buf = new CellBuffer(9, 3);
 
         Widget.BarChart().Direction(Direction.Horizontal).ValueFormat("0.0")
             .Bars(new Bar("long label", 1), new Bar("b", 0.5)).Draw(buf, buf.Area);
@@ -596,7 +595,7 @@ public class BarChartTests
     [Fact]
     public void Horizontal_BasicGlyphs_RoundToHalfAndFull()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
 
         using (Glyphs.Use(basic: true))
             Widget.BarChart().Direction(Direction.Horizontal).Max(16).Bars(new Bar("", 6) { ValueText = "" }).Draw(buf, buf.Area);
@@ -608,7 +607,7 @@ public class BarChartTests
     [Fact]
     public void Horizontal_ValuesAreHidden_WhenThereIsNoRoomForThem()
     {
-        var buf = new Buffer(6, 1);
+        var buf = new CellBuffer(6, 1);
 
         Widget.BarChart().Direction(Direction.Horizontal).Bars(new Bar("a", 1) { ValueText = "1000" }).Draw(buf, buf.Area);
 
@@ -618,7 +617,7 @@ public class BarChartTests
     [Fact]
     public void ABarStyle_OverridesTheGaugeStyle()
     {
-        var buf = new Buffer(3, 2);
+        var buf = new CellBuffer(3, 2);
 
         Widget.BarChart().Bars(new Bar("A", 1) { Style = new Style(Color.Red), ValueText = "" }).Draw(buf, buf.Area);
 
@@ -640,7 +639,7 @@ public class ChartThemeTests
     [Fact]
     public void AnEmptySeriesList_DrawsWithTheTextStyle()
     {
-        var buf = new Buffer(12, 6);
+        var buf = new CellBuffer(12, 6);
 
         using (Theme.Use(Theme.Default with { ChartSeries = [] }))
         {

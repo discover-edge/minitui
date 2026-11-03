@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -137,7 +136,7 @@ public class MouseTests
             return handles;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     /// <summary>Two probes side by side, rendered with ctx.Render, and an inner probe rendered without it.</summary>
@@ -167,7 +166,7 @@ public class MouseTests
             return false;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             ctx.Render(Left, buf, new Rect(0, 0, 10, 5));
             ctx.Render(Right, buf, new Rect(10, 0, 10, 5));
@@ -186,7 +185,7 @@ public class MouseTests
             return true;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     [Fact]
@@ -372,7 +371,7 @@ public class MouseTests
         public override bool HandleMouse(MouseEvent mouse) =>
             Selection.HandleMouse(mouse, Items.Count) || Scroll.HandleMouse(mouse) || Tabs.HandleMouse(mouse);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             Widget.TabBar().Tabs("One", "Two", "Three").State(Tabs).Draw(buf, new Rect(0, 0, 40, 2));
             Widget.List().Items(Items).State(Selection).Draw(buf, new Rect(0, 2, 20, 12));
@@ -416,7 +415,7 @@ public class MouseTests
     public void List_AClickPastTheLastItem_DoesNothing()
     {
         var selection = new SelectionState();
-        var buf = new Buffer(20, 10);
+        var buf = new CellBuffer(20, 10);
         Widget.List().Items(["a", "b"]).State(selection).Draw(buf, new Rect(0, 0, 20, 10));
 
         Assert.False(selection.HandleMouse(M(MouseAction.Press, MouseButton.Left, 2, 5), 2));
@@ -428,7 +427,7 @@ public class MouseTests
     public void Table_ClickBelowTheHeader_SelectsThatRow_AndHeaderClicksDont()
     {
         var selection = new SelectionState();
-        var buf = new Buffer(30, 10);
+        var buf = new CellBuffer(30, 10);
         Widget.Table().Header("Name").Rows([new Row("r0"), new Row("r1"), new Row("r2")]).State(selection)
             .Draw(buf, new Rect(0, 0, 30, 10));
 
@@ -469,7 +468,7 @@ public class MouseTests
     public void TabBar_ClicksMapToTheTabsDrawn_WhenTheFirstAreScrolledOff()
     {
         var tabs = new TabBarState { Selected = 4 };
-        var buf = new Buffer(20, 2);
+        var buf = new CellBuffer(20, 2);
         Widget.TabBar().Tabs("Alpha", "Bravo", "Charlie", "Delta", "Echo").State(tabs).Draw(buf, new Rect(0, 0, 20, 2));
         var line = buf.ToLines()[0];
 

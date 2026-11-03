@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -40,7 +39,7 @@ public class SelectionStateTests
     {
         var s = new SelectionState();
         var items = Enumerable.Range(0, 50).Select(i => i.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
-        Widget.List().Items(items).State(s).Draw(new Buffer(10, 7), new Rect(0, 0, 10, 7));
+        Widget.List().Items(items).State(s).Draw(new CellBuffer(10, 7), new Rect(0, 0, 10, 7));
 
         s.PageDown(items.Count);
 
@@ -62,7 +61,7 @@ public class SelectionStateTests
             var items = Enumerable.Repeat("x", count).ToList();
 
             Widget.List().Items(items).State(s).Block(Widget.Block().Borders(Borders.None))
-                .Draw(new Buffer(10, 20), new Rect(0, 0, 10, height));
+                .Draw(new CellBuffer(10, 20), new Rect(0, 0, 10, height));
 
             if (count == 0) Assert.Equal(0, s.Selected);
             else Assert.InRange(s.Selected, 0, count - 1);
@@ -81,7 +80,7 @@ public class ScrollAndTabStateTests
     {
         var s = new ScrollState { Offset = 100 };
 
-        Widget.Paragraph().Text("1\n2\n3\n4\n5").State(s).Draw(new Buffer(5, 2), new Rect(0, 0, 5, 2));
+        Widget.Paragraph().Text("1\n2\n3\n4\n5").State(s).Draw(new CellBuffer(5, 2), new Rect(0, 0, 5, 2));
 
         Assert.Equal(3, s.Offset);
         Assert.Equal(5, s.ContentHeight);
@@ -97,7 +96,7 @@ public class ScrollAndTabStateTests
     {
         var s = new TabBarState { Selected = 9 };
 
-        Widget.TabBar().Tabs("a", "b", "c").State(s).Draw(new Buffer(20, 2), new Rect(0, 0, 20, 2));
+        Widget.TabBar().Tabs("a", "b", "c").State(s).Draw(new CellBuffer(20, 2), new Rect(0, 0, 20, 2));
 
         Assert.Equal(3, s.Count);
         Assert.Equal(2, s.Selected);
@@ -235,7 +234,7 @@ public class TextFieldStateTests
     public void Widget_ScrollsByDisplayWidth_AndShowsTheCursor()
     {
         var s = new TextFieldState("日本語テキスト");
-        var buf = new Buffer(6, 1);
+        var buf = new CellBuffer(6, 1);
 
         Widget.TextField().State(s).Focused().Draw(buf, buf.Area);
 

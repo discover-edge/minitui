@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -19,14 +18,14 @@ public class TextAreaTests
     private static string[] Draw(TextAreaState state, int width, int height, WrapMode wrap = WrapMode.Word,
         string? placeholder = null, bool focused = true)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         Widget.TextArea().State(state).Wrap(wrap).Placeholder(placeholder).Focused(focused).Draw(buf, buf.Area);
         return [.. buf.ToLines().Select(l => l.TrimEnd())];
     }
 
     private static (int X, int Y)? DrawCursor(TextAreaState state, int width, int height, WrapMode wrap = WrapMode.Word)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         Widget.TextArea().State(state).Wrap(wrap).Focused().Draw(buf, buf.Area);
         return buf.CursorRequest;
     }
@@ -427,7 +426,7 @@ public class TextAreaTests
     public void Unfocused_ShowsNoCursor()
     {
         var state = new TextAreaState("hi");
-        var buf = new Buffer(10, 2);
+        var buf = new CellBuffer(10, 2);
 
         Widget.TextArea().State(state).Draw(buf, buf.Area);
 
@@ -438,7 +437,7 @@ public class TextAreaTests
     public void ABlock_DrawsAroundTheText()
     {
         var state = new TextAreaState("hello");
-        var buf = new Buffer(9, 3);
+        var buf = new CellBuffer(9, 3);
 
         Widget.TextArea().State(state).Block(Widget.Block()).Focused().Draw(buf, buf.Area);
 
@@ -511,7 +510,7 @@ public class TextAreaTests
         var state = new TextAreaState("abc");
         Assert.False(state.HandleMouse(Click(0, 0)));
 
-        var buf = new Buffer(10, 4);
+        var buf = new CellBuffer(10, 4);
         Widget.TextArea().State(state).Block(Widget.Block()).Draw(buf, buf.Area);
         Assert.False(state.HandleMouse(Click(0, 0)));
         Assert.False(state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Right, 1, 1)));
@@ -548,7 +547,7 @@ public class TextAreaTests
         public override bool HandleKey(ConsoleKeyInfo key) => Notes.HandleKey(key);
         public override bool HandlePaste(string text) => Notes.Paste(text);
         public override bool HandleMouse(MouseEvent mouse) => Notes.HandleMouse(mouse);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.TextArea().State(Notes).Focused(ctx.Focused).Block(Widget.Block()).Draw(buf, area);
     }
 

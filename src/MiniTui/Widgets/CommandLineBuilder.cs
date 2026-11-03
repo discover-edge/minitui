@@ -23,7 +23,7 @@ public sealed class CommandLineBuilder
     public CommandLineBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the command line on the first row of <paramref name="area"/>.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         if (area.IsEmpty) return;

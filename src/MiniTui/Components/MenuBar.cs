@@ -141,7 +141,7 @@ public sealed class MenuBar
     }
 
     /// <summary>Draw the bar on <paramref name="row"/>, recording each title's rect.</summary>
-    internal void Draw(Buffer buf, Rect row)
+    internal void Draw(CellBuffer buf, Rect row)
     {
         var theme = Theme.Current;
         WidgetText.Clear(buf, row);

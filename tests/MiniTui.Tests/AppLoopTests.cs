@@ -369,7 +369,7 @@ public class AppLoopTests
             return true;
         }
 
-        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private static async Task WaitFor(Func<bool> condition)

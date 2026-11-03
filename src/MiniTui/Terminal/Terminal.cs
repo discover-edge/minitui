@@ -14,8 +14,8 @@ public class Terminal : IDisposable
     private readonly TerminalLease _lease;
     private readonly ITerminalBackend _backend;
     private readonly List<CellUpdate> _updates = [];
-    private Buffer _current;
-    private Buffer _previous;
+    private CellBuffer _current;
+    private CellBuffer _previous;
     private bool _disposed;
     private bool _fullRedraw = true;
     private int _seenVersion;
@@ -53,14 +53,14 @@ public class Terminal : IDisposable
         _seenVersion = _lease.Version;
 
         (Width, Height) = Sanitize(_backend.GetSize());
-        _current = new Buffer(Width, Height);
-        _previous = new Buffer(Width, Height);
+        _current = new CellBuffer(Width, Height);
+        _previous = new CellBuffer(Width, Height);
     }
 
     /// <summary>
     /// Main render method. Pass a function that draws to the buffer.
     /// </summary>
-    public void Draw(Action<Buffer> render)
+    public void Draw(Action<CellBuffer> render)
     {
         ArgumentNullException.ThrowIfNull(render);
         _current.Clear();
@@ -131,8 +131,8 @@ public class Terminal : IDisposable
 
         Width = width;
         Height = height;
-        _current = new Buffer(Width, Height);
-        _previous = new Buffer(Width, Height);
+        _current = new CellBuffer(Width, Height);
+        _previous = new CellBuffer(Width, Height);
         _fullRedraw = true;
         return true;
     }

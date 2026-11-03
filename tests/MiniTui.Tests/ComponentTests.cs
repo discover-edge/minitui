@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -22,7 +21,7 @@ internal class Probe : Component
     public override bool CapturesText => Captures;
     public override string KeysGroup => _name;
     public override bool HandleKey(ConsoleKeyInfo key) => OnKeyPress?.Invoke(key) == true;
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) => buf.SetString(area.X, area.Y, _name, Style.Default);
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => buf.SetString(area.X, area.Y, _name, Style.Default);
 
     public new FocusScope Focus => base.Focus;
     public new App App => base.App;
@@ -59,7 +58,7 @@ internal sealed class ProbeScreen : Screen
     public Func<ConsoleKeyInfo, bool>? OnKeyPress { get; set; }
     public override bool HandleKey(ConsoleKeyInfo key) => OnKeyPress?.Invoke(key) == true;
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         buf.SetString(area.X, area.Y, $"[{Name}]", Style.Default);
         _body.Render(buf, area with { Y = area.Y + 1, Height = Math.Max(0, area.Height - 1) }, ctx.For(_body));
@@ -193,7 +192,7 @@ public class ComponentLifecycleTests
             return result;
         });
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 }
 
@@ -388,7 +387,7 @@ public class KeyRoutingTests
             foreach (var child in children) Focus.Add(AddChild(child));
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             foreach (var child in _children) child.Render(buf, area, ctx.For(child));
         }
@@ -399,7 +398,7 @@ public class KeyRoutingTests
         public TextFieldState State { get; } = new();
         public override bool CapturesText => true;
         public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.TextField().State(State).Focused(ctx.Focused).Draw(buf, area);
     }
 }

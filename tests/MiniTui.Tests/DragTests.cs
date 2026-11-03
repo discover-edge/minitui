@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -63,7 +62,7 @@ public class DragTests
             return true;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private sealed class Panes : Screen
@@ -82,7 +81,7 @@ public class DragTests
 
         public void RemoveLeft() => RemoveChild(Left);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             ctx.Render(Left, buf, new Rect(0, 0, 10, 5));
             ctx.Render(Right, buf, new Rect(10, 0, 10, 5));
@@ -185,7 +184,7 @@ public class DragTests
     public void BuiltInHandlers_IgnoreDrags()
     {
         var selection = new SelectionState();
-        var buf = new Buffer(10, 5);
+        var buf = new CellBuffer(10, 5);
         Widget.List().Items(["a", "b", "c"]).State(selection).Draw(buf, buf.Area);
         var scroll = new ScrollState();
 
@@ -199,7 +198,7 @@ public class DragTests
     private static TextFieldState DrawnField(string text, int width = 10)
     {
         var state = new TextFieldState(text);
-        var buf = new Buffer(width + 2, 3);
+        var buf = new CellBuffer(width + 2, 3);
         Widget.TextField().State(state).Block(Widget.Block()).Draw(buf, buf.Area);
         return state;
     }
@@ -240,7 +239,7 @@ public class DragTests
     public void Field_DragPastTheLeftEdge_ScrollsAColumn()
     {
         var state = new TextFieldState("0123456789abcdef");
-        var buf = new Buffer(6, 1);
+        var buf = new CellBuffer(6, 1);
         Widget.TextField().State(state).Draw(buf, buf.Area);
         Assert.Equal(11, state.ScrollOffset);
 
@@ -271,7 +270,7 @@ public class DragTests
     public void Field_Press_OnAWideCharacter_GoesToItsStart()
     {
         var state = new TextFieldState("a中b");
-        var buf = new Buffer(10, 1);
+        var buf = new CellBuffer(10, 1);
         Widget.TextField().State(state).Draw(buf, buf.Area);
 
         state.HandleMouse(M(MouseAction.Press, 2, 0));
@@ -292,7 +291,7 @@ public class DragTests
 
     private static void Draw(TextAreaState state, int width, int height, WrapMode wrap = WrapMode.Word)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         Widget.TextArea().State(state).Wrap(wrap).Draw(buf, buf.Area);
     }
 
@@ -374,7 +373,7 @@ public class DragTests
     public void Area_DragAfterAPressOnTheBorder_IsNotHandled()
     {
         var state = new TextAreaState("abc");
-        var buf = new Buffer(10, 4);
+        var buf = new CellBuffer(10, 4);
         Widget.TextArea().State(state).Block(Widget.Block()).Draw(buf, buf.Area);
 
         Assert.False(state.HandleMouse(M(MouseAction.Press, 0, 0)));
@@ -406,7 +405,7 @@ public class DragTests
         public FieldComponent Other { get; }
         public bool FocusedField => Focus.IsFocused(Field);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             ctx.Render(Other, buf, new Rect(0, 0, 10, 1));
             ctx.Render(Field, buf, new Rect(0, 2, 10, 1));
@@ -418,7 +417,7 @@ public class DragTests
         public TextFieldState State { get; } = new("abcdef");
         public override bool CapturesText => true;
         public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.TextField().State(State).Focused(ctx.Focused).Draw(buf, area);
     }
 

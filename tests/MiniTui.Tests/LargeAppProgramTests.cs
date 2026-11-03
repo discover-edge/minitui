@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -45,7 +44,7 @@ public class LargeAppProgramTests
         public override bool HandleKey(ConsoleKeyInfo key) =>
             selection.HandleKey(key, services.Value?.Count ?? 0);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             services.Switch(
                 idle:    () => { },
                 loading: stale => DrawTable(buf, area, ctx, stale),
@@ -68,7 +67,7 @@ public class LargeAppProgramTests
             Load(services, api.ListAsync);
         }
 
-        void DrawTable(Buffer buf, Rect area, RenderContext ctx, IReadOnlyList<ServiceDto>? list) =>
+        void DrawTable(CellBuffer buf, Rect area, RenderContext ctx, IReadOnlyList<ServiceDto>? list) =>
             Widget.Table()
                 .Header("Name", "Status", "Version")
                 .Columns(Constraint.Fill(), Constraint.Length(10), Constraint.Length(12))
@@ -87,7 +86,7 @@ public class LargeAppProgramTests
 
         protected override void OnMount() => Load(_service, ct => api.GetAsync(id, ct));
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.Paragraph()
                 .Text(_service.Value is { } s ? $"Id: {s.Id}\nName: {s.Name}\nStatus: {s.Status}" : "Loading…")
                 .Block(Widget.Block().Title($" {Title} ").Focused(ctx.Focused))

@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 using static MiniTui.Tests.Snapshot;
 
 namespace MiniTui.Tests;
@@ -8,7 +7,7 @@ public class SanitizerTests
     [Fact]
     public void Acceptance_EscapeSequence_IsDrawnAsReplacementCharacterAndText()
     {
-        var buf = new Buffer(6, 1);
+        var buf = new CellBuffer(6, 1);
 
         buf.SetString(0, 0, "\x1b[31mX", Style.Default);
 
@@ -47,7 +46,7 @@ public class SanitizerTests
     [Fact]
     public void Set_SanitizesSymbol_AndKeepsOnlyTheFirstGrapheme()
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
 
         buf.Set(0, 0, Cell.Empty with { Symbol = "\x1b[" });
         buf.Set(1, 0, Cell.Empty with { Symbol = "ab" });
@@ -59,7 +58,7 @@ public class SanitizerTests
     [Fact]
     public void LineAndSpan_AreSanitizedWhenDrawn()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
 
         buf.SetLine(0, 0, new Line([new Span("\x07", default), "\u001bA"]), 4);
 

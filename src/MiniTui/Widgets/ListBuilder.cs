@@ -89,7 +89,7 @@ public class ListBuilder
     public ListBuilder Hover(Vec2? position) { _hover = position; return this; }
 
     /// <summary>Draw the list to the buffer.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var theme = Theme.Current;

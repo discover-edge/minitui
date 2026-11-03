@@ -64,7 +64,7 @@ public class ReadmeSnippetTests
         public readonly TextFieldState text = new();
         public override bool CapturesText => true;
         public override bool HandleKey(ConsoleKeyInfo key) => text.HandleKey(key);
-        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.TextField().State(text).Focused(ctx.Focused).Block(Widget.Block().Title(" Search ")).Draw(buf, area);
     }
 
@@ -82,7 +82,7 @@ public class ReadmeSnippetTests
             Keys.Add("ctrl+r", "Reload", Reload);
         }
 
-        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             var rows = Layout.Split(area, Direction.Vertical, Constraint.Length(3), Constraint.Fill());
             search.Render(buf, rows[0], ctx.For(search));
@@ -135,7 +135,7 @@ public class MigrationSnippetTests
             Focus.Add(nameField).Add(subscribeBox);
         }
 
-        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             var rows = Layout.Split(area, Direction.Vertical, Constraint.Length(1), Constraint.Length(1));
             nameField.Render(buf, rows[0], ctx.For(nameField));
@@ -158,7 +158,7 @@ public class MigrationSnippetTests
     [Fact]
     public void ChartAndCanvas()
     {
-        var buf = new Buffer(40, 12);
+        var buf = new CellBuffer(40, 12);
         var area = buf.Area;
         var now = 100.0;
         var angle = 0.5;

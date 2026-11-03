@@ -27,7 +27,7 @@ public sealed class ScrollbarBuilder
     public ScrollbarBuilder ViewportLength(int length) { _viewportLength = length; return this; }
 
     /// <summary>Draw the scrollbar.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         if (area.IsEmpty || _contentLength <= _viewportLength || _viewportLength < 0) return;

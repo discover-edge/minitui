@@ -298,7 +298,7 @@ public sealed class PopupMenu : Overlay
     }
 
     /// <inheritdoc/>
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         ArgumentNullException.ThrowIfNull(buf);
         ArgumentNullException.ThrowIfNull(ctx);

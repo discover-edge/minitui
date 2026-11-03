@@ -42,7 +42,7 @@ public sealed class SpinnerBuilder
     internal SpinnerBuilder Time(TimeProvider time) { _time = time; return this; }
 
     /// <summary>Draw the spinner on the first row of <paramref name="area"/>.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var app = App.Current;

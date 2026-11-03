@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 using Microsoft.Extensions.Time.Testing;
 
 namespace MiniTui.Tests;
@@ -11,7 +10,7 @@ public class DoubleClickTests
 
     private sealed class Blank : Screen
     {
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     // Counting
@@ -143,7 +142,7 @@ public class DoubleClickTests
     private static TextFieldState Field(string text)
     {
         var state = new TextFieldState { Text = text };
-        Widget.TextField().State(state).Draw(new Buffer(30, 1), new Rect(0, 0, 30, 1));
+        Widget.TextField().State(state).Draw(new CellBuffer(30, 1), new Rect(0, 0, 30, 1));
         return state;
     }
 
@@ -176,7 +175,7 @@ public class DoubleClickTests
     private static TextAreaState Area(string text)
     {
         var state = new TextAreaState(text);
-        Widget.TextArea().State(state).Draw(new Buffer(30, 5), new Rect(0, 0, 30, 5));
+        Widget.TextArea().State(state).Draw(new CellBuffer(30, 5), new Rect(0, 0, 30, 5));
         return state;
     }
 
@@ -215,7 +214,7 @@ public class DoubleClickTests
         var activated = new List<int>();
         state.Activated += (_, _) => activated.Add(state.Selected);
         string[] items = ["a", "b", "c"];
-        Widget.List().Items(items).State(state).Draw(new Buffer(10, 5), new Rect(0, 0, 10, 5));
+        Widget.List().Items(items).State(state).Draw(new CellBuffer(10, 5), new Rect(0, 0, 10, 5));
 
         state.HandleMouse(Press(2, 2, 1), items.Length);
         state.HandleMouse(Press(2, 2, 2), items.Length);
@@ -248,7 +247,7 @@ public class DoubleClickTests
 
         public override bool HandleMouse(MouseEvent mouse) => _state.HandleMouse(mouse, Items.Length);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.List().Items(Items).State(_state).Draw(buf, area);
     }
 
@@ -263,11 +262,11 @@ public class DoubleClickTests
         var log = new List<string>();
         state.Activated += (_, e) => log.Add(e.Node.Name);
         activated = log;
-        Widget.Tree(state).Draw(new Buffer(20, 6), new Rect(0, 0, 20, 6));
+        Widget.Tree(state).Draw(new CellBuffer(20, 6), new Rect(0, 0, 20, 6));
         return state;
     }
 
-    private static void Redraw(TreeState<Node> state) => Widget.Tree(state).Draw(new Buffer(20, 6), new Rect(0, 0, 20, 6));
+    private static void Redraw(TreeState<Node> state) => Widget.Tree(state).Draw(new CellBuffer(20, 6), new Rect(0, 0, 20, 6));
 
     [Fact]
     public void ATreeLeaf_DoubleClicked_IsActivated()
@@ -307,9 +306,9 @@ public class DoubleClickTests
         Assert.True(state.IsExpanded(state.Roots[0]));
     }
 
-    private static Buffer Draw(TreeState<Node> state)
+    private static CellBuffer Draw(TreeState<Node> state)
     {
-        var buf = new Buffer(20, 6);
+        var buf = new CellBuffer(20, 6);
         Widget.Tree(state).Draw(buf, new Rect(0, 0, 20, 6));
         return buf;
     }

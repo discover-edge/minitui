@@ -1,9 +1,8 @@
-using Buffer = MiniTui.Buffer;
 using static MiniTui.Tests.Snapshot;
 
 namespace MiniTui.Tests;
 
-public class BufferTests
+public class CellBufferTests
 {
     private static readonly Cell Wide = Cell.Empty with { Symbol = "日" };
 
@@ -19,7 +18,7 @@ public class BufferTests
     [MemberData(nameof(Rects))]
     public void B1_NoMethodThrows_ForAnyRect(Rect rect)
     {
-        var buf = new Buffer(10, 5);
+        var buf = new CellBuffer(10, 5);
 
         buf.FillRect(rect, Wide);
         buf.SetStyle(rect, new Style(Color.Red));
@@ -34,7 +33,7 @@ public class BufferTests
     [Fact]
     public void B1_NegativeBufferSize_IsTreatedAsEmpty()
     {
-        var buf = new Buffer(-3, -1);
+        var buf = new CellBuffer(-3, -1);
 
         buf.SetString(0, 0, "x", Style.Default);
 
@@ -45,7 +44,7 @@ public class BufferTests
     [Fact]
     public void B1_OutOfBoundsGet_ReturnsEmpty()
     {
-        Assert.Equal(Cell.Empty, new Buffer(2, 2).Get(5, -1));
+        Assert.Equal(Cell.Empty, new CellBuffer(2, 2).Get(5, -1));
     }
 
     // ===== Wide characters =====
@@ -53,7 +52,7 @@ public class BufferTests
     [Fact]
     public void Set_WideCell_WritesHeadAndContinuationWithSameStyle()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
 
         buf.Set(1, 0, new Cell("日", Color.Red, Color.Blue, Modifiers.Bold));
 
@@ -66,7 +65,7 @@ public class BufferTests
     [Fact]
     public void B2_WritingOverContinuation_BlanksTheHead_KeepingItsStyle()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
         buf.Set(0, 0, new Cell("日", Color.Red, Color.Blue, Modifiers.None));
 
         buf.Set(1, 0, Cell.Empty with { Symbol = "x" });
@@ -78,7 +77,7 @@ public class BufferTests
     [Fact]
     public void B3_WritingOverHead_BlanksTheContinuation()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
         buf.Set(0, 0, Wide);
 
         buf.Set(0, 0, Cell.Empty with { Symbol = "x" });
@@ -90,7 +89,7 @@ public class BufferTests
     [Fact]
     public void WideOverWide_Offset_BlanksBothNeighbours()
     {
-        var buf = new Buffer(5, 1);
+        var buf = new CellBuffer(5, 1);
         buf.SetString(0, 0, "日本", Style.Default);
 
         buf.Set(1, 0, Cell.Empty with { Symbol = "中" });
@@ -101,7 +100,7 @@ public class BufferTests
     [Fact]
     public void B4_WideCellInLastColumn_IsWrittenAsSpace()
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
         buf.Set(2, 0, Cell.Empty with { Symbol = "x" });
 
         buf.Set(2, 0, Wide with { Fg = Color.Red });
@@ -113,7 +112,7 @@ public class BufferTests
     [Fact]
     public void B5_SetString_StopsAtMaxWidth_WithoutSplittingWideCharacters()
     {
-        var buf = new Buffer(10, 1);
+        var buf = new CellBuffer(10, 1);
 
         var written = buf.SetString(0, 0, "a日本", Style.Default, maxWidth: 4);
 
@@ -124,7 +123,7 @@ public class BufferTests
     [Fact]
     public void B5_SetString_StopsAtBufferEdge_WithoutSplittingWideCharacters()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
 
         var written = buf.SetString(1, 0, "日本", Style.Default);
 
@@ -135,7 +134,7 @@ public class BufferTests
     [Fact]
     public void FillRect_WithWideCell_TilesWithoutBreakingInvariants()
     {
-        var buf = new Buffer(5, 2);
+        var buf = new CellBuffer(5, 2);
 
         buf.FillRect(buf.Area, Wide);
 
@@ -150,7 +149,7 @@ public class BufferTests
     [Fact]
     public void SetString_PatchesStyle_KeepingUnspecifiedAttributes()
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
         buf.SetStyle(buf.Area, new Style(Color.Gray, Color.Blue).Bold());
 
         buf.SetString(0, 0, "ab", new Style(Color.Red).Italic());
@@ -162,7 +161,7 @@ public class BufferTests
     [Fact]
     public void SetString_ClipsOnTheLeft()
     {
-        var buf = new Buffer(4, 1);
+        var buf = new CellBuffer(4, 1);
 
         var advanced = buf.SetString(-2, 0, "abcd", Style.Default);
 
@@ -173,7 +172,7 @@ public class BufferTests
     [Fact]
     public void SetString_CombiningMarks_StayWithTheirBase()
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
 
         buf.SetString(0, 0, "éx", Style.Default);
 
@@ -184,7 +183,7 @@ public class BufferTests
     [Fact]
     public void SetString_SkipsZeroWidthGraphemes()
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
 
         var written = buf.SetString(0, 0, "a​b", Style.Default);
 
@@ -195,7 +194,7 @@ public class BufferTests
     [Fact]
     public void SetString_TabsAndLineBreaksBecomeSpaces()
     {
-        var buf = new Buffer(7, 1);
+        var buf = new CellBuffer(7, 1);
 
         buf.SetString(0, 0, "a\tb\nc\r\nd", Style.Default);
 
@@ -205,7 +204,7 @@ public class BufferTests
     [Fact]
     public void SetLine_DrawsSpansInOrder_AndStopsAtMaxWidth()
     {
-        var buf = new Buffer(8, 1);
+        var buf = new CellBuffer(8, 1);
         var line = new Line([new Span("ab", new Style(Color.Red)), new Span("日c", new Style(Color.Blue)), "zz"]);
 
         var written = buf.SetLine(1, 0, line, maxWidth: 4);
@@ -219,7 +218,7 @@ public class BufferTests
     [Fact]
     public void SetLine_StopsWhenAWideCharacterDoesNotFit()
     {
-        var buf = new Buffer(5, 1);
+        var buf = new CellBuffer(5, 1);
 
         var written = buf.SetLine(0, 0, new Line([new Span("a日", default), new Span("b", default)]), maxWidth: 2);
 
@@ -230,7 +229,7 @@ public class BufferTests
     [Fact]
     public void SetStyle_KeepsSymbols()
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
         buf.SetString(0, 0, "abc", Style.Default);
 
         buf.SetStyle(new Rect(1, 0, 5, 1), new Style(Bg: Color.Green));
@@ -245,7 +244,7 @@ public class BufferTests
     [Fact]
     public void SetCursor_RecordsRequest_ClearResetsIt()
     {
-        var buf = new Buffer(5, 5);
+        var buf = new CellBuffer(5, 5);
 
         buf.SetCursor(2, 3);
         Assert.Equal((2, 3), buf.CursorRequest);
@@ -257,7 +256,7 @@ public class BufferTests
     [Fact]
     public void SetCursor_OutOfBounds_IsIgnored()
     {
-        var buf = new Buffer(5, 5);
+        var buf = new CellBuffer(5, 5);
 
         buf.SetCursor(5, 0);
 
@@ -267,7 +266,7 @@ public class BufferTests
     [Fact]
     public void ToLines_OmitsContinuations()
     {
-        var buf = new Buffer(6, 2);
+        var buf = new CellBuffer(6, 2);
         buf.SetString(0, 1, "👍x日", Style.Default);
 
         AssertLines(buf, """
@@ -281,7 +280,7 @@ public class BufferTests
     [Fact]
     public void DrawHLineAndVLine_KeepBackground()
     {
-        var buf = new Buffer(4, 2);
+        var buf = new CellBuffer(4, 2);
         buf.SetStyle(buf.Area, new Style(Bg: Color.Blue));
 
         buf.DrawHLine(0, 0, 4, style: new Style(Color.Gray));
@@ -305,7 +304,7 @@ public class BufferZeroWidthTests
     [InlineData("\uFE0F")]
     public void Set_ZeroWidthSymbol_IsStoredAsSpace(string symbol)
     {
-        var buf = new MiniTui.Buffer(2, 1);
+        var buf = new CellBuffer(2, 1);
 
         buf.Set(0, 0, Cell.Empty with { Symbol = symbol });
 
@@ -318,7 +317,7 @@ public class BufferLeadingZeroWidthTests
     [Fact]
     public void SetString_SkipsAGraphemeThatStartsWithAZeroWidthRune()
     {
-        var buf = new MiniTui.Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
 
         var written = buf.SetString(0, 0, "️ab", Style.Default);
 

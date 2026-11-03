@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -28,7 +27,7 @@ public class TreeCheckAsyncTests
 
     private static string[] Draw(TreeState<Node> state, int width = 24, int height = 8)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         Widget.Tree(state).Draw(buf, buf.Area);
         return [.. buf.ToLines().Select(l => l.TrimEnd())];
     }
@@ -334,7 +333,7 @@ public class TreeCheckAsyncTests
 
         public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Widget.Tree(State).Draw(buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Widget.Tree(State).Draw(buf, area);
     }
 
     [Fact]

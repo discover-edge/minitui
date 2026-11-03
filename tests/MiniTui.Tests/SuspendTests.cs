@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -8,12 +7,12 @@ public class SuspendTests
 {
     private sealed class PlainScreen : Screen
     {
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => buf.SetString(0, 0, "screen", Style.Default);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => buf.SetString(0, 0, "screen", Style.Default);
     }
 
     private sealed class Dialog : Overlay
     {
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private static App Create(TestBackend backend, ScriptedInputSource input, List<Event> events) =>

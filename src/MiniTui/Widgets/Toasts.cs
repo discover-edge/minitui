@@ -95,7 +95,7 @@ public sealed class ToastsBuilder
     public ToastsBuilder Queue(ToastQueue queue) { _queue = queue; return this; }
 
     /// <summary>Draw the visible toasts over whatever is in <paramref name="area"/>.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         if (_queue is null) return;

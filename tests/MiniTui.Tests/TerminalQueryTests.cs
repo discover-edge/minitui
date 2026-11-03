@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.Extensions.Time.Testing;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -408,7 +407,7 @@ public class TerminalQueryTests
         var bg = Theme.Dark.Text.Bg;
         Assert.All(Enumerable.Range(0, 20), x => Assert.Equal(bg, backend.CellAt(x, 2).Bg));
 
-        var buf = new Buffer(6, 2);
+        var buf = new CellBuffer(6, 2);
         using (Theme.Use(Theme.Light)) WidgetText.Clear(buf, buf.Area);
         Assert.Equal(Theme.Light.Text.Bg, buf.Get(5, 1).Bg);
         Assert.Equal(Theme.Light.Text.Fg, buf.Get(5, 1).Fg);

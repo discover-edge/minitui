@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -17,9 +16,9 @@ public sealed class ParagraphSelectionTests : IDisposable
     private static ConsoleKeyInfo Key(string binding) => KeyBinding.Parse(binding).ToKeyInfo();
 
     // Draws the text at (0, 0) without a block, so screen cells are text cells
-    private static Buffer Draw(ScrollState state, Text text, int width = 20, int height = 4, BlockBuilder? block = null, WrapMode wrap = WrapMode.None)
+    private static CellBuffer Draw(ScrollState state, Text text, int width = 20, int height = 4, BlockBuilder? block = null, WrapMode wrap = WrapMode.None)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         var paragraph = Widget.Paragraph().Text(text).State(state).Wrap(wrap);
         if (block is not null) paragraph.Block(block);
         paragraph.Draw(buf, buf.Area);
@@ -151,7 +150,7 @@ public sealed class ParagraphSelectionTests : IDisposable
     public void ACenteredRow_IsSelectedWhereItIsDrawn()
     {
         var state = new ScrollState { Selectable = true };
-        var buf = new Buffer(10, 1);
+        var buf = new CellBuffer(10, 1);
         Widget.Paragraph().Text("abcd").Alignment(Alignment.Center).State(state).Draw(buf, buf.Area);
 
         // "abcd" starts at column 3
@@ -250,7 +249,7 @@ public sealed class ParagraphSelectionTests : IDisposable
         public override bool HasSelection => State.HasSelection;
         public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
         public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Widget.Paragraph().Text("alpha\nbeta").State(State).Draw(buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Widget.Paragraph().Text("alpha\nbeta").State(State).Draw(buf, area);
     }
 
     [Fact]
@@ -341,7 +340,7 @@ public sealed class ParagraphSelectionTests : IDisposable
         public TextFieldState State { get; } = new() { Text = "hello" };
         public override bool CapturesText => true;
         public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) => Widget.TextField().State(State).Focused().Draw(buf, area);
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) => Widget.TextField().State(State).Focused().Draw(buf, area);
     }
 
     [Fact]

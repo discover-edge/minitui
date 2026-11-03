@@ -1,4 +1,4 @@
-# Drawing on the Buffer
+# Drawing on the CellBuffer
 
 Draw directly: cells, strings, colors and styled text.
 

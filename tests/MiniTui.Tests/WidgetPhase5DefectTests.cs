@@ -2,7 +2,6 @@
 // code before the fix. The static functions are internal since 1.0. D8 and D13 were written against the
 // removed 0.7 text-input helpers; their 1.0 equivalents are in StateTests.
 
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -11,7 +10,7 @@ public class WidgetPhase5DefectTests
     [Fact]
     public void D11_List_ShowsSelectionWhenUnfocused()
     {
-        var buf = new Buffer(10, 4);
+        var buf = new CellBuffer(10, 4);
 
         Widgets.List(buf, buf.Area, ["a", "b"], selectedIndex: 1, focused: false);
 
@@ -21,7 +20,7 @@ public class WidgetPhase5DefectTests
     [Fact]
     public void D15_Table_ScrollsToKeepTheSelectedRowVisible()
     {
-        var buf = new Buffer(12, 5);
+        var buf = new CellBuffer(12, 5);
         var rows = Enumerable.Range(0, 20).Select(i => new[] { $"row{i}" }).ToArray();
 
         Widgets.Table(buf, buf.Area, ["Name"], rows, selectedRow: 15);
@@ -34,7 +33,7 @@ public class WidgetPhase5DefectTests
     [Fact]
     public void D15_TableBuilder_SizesColumnsByConstraint()
     {
-        var buf = new Buffer(20, 2);
+        var buf = new CellBuffer(20, 2);
 
         Widget.Table()
             .Header("Name", "St")
@@ -51,7 +50,7 @@ public class WidgetPhase5DefectTests
 
     public static TheoryData<string> StaticWidgets => [.. StaticDraws.Keys];
 
-    private static readonly Dictionary<string, Action<Buffer, Rect>> StaticDraws = new()
+    private static readonly Dictionary<string, Action<CellBuffer, Rect>> StaticDraws = new()
     {
         ["Button"] = (b, r) => Widgets.Button(b, r, "OK", focused: true),
         ["Checkbox"] = (b, r) => Widgets.Checkbox(b, r.X, r.Y, "Enabled", isChecked: true, focused: true),
@@ -74,7 +73,7 @@ public class WidgetPhase5DefectTests
     [MemberData(nameof(StaticWidgets))]
     public void D10_StaticWidgets_NeverPaintABlackBackground(string widget)
     {
-        var buf = new Buffer(30, 10);
+        var buf = new CellBuffer(30, 10);
 
         StaticDraws[widget](buf, buf.Area);
 
@@ -87,15 +86,15 @@ public class WidgetPhase5DefectTests
 /// <summary>The W1 sweep: every size from 0×0 to 6×6 at several positions, plus negative and off-screen rects.</summary>
 internal static class WidgetSweep
 {
-    public static IEnumerable<(Buffer Buffer, Rect Area)> Cases()
+    public static IEnumerable<(CellBuffer CellBuffer, Rect Area)> Cases()
     {
         for (var w = 0; w <= 6; w++)
         for (var h = 0; h <= 6; h++)
         {
-            yield return (new Buffer(w, h), new Rect(0, 0, w, h));
-            yield return (new Buffer(6, 6), new Rect(0, 0, w, h));
-            yield return (new Buffer(6, 6), new Rect(6 - w, 6 - h, w, h));
-            yield return (new Buffer(6, 6), new Rect(3, 3, w, h));
+            yield return (new CellBuffer(w, h), new Rect(0, 0, w, h));
+            yield return (new CellBuffer(6, 6), new Rect(0, 0, w, h));
+            yield return (new CellBuffer(6, 6), new Rect(6 - w, 6 - h, w, h));
+            yield return (new CellBuffer(6, 6), new Rect(3, 3, w, h));
         }
 
         Rect[] odd =
@@ -107,8 +106,8 @@ internal static class WidgetSweep
         ];
         foreach (var area in odd)
         {
-            yield return (new Buffer(6, 6), area);
-            yield return (new Buffer(0, 0), area);
+            yield return (new CellBuffer(6, 6), area);
+            yield return (new CellBuffer(0, 0), area);
         }
     }
 }

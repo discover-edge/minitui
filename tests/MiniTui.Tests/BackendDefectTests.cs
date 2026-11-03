@@ -97,7 +97,7 @@ public class BackendDefectTests
     {
         var backend = new TestBackend(10, 2);
         using var outer = new Terminal(backend);
-        static void DrawOuter(MiniTui.Buffer buf) => buf.SetString(0, 0, "outer", Style.Default);
+        static void DrawOuter(CellBuffer buf) => buf.SetString(0, 0, "outer", Style.Default);
         outer.Draw(DrawOuter);
 
         using (var inner = new Terminal(backend))

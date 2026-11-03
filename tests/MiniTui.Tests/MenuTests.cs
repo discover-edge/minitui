@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -7,7 +6,7 @@ public class MenuTests
 {
     private sealed class Blank : Screen
     {
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     private static (ComponentHarness Harness, PopupMenu Menu) Open(IReadOnlyList<MenuItem> items, Rect? anchor = null, int width = 60, int height = 20)

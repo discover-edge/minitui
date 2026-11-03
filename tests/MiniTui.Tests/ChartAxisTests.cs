@@ -1,16 +1,15 @@
 using System.Globalization;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
 /// <summary>Label counts, formatters, time axes, ticks, grid lines and area charts (1.x spec §19.4–§19.6).</summary>
 public class ChartAxisTests
 {
-    private static string[] Lines(Buffer buf) => [.. buf.ToLines().Select(l => l.TrimEnd())];
+    private static string[] Lines(CellBuffer buf) => [.. buf.ToLines().Select(l => l.TrimEnd())];
 
-    private static Buffer Draw(Func<ChartBuilder, ChartBuilder> configure, int width, int height)
+    private static CellBuffer Draw(Func<ChartBuilder, ChartBuilder> configure, int width, int height)
     {
-        var buf = new Buffer(width, height);
+        var buf = new CellBuffer(width, height);
         configure(Widget.Chart().Legend(LegendPosition.None)).Draw(buf, buf.Area);
         return buf;
     }
@@ -131,7 +130,7 @@ public class ChartAxisTests
 
     // Areas
 
-    private static Buffer Area(IReadOnlyList<(double, double)> points, int width = 6, int height = 4)
+    private static CellBuffer Area(IReadOnlyList<(double, double)> points, int width = 6, int height = 4)
     {
         var data = new Dataset("", points) { Type = GraphType.Area, Marker = Marker.Block };
         return Draw(c => c.Datasets(data).XAxis(new Axis { Min = 0, Max = width - 1, Labels = [] }).YAxis(new Axis { Min = 0, Max = height - 1, Labels = [] }), width + 1, height + 1);
@@ -210,7 +209,7 @@ public class ChartAxisTests
         for (var w = 0; w < 14; w++)
         for (var h = 0; h < 8; h++)
         {
-            var buf = new Buffer(Math.Max(1, w), Math.Max(1, h));
+            var buf = new CellBuffer(Math.Max(1, w), Math.Max(1, h));
             Widget.Chart().Datasets(area).XAxis(axis).YAxis(axis with { Formatter = v => v.ToString("0", CultureInfo.InvariantCulture) }).Draw(buf, new Rect(0, 0, w, h));
         }
     }

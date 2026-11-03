@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0; §21 (Phase 27) live at minitui.org, with its README and project URL released in v1.15.1 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0; §21 (Phase 27) live at minitui.org, with its README and project URL released in v1.15.1; §22 (Phase 28) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -50,6 +50,7 @@ or add to them:
 | **25. Chart extras** | Grouped and stacked bar charts (`BarGroup`, `Groups`, `Stacked`, `GroupGap`) with a series legend; time and duration axes (`Axis.Time`, `Axis.Duration`, `ChartTime`, `Formatter`, `LabelCount`); tick marks and grid lines (`Ticks`, `Grid`); area charts (`GraphType.Area`). Backlog rank 9. | 14 | §19 | 1.14.0 |
 | **26. Clipboard and selection extras** | Reading the Unix clipboard with an OSC 52 query (`WithClipboardRead`, `Clipboard.GetTextAsync`); Ctrl+Insert, Shift+Insert and Shift+Delete; selecting text in paragraphs with the mouse (`ScrollState.Selectable`, `Component.HasSelection`), including the message and help dialogs. Backlog rank 10. | 12, 16, 23 | §20 | 1.15.0 |
 | **27. Website** | minitui.org on GitHub Pages, built with DocFX: a landing page with generated recordings and screenshots of the example app, the README's content as guide pages, an API reference from the XML docs, and the changelog. | — | §21 | — (no package) |
+| **28. Fixes from building apps from the docs** | `Buffer` renamed to `CellBuffer`; tree type-ahead and expander clicks, gauge label colors, text states leaving Alt+arrows, palette duplicates, toasts and the menu bar, status bar hints first, an `esc Back` hint, padded overlay titles, the harness and custom dialogs; `TextFieldState.Changed`, `ConfirmAsync(yesFirst)`. | 27 | §22 | **2.0.0** |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -4795,3 +4796,86 @@ Two PRs:
 
 After 27a merges, the maintainer sets up DNS and Pages (§21.6) and runs the workflow by hand; 27b deploys with
 the next manual run or tag.
+
+---
+
+## 22. Fixes from building apps from the docs (Phase 28)
+
+### 22.1 Purpose
+
+Four agents with no context built apps from minitui.org alone against 1.15.1: a todo manager, a log viewer, a
+system monitor and a settings wizard. All four worked. The doc problems they found are fixed on the site (PR #59).
+This phase fixes the library problems, each checked against the source, and renames `Buffer`, which every agent
+tripped over first. The rename breaks every `Render` signature, so this is **2.0.0**.
+
+### 22.2 Renaming `Buffer` to `CellBuffer`
+
+- **The problem:** `dotnet new console` turns on implicit usings, which import `System`, so `Buffer` in a
+  `Render(Buffer buf, Rect area, RenderContext ctx)` override is ambiguous with `System.Buffer` (`CS0104`, then
+  `CS0534` because the override no longer matches). Every sample that names the type fails to compile until the user
+  finds `using Buffer = MiniTui.Buffer;`.
+- **The change:** `MiniTui.Buffer` becomes `MiniTui.CellBuffer`, unchanged otherwise. No `[Obsolete]` alias: a type
+  named `Buffer` would keep the clash.
+- **Everything that names it changes:** `Component.Render`, every builder's `Draw`, `RenderContext.Render`,
+  `App.Render`'s callback (`Action<CellBuffer, Rect>`), `CanvasPainter`, `ComponentHarness`, and the example, tests,
+  tools, guides and README. The "Drawing on the Buffer" guide becomes "Drawing on the CellBuffer".
+- **Migration:** `docs/MIGRATION-1-to-2.md`: replace `Buffer` with `CellBuffer` and delete the alias, with a
+  one-line `sed`. The CHANGELOG's 2.0.0 entry is under "Changed" (breaking).
+
+### 22.3 Fixes
+
+| # | Problem (found by) | Fix |
+|---|---|---|
+| 1 | A focused tree takes every printable key as type-ahead, so `?` (help) never reaches the app (log viewer). | Type-ahead handles a key only when it moves to a match (or extends a match in progress); a key that matches no row is unhandled and goes on to the bindings. |
+| 2 | Two quick clicks on a tree's expander open the node and don't close it: the second click is a double-click, which the expander ignores (log viewer). | Every click on the expander toggles, whatever its `ClickCount`. A double-click on the label still acts as Enter. |
+| 3 | A gauge's label over the empty part is drawn in the terminal's default color, not the theme's, so it's nearly invisible with `Theme.Light` on a dark terminal (system monitor). | The label takes `Theme.Text` over the empty part (reversed over the filled part, as now). |
+| 4 | Text fields, text areas and the command line take Alt+Shift+arrows as Shift+arrows, so a split's keys don't work while one is focused (log viewer). | The text states leave arrows, Home and End with Alt unhandled, as the list, scroll and tree states do with modifiers they don't use. |
+| 5 | The palette lists an action twice when it's both a key binding and a menu item (settings wizard). | An item whose action is the same delegate (`Delegate.Equals`: the same method and target) as an earlier one is left out, so the binding's entry, with its key, stays. Lambdas wrapping the same call are different delegates; the guides say so. |
+| 6 | Toasts are drawn over the menu bar (settings wizard). | With a menu bar, toasts start on the row below it. |
+| 7 | A long breadcrumb pushes the key hints out of the status bar (settings wizard). | The hints get the space first; the breadcrumb takes what's left, truncated from the left, down to nothing. |
+| 8 | The hints never show that Esc goes back on a pushed screen (todo manager). | When a screen below the top one exists, the top screen's `PopOnEscape` is true and nothing binds Esc, the chrome shows `esc Back` after the screen's own hints. |
+| 9 | A custom overlay's `Title` is drawn against the border (`┌Add todo──`), while the built-in ones pass padded titles (todo manager). | The overlay frame trims the title and draws it with a space on each side, so `" Keys "` and `"Keys"` look the same. |
+| 10 | `ComponentHarness` times out when a test awaits a custom dialog: only the built-in dialogs tell the app they're waiting for the user (found while writing the docs). | Every open overlay counts as waiting for the user, so a `RunTask` awaiting any dialog doesn't keep the harness busy. |
+
+### 22.4 Small additions
+
+- **`TextFieldState.Changed`**, an event raised after the text changes (typing, paste, cut, undo, setting `Text`),
+  as `SelectState.Changed` is. The settings wizard and the log viewer had to compare the text on every render.
+- **`ConfirmAsync`'s default button:** `OverlayStack.ConfirmAsync(string message, string yes = "Yes", string no =
+  "No", bool yesFirst = true)` and the same parameter on `ConfirmDialog`. With `yesFirst: false`, No is selected
+  when the dialog opens, for destructive actions. (A new optional parameter is a signature change, allowed in 2.0.)
+
+### 22.5 Tests
+
+One test per fix and addition in §22.3–§22.4, through the states or `ComponentHarness`, plus the existing suite
+with the rename. The four agents' apps are rebuilt against 2.0.0 (after replacing `Buffer`) as a manual check, and
+the Windows exes are rebuilt for the maintainer's testing.
+
+### 22.6 Migration impact
+
+- **Breaking:** the rename (§22.2) and `ConfirmAsync`'s new parameter (binary-breaking; source-compatible).
+- **Behavior changes ("Changed"):** fixes 1, 2, 4, 5, 7, 8 and 9 change what keys, clicks or the chrome do.
+- `PublicAPI.Shipped.txt`: the `Buffer` entries are removed and the `CellBuffer` ones added (in Unshipped until
+  the release).
+
+### 22.7 Out of scope (backlog)
+
+- Horizontal scrolling in paragraphs (`WrapMode.None` cuts long lines with `…`).
+- `CheckboxState` and `ButtonState`, so the controls handle their own keys and clicks.
+- Bar chart values when bars touch (`BarGap(0)`) or a value is wider than its bar.
+
+### 22.8 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | The new name for `Buffer`? | **`CellBuffer`**: says what it holds, and doesn't clash with anything in `System`. |
+| 2 | `ConfirmAsync`: keep Yes selected first, or switch the default to No? | **Keep Yes** (`yesFirst = true`), so existing confirmations behave the same; destructive ones pass `false`. |
+| 3 | The `esc Back` hint (fix 8): always, or only with `PopOnEscape`? | **Only when Esc would pop**: `PopOnEscape` true, a screen below, and Esc not bound. |
+
+### 22.9 Implementation order
+
+Two PRs, then one release:
+1. **28a** (rename): `Buffer` → `CellBuffer` everywhere, the migration guide, the guides and samples.
+2. **28b** (fixes): §22.3 and §22.4, with their tests.
+
+Both go out as **2.0.0**.

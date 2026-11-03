@@ -1,6 +1,5 @@
 // Regression tests for the baseline defects in docs/SPEC.md §2.
 
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -38,7 +37,7 @@ public class DefectTests
     [Fact]
     public void D9_SetString_WideCharacterOccupiesTwoColumns()
     {
-        var buf = new Buffer(5, 1);
+        var buf = new CellBuffer(5, 1);
 
         buf.SetString(0, 0, "日x", Style.Default);
 
@@ -50,7 +49,7 @@ public class DefectTests
     [Fact]
     public void D9_SetString_DoesNotSplitSurrogatePairs()
     {
-        var buf = new Buffer(5, 1);
+        var buf = new CellBuffer(5, 1);
 
         buf.SetString(0, 0, "👍x", Style.Default);
 
@@ -61,7 +60,7 @@ public class DefectTests
     [Fact]
     public void D10_SetString_KeepsExistingBackground()
     {
-        var buf = new Buffer(3, 1);
+        var buf = new CellBuffer(3, 1);
         buf.FillRect(buf.Area, Cell.Empty with { Bg = Color.Blue });
 
         buf.SetString(0, 0, "x", new Style(Color.White));
@@ -72,7 +71,7 @@ public class DefectTests
     [Fact]
     public void D10_Block_KeepsExistingBackground()
     {
-        var buf = new Buffer(3, 3);
+        var buf = new CellBuffer(3, 3);
         buf.FillRect(buf.Area, Cell.Empty with { Bg = Color.Blue });
 
         Widget.Block().BorderStyle(new Style(Color.White)).Draw(buf, buf.Area);
@@ -89,7 +88,7 @@ public class DefectTests
     [Fact]
     public void D14_SetString_ReplacesControlCharacters()
     {
-        var buf = new Buffer(6, 1);
+        var buf = new CellBuffer(6, 1);
 
         buf.SetString(0, 0, "\x1b[31mX", Style.Default);
 
@@ -104,7 +103,7 @@ public class DefectTests
     [InlineData("\u009b")]
     public void D14_Cell_ReplacesControlCharacters(string c)
     {
-        var buf = new Buffer(1, 1);
+        var buf = new CellBuffer(1, 1);
 
         buf.Set(0, 0, Cell.Empty with { Symbol = c });
 

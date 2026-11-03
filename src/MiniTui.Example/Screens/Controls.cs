@@ -11,7 +11,7 @@ internal sealed class TextInput(string label, string placeholder = "") : Compone
     public override bool HandlePaste(string text) => State.Paste(text);
     public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.TextField()
             .State(State)
             .Placeholder(placeholder)
@@ -29,7 +29,7 @@ internal sealed class NotesInput(string label, string placeholder = "") : Compon
     public override bool HandlePaste(string text) => State.Paste(text);
     public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.TextArea()
             .State(State)
             .Placeholder(placeholder)
@@ -45,7 +45,7 @@ internal sealed class SelectInput(string label, string placeholder, IReadOnlyLis
     public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key, App);
     public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse, App);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Select()
             .State(State)
             .Placeholder(placeholder)
@@ -69,7 +69,7 @@ internal sealed class Toggle(string label) : Component
         return true;
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Checkbox().Label(label).Checked(Checked).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
 }
 
@@ -86,7 +86,7 @@ internal sealed class ListView(string title, Func<IReadOnlyList<string>> items) 
         !(PassAltKeys && (key.Modifiers & ConsoleModifiers.Alt) != 0) && Selection.HandleKey(key, items().Count);
     public override bool HandleMouse(MouseEvent mouse) => Selection.HandleMouse(mouse, items().Count);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.List().Title(title).Items(items()).State(Selection).HighlightSymbol("> ").Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
 }
 

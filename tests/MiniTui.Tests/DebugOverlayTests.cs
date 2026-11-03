@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.Extensions.Time.Testing;
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -24,7 +23,7 @@ public class DebugOverlayTests
             return true;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             buf.FillRect(area, new Cell(fill.ToString(), Color.Reset, Color.Reset, Modifiers.None));
     }
 
@@ -42,7 +41,7 @@ public class DebugOverlayTests
         public Action? OnRender { get; set; }
         public override string Title => "Panes";
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             OnRender?.Invoke();
             var (left, right) = area.SplitVertical(area.Width / 2);

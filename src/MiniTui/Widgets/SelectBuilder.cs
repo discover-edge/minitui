@@ -27,7 +27,7 @@ public sealed class SelectBuilder
     public SelectBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the field inside its block (or area).</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Clone().Focused(_focused || _block.IsFocused).Draw(buf, area) ?? area;

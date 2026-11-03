@@ -73,7 +73,7 @@ public class TreeBuilder<T> where T : class
     public TreeBuilder<T> HighlightStyle(Style style) { _highlightStyle = style; return this; }
 
     /// <summary>Draw the tree to the buffer.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var theme = Theme.Current;

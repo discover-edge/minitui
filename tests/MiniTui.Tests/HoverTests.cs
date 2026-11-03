@@ -1,4 +1,3 @@
-using Buffer = MiniTui.Buffer;
 
 namespace MiniTui.Tests;
 
@@ -19,7 +18,7 @@ public class HoverTests
             return false;
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             Renders++;
             if (readsHover) Seen = ctx.Hover;
@@ -42,7 +41,7 @@ public class HoverTests
             Focus.Add(Left).Add(Right);
         }
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             if (readsHover) Seen = ctx.Hover;
             ctx.Render(Left, buf, area with { Width = area.Width / 2 });
@@ -175,14 +174,14 @@ public class HoverTests
     [Fact]
     public void AList_PatchesTheRowUnderThePointer_ButNotTheSelection()
     {
-        var buf = new Buffer(12, 5);
+        var buf = new CellBuffer(12, 5);
         var state = new SelectionState { Selected = 0 };
 
         Widget.List().Items(Items).State(state).Hover(new Vec2(4, 2)).Draw(buf, buf.Area);
         Assert.True(buf.Get(2, 2).Modifiers.HasFlag(Modifiers.Underlined));
         Assert.False(buf.Get(2, 3).Modifiers.HasFlag(Modifiers.Underlined));
 
-        buf = new Buffer(12, 5);
+        buf = new CellBuffer(12, 5);
         Widget.List().Items(Items).State(state).Hover(new Vec2(4, 1)).Draw(buf, buf.Area);
         Assert.False(buf.Get(2, 1).Modifiers.HasFlag(Modifiers.Underlined));
         Assert.Equal(Theme.Current.SelectionUnfocused.Bg, buf.Get(2, 1).Bg);
@@ -191,12 +190,12 @@ public class HoverTests
     [Fact]
     public void ATableAndATree_PatchTheRowUnderThePointer()
     {
-        var table = new Buffer(12, 6);
+        var table = new CellBuffer(12, 6);
         Widget.Table().Header("Name").Columns(Constraint.Length(8)).Rows(Items, i => new Row(i)).Hover(new Vec2(3, 3)).Draw(table, table.Area);
         Assert.True(table.Get(2, 3).Modifiers.HasFlag(Modifiers.Underlined));
         Assert.False(table.Get(2, 4).Modifiers.HasFlag(Modifiers.Underlined));
 
-        var tree = new Buffer(12, 5);
+        var tree = new CellBuffer(12, 5);
         var state = new TreeState<string>(_ => [], s => s) { Roots = Items };
         Widget.Tree(state).Hover(new Vec2(3, 3)).Draw(tree, tree.Area);
         Assert.True(tree.Get(2, 3).Modifiers.HasFlag(Modifiers.Underlined));
@@ -206,7 +205,7 @@ public class HoverTests
     [Fact]
     public void AButtonACheckboxAndATab_ShowHover()
     {
-        var buf = new Buffer(20, 3);
+        var buf = new CellBuffer(20, 3);
         Widget.Button().Label("OK").Hover(new Vec2(1, 0)).Draw(buf, new Rect(0, 0, 6, 1));
         Widget.Button().Label("No").Hover(new Vec2(1, 0)).Draw(buf, new Rect(8, 0, 6, 1));
         Assert.True(buf.Get(0, 0).Modifiers.HasFlag(Modifiers.Underlined));
@@ -236,7 +235,7 @@ public class HoverTests
 
     private sealed class Blank : Screen
     {
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     [Fact]

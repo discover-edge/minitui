@@ -67,7 +67,7 @@ public sealed class ConfirmDialog : Overlay
     }
 
     /// <inheritdoc/>
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         ArgumentNullException.ThrowIfNull(ctx);
         Widget.Paragraph().Text(new Line(_message) with { Alignment = Alignment.Center }).Wrap(WrapMode.Word)

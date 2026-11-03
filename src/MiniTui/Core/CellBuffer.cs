@@ -11,17 +11,17 @@ namespace MiniTui;
 /// No drawing method throws for any coordinates or <see cref="Rect"/>: out-of-bounds writes are ignored.
 /// Wide characters always occupy two cells, a head and a continuation, and are never split.
 /// </remarks>
-public class Buffer
+public class CellBuffer
 {
     private readonly Cell[] _cells;
 
     /// <summary>
-    /// Buffer width in cells.
+    /// CellBuffer width in cells.
     /// </summary>
     public int Width { get; }
 
     /// <summary>
-    /// Buffer height in cells.
+    /// CellBuffer height in cells.
     /// </summary>
     public int Height { get; }
 
@@ -39,7 +39,7 @@ public class Buffer
     /// <summary>
     /// Create a new buffer with the specified dimensions. Negative sizes are treated as zero.
     /// </summary>
-    public Buffer(int width, int height)
+    public CellBuffer(int width, int height)
     {
         Width = Math.Max(0, width);
         Height = Math.Max(0, height);

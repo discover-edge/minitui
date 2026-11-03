@@ -50,7 +50,7 @@ internal sealed class EditorScreen : Screen
         Keys.Add("ctrl+s", "Save", () => App.Toasts.Push("Saved (nothing was written)", ToastLevel.Success));
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var rows = Layout.Vertical(area.Inner(new Margin(1, 0)))
             .Add("editor", Constraint.Min(3))
@@ -69,7 +69,7 @@ internal sealed class EditorScreen : Screen
         public override bool HandlePaste(string text) => _state.Paste(text);
         public override bool HandleMouse(MouseEvent mouse) => _state.HandleMouse(mouse);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx)
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
         {
             var cursor = _state.Cursor;
             Widget.TextArea()

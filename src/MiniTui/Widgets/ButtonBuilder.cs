@@ -29,7 +29,7 @@ public sealed class ButtonBuilder
     public ButtonBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Fill <paramref name="area"/> with the button.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         if (area.IsEmpty) return;

@@ -64,7 +64,7 @@ public sealed class ParagraphBuilder
     public ParagraphBuilder Style(Style style) { _style = style; return this; }
 
     /// <summary>Draw the paragraph.</summary>
-    public void Draw(Buffer buf, Rect area)
+    public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
         var inner = _block?.Draw(buf, area) ?? area;
@@ -112,7 +112,7 @@ public sealed class ParagraphBuilder
     }
 
     // 1.x spec §20.5: the selected cells of a row, focused unless the block says otherwise
-    private void DrawSelection(Buffer buf, Rect inner, int y, int row)
+    private void DrawSelection(CellBuffer buf, Rect inner, int y, int row)
     {
         if (_state is not { HasSelection: true } state) return;
         var (from, to) = state.SelectedColumns(row);

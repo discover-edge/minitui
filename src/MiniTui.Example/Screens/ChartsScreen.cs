@@ -47,7 +47,7 @@ internal sealed class ChartsScreen : Screen
         });
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var rows = Layout.Vertical(area).Add("chart", Constraint.Percentage(55)).Add("bottom", Constraint.Fill()).Build();
         var bottom = Layout.Horizontal(rows["bottom"]).Add("bars", Constraint.Percentage(55)).Add("canvas", Constraint.Fill()).Build();

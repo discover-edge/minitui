@@ -5,7 +5,7 @@ namespace MiniTui;
 /// <summary>Drawing shared by TextField, CommandLine and the obsolete input widgets.</summary>
 internal static class TextFieldRenderer
 {
-    public static void Draw(Buffer buf, Rect area, TextFieldState state, bool focused, Style style, string? placeholder)
+    public static void Draw(CellBuffer buf, Rect area, TextFieldState state, bool focused, Style style, string? placeholder)
     {
         state.ViewArea = area with { Height = Math.Min(area.Height, 1) };
         if (area.IsEmpty) return;
@@ -48,7 +48,7 @@ internal static class TextFieldRenderer
         buf.SetCursor(cursorX, y);
     }
 
-    private static void DrawScrolled(Buffer buf, int x, int y, string text, int scroll, int width, Style style)
+    private static void DrawScrolled(CellBuffer buf, int x, int y, string text, int scroll, int width, Style style)
     {
         var column = 0;
         for (var i = 0; i < text.Length;)

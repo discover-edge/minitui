@@ -1,7 +1,6 @@
 using MiniTui;
 using MiniTui.Example;
 using SiteMedia;
-using Buffer = MiniTui.Buffer;
 
 // The site's recordings and screenshots (1.x spec §21.4), generated from the example app so they never drift from the
 // code. Usage: dotnet run --project tools/SiteMedia -- <output directory, default site/media>
@@ -47,7 +46,7 @@ static void QuickStart(string path)
         .Add("k,up", "+1", () => count++)
         .Add("j,down", "-1", () => count--)
         .Add("q", "Quit", () => { });
-    var buf = new Buffer(40, 8);
+    var buf = new CellBuffer(40, 8);
     var screen = buf.Area;
     var inner = Widget.Block().Title(" Counter ").Draw(buf, new Rect(2, 1, 30, 5));
     buf.SetString(inner.X + 1, inner.Y + 1, $"Count: {count}", Style.Default.Bold());

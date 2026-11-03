@@ -14,7 +14,7 @@ internal sealed class CounterScreen : Screen
         .Add("j,down", "-1", () => _count--)
         .Add("r", "Reset", () => _count = 0);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var box = Widget.Block().Title(" Counter ").Padding(new Margin(2, 1)).Focused(ctx.Focused)
             .Draw(buf, new Rect(area.X + 2, area.Y + 1, 40, 7));
@@ -36,7 +36,7 @@ internal sealed class ListScreen : Screen
     public override bool HandleKey(ConsoleKeyInfo key) => _selection.HandleKey(key, Fruits.Length);
     public override bool HandleMouse(MouseEvent mouse) => _selection.HandleMouse(mouse, Fruits.Length);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         buf.SetString(area.X + 2, area.Y + 1, "Select a fruit:", ctx.Theme.Text.Bold());
         Widget.List().Title("Fruit").Items(Fruits).State(_selection).Focused(ctx.Focused).Hover(ctx.Hover)
@@ -67,7 +67,7 @@ internal sealed class ProgressScreen : Screen
         if (_progress >= 1) _running = false;
     });
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var inner = Widget.Block().Title(" Progress ").Padding(new Margin(2, 1)).Focused(ctx.Focused).Draw(buf, area.Inner(new Margin(1)));
         var rows = Layout.Vertical(inner).Spacing(1)
@@ -80,7 +80,7 @@ internal sealed class ProgressScreen : Screen
         Bar(buf, rows["cpu"], "CPU", 0.3 + 0.2 * Math.Sin(_phase), ctx.Theme.Warning);
     }
 
-    private static void Bar(Buffer buf, Rect area, string label, double ratio, Style style)
+    private static void Bar(CellBuffer buf, Rect area, string label, double ratio, Style style)
     {
         buf.SetString(area.X, area.Y, label, Theme.Current.Text.Bold());
         Widget.Gauge().Ratio(ratio).FilledStyle(style).Draw(buf, area with { Y = area.Y + 1, Height = 1 });
@@ -124,7 +124,7 @@ internal sealed class FormScreen : Screen
         Keys.Add("ctrl+s,ctrl+enter", "Submit", Submit);
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var inner = Widget.Block().Title(" Registration ").Padding(new Margin(2, 1)).Draw(buf, area.Inner(new Margin(1)));
         var rows = Layout.Vertical(inner with { Width = Math.Min(inner.Width, 40) })
@@ -209,7 +209,7 @@ internal sealed class DashboardScreen : Screen
         });
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var layout = Layout.Vertical(area)
             .Add("stats", Constraint.Length(5))
@@ -247,7 +247,7 @@ internal sealed class DashboardScreen : Screen
         public override bool HandleKey(ConsoleKeyInfo key) => screen._logScroll.HandleKey(key);
         public override bool HandleMouse(MouseEvent mouse) => screen._logScroll.HandleMouse(mouse);
 
-        public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.Paragraph().Text(string.Join("\n", screen._logs)).State(screen._logScroll)
                 .Block(Widget.Block().Title(" Logs ").TitleBottom(" drag to select · Ctrl+C copies ").Focused(ctx.Focused))
                 .Draw(buf, area);
@@ -314,7 +314,7 @@ internal sealed class CommandScreen : Screen
         return true;
     }
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         IReadOnlyList<string> items = _notes.Count > 0 ? _notes : ["No notes yet. Press : and type add Hello world"];
         Widget.List().Title("Notes").Items(items).State(_selection).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
@@ -400,7 +400,7 @@ internal sealed class TabsScreen : Screen
     // The tab bar is an inline component, so its clicks come here
     public override bool HandleMouse(MouseEvent mouse) => _tabs.HandleMouse(mouse);
 
-    public override void Render(Buffer buf, Rect area, RenderContext ctx)
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         var rows = Layout.Vertical(area).Add("tabs", Constraint.Length(2)).Add("list", Constraint.Fill()).Build();
         ctx.Render(_bar, buf, rows["tabs"]);

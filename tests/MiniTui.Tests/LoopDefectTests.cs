@@ -114,7 +114,7 @@ public class LoopDefectTests
     {
         public Func<ConsoleKeyInfo, bool>? OnKeyPress { get; init; }
         public override bool HandleKey(ConsoleKeyInfo key) => OnKeyPress?.Invoke(key) == true;
-        public override void Render(MiniTui.Buffer buf, Rect area, RenderContext ctx) { }
+        public override void Render(CellBuffer buf, Rect area, RenderContext ctx) { }
     }
 
     [Fact]
