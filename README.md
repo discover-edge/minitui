@@ -485,18 +485,20 @@ tree.Activated += (_, e) => Open(e.Node);              // Enter on a node withou
 Widget.Tree(tree).Title(" Folders ").Guides().Focused(ctx.Focused).Draw(buf, area);
 ```
 
-For a slow source, set `HasChildren` so the expander shows before anything is read, and load in `Expanded`.
-Until the load finishes, `children` returns what's there (or a "Loading…" node of your own), and the next
-frame shows the rest:
+For a slow source, `TreeState.Async` takes a loader that returns a `Task`. A node's children load when it first
+expands, with "Loading…" after its label meanwhile; they're kept until `Reload(node)`. A load that throws shows its
+message on the row and collapses the node, and expanding it again retries. Loads run as app work
+(`App.RunTask`), so `ComponentHarness.RunUntilIdle` waits for them:
 
 ```csharp
-var files = new TreeState<Entry>(e => e.Children ?? [], e => e.Name)
-{
-    HasChildren = e => e.IsDirectory,
-    Roots = [new Entry(root)],
-};
-files.Expanded += (_, e) => e.Node.Children ??= Directory.EnumerateFileSystemEntries(e.Node.Path).Select(p => new Entry(p)).ToList();
+var files = TreeState.Async<Entry>(
+    async (e, ct) => await Task.Run(() => Directory.EnumerateFileSystemEntries(e.Path).Select(p => new Entry(p)).ToList(), ct),
+    e => e.Name);
+files.HasChildren = e => e.IsDirectory;        // otherwise every unloaded node shows an expander
+files.Roots = [new Entry(root)];
 ```
+
+The synchronous constructor still works for lazy sources too: set `HasChildren` and load in `Expanded`.
 
 `ExpandAll` reads the whole tree, which on a disk or an API can take a while; a node that is its own ancestor
 is shown as a leaf, so cycles can't hang it. Letters typed while a tree is focused jump to the next row whose
@@ -515,7 +517,13 @@ tree.Reveal([root, src, app, appCs]);
 ```
 
 While filtering, ← and the expander close and open rows without touching the expanded nodes, and clearing the
-filter selects the nearest node still shown.
+filter selects the nearest node still shown. With async children, `await tree.RevealAsync(path)` loads the folders on the
+way first; give the state a comparer by key (a path) so the path's nodes can be made before they load.
+
+`Checkboxes = true` draws `[✓]`, `[ ]` or `[-]` on each row; Space or a click on the box toggles it. Checking a
+parent checks everything under it, and a parent shows `[-]` when only some of its children are checked.
+`CheckedNodes` lists the checked leaves and fully checked parents (not what's under them), and `CheckedChanged`
+fires for each toggle. `IsChecked` and `SetChecked` work from code.
 
 ### Selection and the clipboard
 

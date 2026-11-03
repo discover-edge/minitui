@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `TreeState.Reveal(path)`: expands the nodes on a path from a root (raising `Expanded` for each one that opens), selects the last and scrolls it into view. Returns false, changing nothing, when the path doesn't match the tree or the filter hides its node.
 - `TreeState.Filter`: shows only the nodes a predicate matches and their ancestors, drawn open, searching collapsed nodes too. ← and the expander still close and open rows while filtering, without changing the expanded nodes; clearing the filter selects the nearest node still shown. Type-ahead, the keys and the title's count work on the filtered rows.
-- Example: the Tree demo has a filter field above the tree and reveals `src/MiniTui/App/App.cs` with Ctrl+G.
+- `TreeState.Checkboxes`: a `[✓]`, `[ ]` or `[-]` box on each row, toggled with Space or a click on it. Checking a node checks everything under it; a parent is checked when all its children are and partly checked when some are. `IsChecked`, `SetChecked`, `CheckedNodes` (checked leaves and fully checked parents, in tree order) and `CheckedChanged`.
+- `TreeState.Async(loadChildren, text, comparer)`: children loaded by a `Task` when a node first expands, with "Loading…" after its label meanwhile, cached until `Reload(node)`. A failed load shows its message on the row and collapses the node; expanding again retries. Loads run through `App.RunTask`. `RevealAsync(path)` loads the nodes on a path, then reveals it.
+- Example: the Tree demo has a filter field above the tree, reveals `src/MiniTui/App/App.cs` with Ctrl+G, loads folders in the background, and shows check boxes with Alt+X.
 - `docs/SPEC-1.x.md` §18: the tree extras spec.
 
 ## [1.12.0] - 2026-11-03

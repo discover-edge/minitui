@@ -4,8 +4,8 @@ using MiniTui;
 namespace MiniTui.Example;
 
 /// <summary>
-/// The file system from the current directory, read a directory at a time as it's expanded, with a filter field
-/// above it and Ctrl+G to reveal a file deep in the repository (1.x spec §18.7).
+/// The file system from the current directory, loaded a directory at a time in the background as it's expanded, with
+/// a filter field above it, check boxes, and Ctrl+G to reveal a file deep in the repository (1.x spec §18.7).
 /// </summary>
 internal sealed class TreeScreen : Screen
 {
@@ -21,13 +21,12 @@ internal sealed class TreeScreen : Screen
     public TreeScreen()
     {
         _root = new Entry(new DirectoryInfo(Environment.CurrentDirectory));
-        _tree = new TreeState<Entry>(e => e.Children ?? [], e => e.Name)
-        {
-            // Every directory shows an expander; its entries are read when it's first expanded
-            HasChildren = e => e.Info is DirectoryInfo,
-            Roots = [_root],
-        };
-        _tree.Expanded += (_, e) => e.Node.Load();
+        // Entries match by path, so Ctrl+G can name the nodes on its path before they're loaded
+        _tree = TreeState.Async<Entry>(LoadAsync, e => e.Name, EqualityComparer<Entry>.Create(
+            (a, b) => a?.Info.FullName == b?.Info.FullName, e => e.Info.FullName.GetHashCode(StringComparison.Ordinal)));
+        // Files are leaves, and only directories load
+        _tree.HasChildren = e => e.Info is DirectoryInfo;
+        _tree.Roots = [_root];
         _tree.Activated += (_, e) => App.Toasts.Push(e.Node.Info.FullName);
         _tree.Expand(_root);
 
@@ -38,27 +37,42 @@ internal sealed class TreeScreen : Screen
 
         // Letters are the tree's type-ahead, so the screen's own keys use Alt
         Keys.Add("alt+g", "Guides", () => _guides = !_guides)
-            .Add("alt+e", "Expand all below", () => Walk(_tree.Selected, _tree.Expand))
-            .Add("alt+c", "Collapse all below", () => Walk(_tree.Selected, _tree.Collapse))
-            .Add("ctrl+g", "Go to App.cs", Reveal);
+            .Add("alt+e", "Expand below", () => Below(_tree.Expand))
+            .Add("alt+c", "Collapse below", () => Below(_tree.Collapse))
+            .Add("alt+x", "Check boxes", () => _tree.Checkboxes = !_tree.Checkboxes)
+            .Add("ctrl+g", "Go to App.cs", () => App.RunTask(RevealAsync));
     }
 
-    // Load each directory on the way to src/MiniTui/App/App.cs, then reveal it
-    private void Reveal()
+    // A directory's entries, read off the UI thread after a short delay so "Loading…" shows
+    private static async Task<IReadOnlyList<Entry>> LoadAsync(Entry entry, CancellationToken ct)
+    {
+        await Task.Delay(300, ct);
+        return await Task.Run(() => entry.Read(), ct);
+    }
+
+    // 1.x spec §18.3: load each directory on the way to src/MiniTui/App/App.cs, then reveal it
+    private async Task RevealAsync(CancellationToken ct)
     {
         var path = new List<Entry> { _root };
         foreach (var name in new[] { "src", "MiniTui", "App", "App.cs" })
         {
-            path[^1].Load();
-            if (path[^1].Children?.Find(e => e.Name == name) is not { } next)
-            {
-                App.Toasts.Push("Run the example from the repository to reveal src/MiniTui/App/App.cs", ToastLevel.Warning);
-                return;
-            }
-            path.Add(next);
+            var full = Path.Combine(path[^1].Info.FullName, name);
+            path.Add(new Entry(name.EndsWith(".cs", StringComparison.Ordinal) ? new FileInfo(full) : new DirectoryInfo(full)));
         }
-        if (!_tree.Reveal(path)) App.Toasts.Push("The filter hides App.cs", ToastLevel.Warning);
-        Focus.Focus(_view);
+        if (await _tree.RevealAsync(path, ct)) Focus.Focus(_view);
+        else App.Toasts.Push("App.cs isn't here (run the example from the repository) or the filter hides it", ToastLevel.Warning);
+    }
+
+    // The selected node and the loaded rows below it
+    private void Below(Action<Entry> action)
+    {
+        if (_tree.Selected is not { } selected) return;
+        var rows = _tree.Rows;
+        var at = rows.ToList().FindIndex(r => r.Node == selected);
+        if (at < 0) return;
+        var below = new List<Entry> { selected };
+        for (var i = at + 1; i < rows.Count && rows[i].Depth > rows[at].Depth; i++) below.Add(rows[i].Node);
+        foreach (var entry in below) if (entry.Info is DirectoryInfo) action(entry);
     }
 
     public override void Render(Buffer buf, Rect area, RenderContext ctx)
@@ -78,14 +92,18 @@ internal sealed class TreeScreen : Screen
 
         var lines = new List<Line>
         {
-            new("←/→ collapse and expand, Enter toggles or opens, type a name to jump. Tab moves to the filter; Ctrl+G goes to App.cs", ctx.Theme.TextMuted),
+            new("←/→ collapse and expand, Enter toggles or opens, type a name to jump. Tab moves to the filter; Ctrl+G goes to App.cs; Alt+X shows check boxes (Space checks)", ctx.Theme.TextMuted),
             "",
         };
+        if (_tree.Checkboxes)
+        {
+            lines.Add($"{_tree.CheckedNodes.Count} checked (folders count once)");
+            lines.Add("");
+        }
         if (_tree.Selected is { } selected)
         {
             lines.Add(new Line(selected.Info.FullName, ctx.Theme.Text.Bold()));
             if (selected.Info is FileInfo file) lines.Add(string.Create(CultureInfo.InvariantCulture, $"{file.Length:N0} bytes"));
-            else if (selected.Children is { } children) lines.Add($"{children.Count} entries");
             if (selected.Info.Exists) lines.Add($"Modified {selected.Info.LastWriteTime:yyyy-MM-dd HH:mm}");
         }
         Widget.Paragraph().Text(new Text(lines)).Wrap(WrapMode.Word)
@@ -108,27 +126,17 @@ internal sealed class TreeScreen : Screen
                 .Draw(buf, area);
     }
 
-    // Expanding reads each directory below, so this can take a while on a large tree
-    private static void Walk(Entry? entry, Action<Entry> action)
-    {
-        if (entry?.Info is not DirectoryInfo) return;
-        action(entry);
-        foreach (var child in entry.Children ?? []) Walk(child, action);
-    }
-
     private sealed class Entry(FileSystemInfo info)
     {
         public FileSystemInfo Info { get; } = info;
         public string Name => Info.Name;
-        public List<Entry>? Children { get; private set; }
 
-        public void Load()
+        public IReadOnlyList<Entry> Read()
         {
-            if (Children is not null) return;
             try
             {
                 var dir = (DirectoryInfo)Info;
-                Children =
+                return
                 [
                     .. dir.EnumerateDirectories().OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase).Select(d => new Entry(d)),
                     .. dir.EnumerateFiles().OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).Select(f => new Entry(f)),
@@ -136,7 +144,7 @@ internal sealed class TreeScreen : Screen
             }
             catch (Exception e) when (e is UnauthorizedAccessException or IOException)
             {
-                Children = [new Entry(new FileInfo(Path.Combine(Info.FullName, "(access denied)")))];
+                return [new Entry(new FileInfo(Path.Combine(Info.FullName, "(access denied)")))];
             }
         }
     }

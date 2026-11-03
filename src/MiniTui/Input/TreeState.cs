@@ -9,7 +9,14 @@ public sealed class TreeState<T> where T : class
 {
     private static readonly TimeSpan TypeAheadReset = TimeSpan.FromSeconds(1);
 
-    private readonly Func<T, IReadOnlyList<T>> _children;
+    private Func<T, IReadOnlyList<T>> _children;
+    private Func<T, CancellationToken, Task<IReadOnlyList<T>>>? _loader;
+    private readonly Dictionary<T, IReadOnlyList<T>> _loaded;
+    private readonly Dictionary<T, CancellationTokenSource> _loading;
+    private readonly Dictionary<T, Task> _loadTasks;
+    private readonly Dictionary<T, string> _errors;
+    private readonly HashSet<T> _checked;
+    private readonly Dictionary<T, bool?> _checkCache;
     private readonly Func<T, string> _text;
     private readonly IEqualityComparer<T> _comparer;
     private readonly HashSet<T> _expanded;
@@ -23,6 +30,7 @@ public sealed class TreeState<T> where T : class
     private Rect _mouseArea;
     private Rect _mouseRows;
     private int[] _expanderColumns = [];
+    private int[] _checkColumns = [];
     private string _search = "";
     private long _lastTyped;
 
@@ -39,6 +47,73 @@ public sealed class TreeState<T> where T : class
         _comparer = comparer ?? EqualityComparer<T>.Default;
         _expanded = new HashSet<T>(_comparer);
         _filterClosed = new HashSet<T>(_comparer);
+        _loaded = new Dictionary<T, IReadOnlyList<T>>(_comparer);
+        _loading = new Dictionary<T, CancellationTokenSource>(_comparer);
+        _loadTasks = new Dictionary<T, Task>(_comparer);
+        _errors = new Dictionary<T, string>(_comparer);
+        _checked = new HashSet<T>(_comparer);
+        _checkCache = new Dictionary<T, bool?>(_comparer);
+    }
+
+    // TreeState.Async: children from a loader instead of a function
+    internal void UseLoader(Func<T, CancellationToken, Task<IReadOnlyList<T>>> loadChildren)
+    {
+        _loader = loadChildren;
+        _children = node => _loaded.TryGetValue(node, out var children) ? children : [];
+    }
+
+    /// <summary>Draw a check box on each row, toggled by Space and a click on it (1.x spec §18.5). Off by default.</summary>
+    public bool Checkboxes { get; set; }
+
+    /// <summary>
+    /// Whether a node is checked: for a node with children, true when they're all checked, false when none is, and
+    /// null when some are; for one without (or with none loaded), whether it was checked.
+    /// </summary>
+    public bool? IsChecked(T node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return CheckOf(node, []);
+    }
+
+    /// <summary>Check or uncheck a node and everything under it, and raise <see cref="CheckedChanged"/>.</summary>
+    public void SetChecked(T node, bool isChecked)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        Mark(node, isChecked, []);
+        _checkCache.Clear();
+        CheckedChanged?.Invoke(this, new TreeNodeEventArgs<T>(node));
+    }
+
+    /// <summary>
+    /// The checked nodes in tree order: each checked node without children and each parent whose descendants are all
+    /// checked, without what's under it.
+    /// </summary>
+    public IReadOnlyList<T> CheckedNodes
+    {
+        get
+        {
+            var nodes = new List<T>();
+            foreach (var root in _roots) CollectChecked(root, [], nodes);
+            return nodes;
+        }
+    }
+
+    /// <summary>Raised when Space, a click or <see cref="SetChecked"/> checks or unchecks a node (the one toggled).</summary>
+    public event EventHandler<TreeNodeEventArgs<T>>? CheckedChanged;
+
+    /// <summary>
+    /// Forget a node's loaded children (and cancel a load that's running), so they load again when it's next expanded,
+    /// or now if it's expanded. Does nothing for a state without a loader.
+    /// </summary>
+    public void Reload(T node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (_loader is null) return;
+        if (_loading.Remove(node, out var running)) running.Cancel();
+        _loadTasks.Remove(node);
+        _loaded.Remove(node);
+        _errors.Remove(node);
+        Refresh();
     }
 
     /// <summary>The top-level nodes. Setting them keeps the expanded nodes and the selection where they still match.</summary>
@@ -104,6 +179,26 @@ public sealed class TreeState<T> where T : class
     }
 
     /// <summary>
+    /// As <see cref="Reveal"/>, after loading the children of each node on the path that aren't loaded yet, for a
+    /// state from <see cref="TreeState.Async"/> (1.x spec §18.3). Without a loader it's <see cref="Reveal"/>.
+    /// </summary>
+    /// <returns>False when the path doesn't match the tree (as far as it loaded) or the filter hides its node.</returns>
+    public async Task<bool> RevealAsync(IReadOnlyList<T> path, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (path.Count == 0 || !_roots.Any(r => _comparer.Equals(r, path[0]))) return false;
+        for (var i = 0; _loader is not null && i < path.Count - 1; i++)
+        {
+            if (i > 0 && !_children(path[i - 1]).Any(c => _comparer.Equals(c, path[i]))) return false;
+            if (_loaded.ContainsKey(path[i])) continue;
+            _errors.Remove(path[i]);
+            StartLoad(path[i]);
+            if (_loadTasks.TryGetValue(path[i], out var load)) await load.WaitAsync(cancellationToken).ConfigureAwait(true);
+        }
+        return Reveal(path);
+    }
+
+    /// <summary>
     /// The selected node, or null for none (the first row is selected when the rows are next computed). Setting it
     /// doesn't raise <see cref="SelectionChanged"/> or expand anything; a node that isn't in <see cref="Rows"/> is
     /// replaced when the rows are next computed.
@@ -156,6 +251,7 @@ public sealed class TreeState<T> where T : class
     public void Expand(T node)
     {
         ArgumentNullException.ThrowIfNull(node);
+        _errors.Remove(node);
         if (!NodeHasChildren(node) || !_expanded.Add(node)) return;
         Refresh();
         Expanded?.Invoke(this, new TreeNodeEventArgs<T>(node));
@@ -225,6 +321,11 @@ public sealed class TreeState<T> where T : class
             case ConsoleKey.Enter when KeyInput.IsEnter(key): Enter(); return true;
         }
 
+        if (Checkboxes && key.Key == ConsoleKey.Spacebar && !KeyInput.HasCommandModifier(key))
+        {
+            ToggleCheck();
+            return true;
+        }
         if (KeyInput.HasCommandModifier(key) || char.IsControl(key.KeyChar) || key.KeyChar == ' ') return false;
         TypeAhead(key.KeyChar);
         return true;
@@ -260,6 +361,11 @@ public sealed class TreeState<T> where T : class
         if (index >= _rows.Count) return false;
         Move(index);
         _reveal = true;
+        if (Checkboxes && visible < _checkColumns.Length && _checkColumns[visible] is var check and >= 0 && mouse.X >= check && mouse.X < check + 3)
+        {
+            if (mouse.ClickCount <= 1) ToggleCheck();
+            return true;
+        }
         var onExpander = visible < _expanderColumns.Length && _expanderColumns[visible] == mouse.X && _rows[index].HasChildren;
         // The first press of a double-click on the expander already toggled it; later presses don't toggle it back
         if (onExpander && mouse.ClickCount <= 1) ToggleRow(_rows[index]);
@@ -282,11 +388,12 @@ public sealed class TreeState<T> where T : class
     /// Called by the widget while drawing: its area, the rows its nodes are drawn in, and the column of each visible
     /// row's expander (-1 where it isn't drawn).
     /// </summary>
-    internal void Track(Rect area, Rect rows, int[] expanderColumns)
+    internal void Track(Rect area, Rect rows, int[] expanderColumns, int[]? checkColumns = null)
     {
         _mouseArea = area;
         _mouseRows = rows;
         _expanderColumns = expanderColumns;
+        _checkColumns = checkColumns ?? [];
         _bar.Track(default, 0, 0);
     }
 
@@ -305,11 +412,124 @@ public sealed class TreeState<T> where T : class
 
     private int Page => Math.Max(1, ViewportHeight);
 
-    private bool NodeHasChildren(T node) => HasChildren?.Invoke(node) ?? _children(node).Count > 0;
+    // With a loader, a node that hasn't loaded may have children
+    private bool NodeHasChildren(T node) =>
+        HasChildren?.Invoke(node) ?? (_loader is not null && !_loaded.ContainsKey(node) || _children(node).Count > 0);
+
+    /// <summary>For the widget: "Loading…" while a node's children load, or the error the last load threw.</summary>
+    internal (bool Loading, string? Error) LoadStatus(T node) =>
+        (_loading.ContainsKey(node), _errors.TryGetValue(node, out var error) ? error : null);
+
+    // 1.x spec §18.6: an expanded node with a loader and nothing loaded starts loading; one load at a time per node
+    private void StartLoad(T node)
+    {
+        if (_loader is null || _loaded.ContainsKey(node) || _loading.ContainsKey(node) || _errors.ContainsKey(node)) return;
+        var cancel = new CancellationTokenSource();
+        _loading[node] = cancel;
+        var app = App.Current;
+        _loadTasks[node] = app is not null
+            ? app.RunTask(ct => LoadAsync(node, cancel, ct))
+            : LoadAsync(node, cancel, CancellationToken.None);
+    }
+
+    private async Task LoadAsync(T node, CancellationTokenSource cancel, CancellationToken stopping)
+    {
+        using var both = CancellationTokenSource.CreateLinkedTokenSource(cancel.Token, stopping);
+        try
+        {
+            var children = await _loader!(node, both.Token);
+            if (!IsCurrentLoad(node, cancel)) return;
+            _loading.Remove(node);
+            _loaded[node] = children ?? [];
+            // A parent checked before its children were known checks them now
+            if (_checked.Contains(node)) foreach (var child in _loaded[node]) Mark(child, true, []);
+            _checkCache.Clear();
+        }
+        catch (OperationCanceledException) when (both.IsCancellationRequested)
+        {
+            if (IsCurrentLoad(node, cancel)) _loading.Remove(node);
+        }
+        catch (Exception e)
+        {
+            if (!IsCurrentLoad(node, cancel)) return;
+            _loading.Remove(node);
+            _errors[node] = e.Message;
+            if (_expanded.Remove(node)) Collapsed?.Invoke(this, new TreeNodeEventArgs<T>(node));
+        }
+        finally
+        {
+            cancel.Dispose();
+        }
+        Refresh();
+        App.Current?.RequestRedraw();
+    }
+
+    private bool IsCurrentLoad(T node, CancellationTokenSource cancel) =>
+        _loading.TryGetValue(node, out var current) && ReferenceEquals(current, cancel);
+
+    // 1.x spec §18.5: a node with children is checked when they all are, unchecked when none is, and partly otherwise
+    private bool? CheckOf(T node, List<T> path)
+    {
+        if (_checkCache.TryGetValue(node, out var cached)) return cached;
+        var children = path.Exists(a => _comparer.Equals(a, node)) ? [] : _children(node);
+        bool? state;
+        if (children.Count == 0)
+        {
+            state = _checked.Contains(node);
+        }
+        else
+        {
+            path.Add(node);
+            bool any = false, all = true;
+            foreach (var child in children)
+            {
+                var c = CheckOf(child, path);
+                any |= c != false;
+                all &= c == true;
+            }
+            path.RemoveAt(path.Count - 1);
+            state = all ? true : any ? null : false;
+        }
+        _checkCache[node] = state;
+        return state;
+    }
+
+    private void Mark(T node, bool isChecked, List<T> path)
+    {
+        if (isChecked) _checked.Add(node);
+        else _checked.Remove(node);
+        if (path.Exists(a => _comparer.Equals(a, node))) return;
+        path.Add(node);
+        foreach (var child in _children(node)) Mark(child, isChecked, path);
+        path.RemoveAt(path.Count - 1);
+    }
+
+    private void CollectChecked(T node, List<T> path, List<T> nodes)
+    {
+        var state = CheckOf(node, path);
+        if (state == true)
+        {
+            nodes.Add(node);
+            return;
+        }
+        if (state == false || path.Exists(a => _comparer.Equals(a, node))) return;
+        path.Add(node);
+        foreach (var child in _children(node)) CollectChecked(child, path, nodes);
+        path.RemoveAt(path.Count - 1);
+    }
+
+    // Space or a click on the box: a checked node unchecks, an unchecked or partly checked one checks
+    private void ToggleCheck()
+    {
+        if (_index < 0) return;
+        var node = _rows[_index].Node;
+        SetChecked(node, IsChecked(node) != true);
+    }
 
     /// <summary>Walk the expanded part of the tree, then find the selection in it (1.x spec §11.4).</summary>
     private void Refresh()
     {
+        _checkCache.Clear();
         var rows = new List<TreeRow<T>>();
         var path = new List<T>();
         foreach (var root in _roots)
@@ -328,6 +548,7 @@ public sealed class TreeState<T> where T : class
         var expanded = hasChildren && _expanded.Contains(node);
         rows.Add(new TreeRow<T>(node, parent, path.Count, hasChildren, expanded));
         if (!expanded) return;
+        StartLoad(node);
 
         path.Add(node);
         foreach (var child in _children(node)) Walk(child, node, path, rows);
@@ -467,6 +688,27 @@ public sealed class TreeState<T> where T : class
             if (TextOf(_rows[i].Node).StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return i;
         }
         return -1;
+    }
+}
+
+/// <summary>Creating a <see cref="TreeState{T}"/> whose children load asynchronously.</summary>
+public static class TreeState
+{
+    /// <summary>
+    /// Create a state whose children are loaded asynchronously (1.x spec §18.6): when a node first expands, its label
+    /// shows "Loading…" until <paramref name="loadChildren"/> finishes, and the children are kept until
+    /// <see cref="TreeState{T}.Reload"/>. A load that throws shows its message on the row and collapses the node.
+    /// </summary>
+    /// <param name="loadChildren">Loads a node's children. Runs through <see cref="App.RunTask"/> while an app is running.</param>
+    /// <param name="text">A node's label: drawn by default, and searched by type-ahead.</param>
+    /// <param name="comparer">How nodes are matched, for the expanded set, the selection and the loaded children.</param>
+    public static TreeState<T> Async<T>(Func<T, CancellationToken, Task<IReadOnlyList<T>>> loadChildren, Func<T, string> text, IEqualityComparer<T>? comparer = null)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(loadChildren);
+        var state = new TreeState<T>(_ => [], text, comparer);
+        state.UseLoader(loadChildren);
+        return state;
     }
 }
 
