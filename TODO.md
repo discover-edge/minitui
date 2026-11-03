@@ -32,8 +32,9 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 - [x] Double-click and hover (`ClickCount`, `SelectionState.Activated`, `WithHover`, `ctx.Hover`, `Theme.Hover`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §17
 - [x] Tree extras (`Reveal`, `Filter`, `Checkboxes`, `TreeState.Async`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §18
 - [x] Chart extras (grouped and stacked bars, `Axis.Time`, `Axis.Duration`, `Ticks`, `Grid`, `GraphType.Area`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §19
+- [x] Clipboard and selection extras (`WithClipboardRead`, `Clipboard.GetTextAsync`, the Insert keys, `ScrollState.Selectable`, `Component.HasSelection`) — [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §20
 
 ## Backlog
 Ideas not specced yet, ranked by value in [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §1.1:
 
-- [ ] Clipboard extras: OSC 52 read, Ctrl/Shift+Insert, selecting text in paragraphs and logs
+Everything on it has shipped (through 1.15.0).
