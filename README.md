@@ -120,4 +120,4 @@ with the Example in it; see [tools/ssh-test/README.md](tools/ssh-test/README.md)
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT, © 2026 Discover Edge LLC. See [LICENSE](LICENSE).

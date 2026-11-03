@@ -56,7 +56,7 @@
     "globalMetadata": {
       "_appName": "MiniTui",
       "_appTitle": "MiniTui",
-      "_appFooter": "MiniTui is MIT licensed \u00b7 <a href=\"https://www.nuget.org/packages/MiniTui\">NuGet</a> \u00b7 <a href=\"https://github.com/discover-edge/minitui\">GitHub</a>",
+      "_appFooter": "© 2026 Discover Edge LLC · MIT licensed · <a href=\"https://www.nuget.org/packages/MiniTui\">NuGet</a> · <a href=\"https://github.com/discover-edge/minitui\">GitHub</a>",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
