@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-11-03
+
+MiniTui 1.15.1: the documentation moves to minitui.org, and the repository to github.com/minitui-org/minitui. No code changes.
+
 ### Changed
 - The documentation moved to [minitui.org](https://minitui.org): guides, an API reference and the changelog. The README is now a summary that links to it, the package's page on nuget.org is a shorter one of its own, and the package's project URL is the site.
+- The repository moved to [github.com/minitui-org/minitui](https://github.com/minitui-org/minitui); the old address redirects. New versions publish to GitHub Packages under `minitui-org`.
 
 ## [1.15.0] - 2026-11-03
 
