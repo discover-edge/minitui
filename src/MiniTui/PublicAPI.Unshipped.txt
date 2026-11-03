@@ -1,1 +1,8 @@
 #nullable enable
+MiniTui.TextAreaBuilder.LineNumbers(bool show = true) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaState.AutoIndent.get -> bool
+MiniTui.TextAreaState.AutoIndent.set -> void
+MiniTui.TextAreaState.IndentSize.get -> int
+MiniTui.TextAreaState.IndentSize.set -> void
+MiniTui.TextAreaState.TabIndents.get -> bool
+MiniTui.TextAreaState.TabIndents.set -> void

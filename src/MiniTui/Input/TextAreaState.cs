@@ -29,7 +29,6 @@ public readonly record struct TextPosition(int Line, int Index) : IComparable<Te
 /// </summary>
 public class TextAreaState
 {
-    private const int TabSize = 4;
     private const int WheelRows = 3;
 
     private readonly List<string> _lines = [""];
@@ -41,6 +40,8 @@ public class TextAreaState
     private bool _dragging;
     private int? _goalColumn;
     private char? _pendingHighSurrogate;
+    private int _indentSize = 4;
+    private readonly ScrollbarDrag _bar = new();
 
     /// <summary>Create a state with optional initial text. The cursor starts at the end.</summary>
     public TextAreaState(string text = "")
@@ -51,7 +52,7 @@ public class TextAreaState
 
     /// <summary>
     /// The text, lines joined by <c>"\n"</c>. Setting it normalizes <c>"\r\n"</c> and <c>"\r"</c> to <c>"\n"</c>,
-    /// turns tabs into spaces up to the next multiple of 4 columns, removes other control characters, and moves the
+    /// turns tabs into spaces up to the next multiple of <see cref="IndentSize"/> columns, removes other control characters, and moves the
     /// cursor to the end. Setting it also clears the selection and the undo history.
     /// </summary>
     public string Text
@@ -116,6 +117,31 @@ public class TextAreaState
     /// <summary>True if <see cref="Redo"/> has something to do again.</summary>
     public bool CanRedo => _history.CanRedo;
 
+    /// <summary>
+    /// Tab and Shift+Tab indent and outdent instead of moving focus, and Backspace in a line's indentation deletes back
+    /// to the previous indent stop (1.x spec §16.3). Off by default.
+    /// </summary>
+    public bool TabIndents { get; set; }
+
+    /// <summary>Enter starts the new line with the current line's indentation (1.x spec §16.3). Off by default.</summary>
+    public bool AutoIndent { get; set; }
+
+    /// <summary>
+    /// The indent stop width: what Tab inserts with <see cref="TabIndents"/>, what Shift+Tab removes, and how far tabs
+    /// in typed, set or pasted text expand. 4 by default, from 1 to 8. Changing it doesn't touch the text.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is outside 1–8.</exception>
+    public int IndentSize
+    {
+        get => _indentSize;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 8);
+            _indentSize = value;
+        }
+    }
+
     /// <summary>The first visible row (a wrapped row, not a line). Written by the widget while drawing, and by the wheel.</summary>
     public int ScrollOffset { get; internal set; }
 
@@ -125,6 +151,7 @@ public class TextAreaState
     internal WrapMode ViewWrap { get; private set; } = WrapMode.None;
     internal Rect ViewArea { get; private set; }
     internal int ViewRowCount { get; private set; }
+    internal Rect ViewGutter { get; private set; }
 
     /// <summary>The first visible display column with <see cref="WrapMode.None"/>.</summary>
     internal int HorizontalOffset { get; set; }
@@ -217,7 +244,8 @@ public class TextAreaState
     /// Handle an editing or movement key (1.x spec §6.3 and §10.3): text, Enter, ← → ↑ ↓, PgUp PgDn, Home End,
     /// Ctrl+Home End, Ctrl+← →, Shift with the movement keys to select, Backspace, Delete, Ctrl+Backspace / Ctrl+W,
     /// Ctrl+U, Ctrl+K, Ctrl+A (select all), Ctrl+C / Ctrl+X (copy and cut, only with a selection), Ctrl+V (paste the
-    /// clipboard), Ctrl+Z (undo) and Ctrl+Y (redo). Tab, Esc and other Ctrl or Alt keys aren't handled.
+    /// clipboard), Ctrl+Z (undo) and Ctrl+Y (redo), and with <see cref="TabIndents"/>, Tab and Shift+Tab (§16.3). Esc
+    /// and other Ctrl or Alt keys aren't handled, nor is Tab without <see cref="TabIndents"/>.
     /// </summary>
     /// <returns>True if the key was one of these.</returns>
     public virtual bool HandleKey(ConsoleKeyInfo key)
@@ -229,7 +257,12 @@ public class TextAreaState
         {
             case ConsoleKey.Enter:
                 if (ctrl || alt) return false;
-                InsertText("\n", EditKind.Other);
+                InsertText("\n" + (AutoIndent ? new string(' ', IndentBefore(SelectionStart)) : ""), EditKind.Other);
+                return true;
+            case ConsoleKey.Tab:
+                if (!TabIndents || ctrl || alt) return false;
+                if (shift) Outdent();
+                else Indent();
                 return true;
             case ConsoleKey.LeftArrow:
                 if (HasSelection && !shift && !ctrl) return MoveTo(SelectionStart);
@@ -253,6 +286,8 @@ public class TextAreaState
                 // Unix terminals send Ctrl+Backspace as ^H (Backspace + Control); Windows reports the modifier directly
                 if (DeleteSelection()) return true;
                 if (ctrl) DeleteRange(PreviousWord(Cursor), Cursor, EditKind.Other);
+                else if (TabIndents && _index > 0 && IndentBefore(Cursor) == _index)
+                    DeleteRange(Cursor with { Index = (_index - 1) / IndentSize * IndentSize }, Cursor, EditKind.Other);
                 else DeleteRange(PreviousCluster(Cursor), Cursor, EditKind.DeleteBackward);
                 return true;
             case ConsoleKey.Delete:
@@ -309,6 +344,15 @@ public class TextAreaState
     public bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
+        var offset = ScrollOffset;
+        if (_bar.Handle(mouse, ref offset))
+        {
+            // As the wheel does: the view stays where the bar left it until the cursor moves
+            ScrollOffset = offset;
+            FollowCursor = false;
+            return true;
+        }
+
         var area = ViewArea;
         switch (mouse.Action)
         {
@@ -318,9 +362,12 @@ public class TextAreaState
                 FollowCursor = false;
                 return true;
             case MouseAction.Press when mouse.Button == MouseButton.Left:
-                _dragging = area.Contains(mouse.X, mouse.Y);
+                var inGutter = ViewGutter.Contains(mouse.X, mouse.Y);
+                _dragging = inGutter || area.Contains(mouse.X, mouse.Y);
                 if (!_dragging) return false;
-                MoveTo(PositionAt(ScrollOffset + mouse.Y - area.Y, mouse.X - area.X), (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
+                // A press in the gutter goes to the start of the row
+                var x = inGutter ? (ViewWrap == WrapMode.None ? -HorizontalOffset : 0) : mouse.X - area.X;
+                MoveTo(PositionAt(ScrollOffset + mouse.Y - area.Y, x), (mouse.Modifiers & ConsoleModifiers.Shift) != 0);
                 return true;
             case MouseAction.Drag when mouse.Button == MouseButton.Left && _dragging:
                 // Past the top or bottom, scroll a row and select to the first or last visible row
@@ -351,14 +398,19 @@ public class TextAreaState
     }
 
     /// <summary>Record what the widget drew, so the keys and the mouse can use the same layout.</summary>
-    internal void Track(Rect area, WrapMode wrap, int rowCount)
+    internal void Track(Rect area, WrapMode wrap, int rowCount, Rect gutter = default)
     {
         ViewArea = area;
+        ViewGutter = gutter;
+        _bar.Track(default, 0, 0);
         ViewWidth = wrap == WrapMode.None ? int.MaxValue : Math.Max(1, area.Width);
         ViewHeight = Math.Max(1, area.Height);
         ViewWrap = wrap;
         ViewRowCount = rowCount;
     }
+
+    /// <summary>Called by the widget while drawing, after scrolling: where the scrollbar was drawn.</summary>
+    internal void TrackScrollbar(Rect bar) => _bar.Track(bar, ViewRowCount, ViewHeight);
 
     /// <summary>The rows of the last drawn layout, for the current cursor.</summary>
     internal List<TextAreaLayout.Row> Rows() => TextAreaLayout.Build(_lines, ViewWidth, ViewWrap, Cursor);
@@ -476,6 +528,74 @@ public class TextAreaState
         return p;
     }
 
+    // The leading spaces of the position's line, no more than there are before it
+    private int IndentBefore(TextPosition p)
+    {
+        var line = _lines[p.Line];
+        var n = 0;
+        while (n < p.Index && line[n] == ' ') n++;
+        return n;
+    }
+
+    // The lines Tab and Shift+Tab change: the selection's, leaving out a last line it ends at the start of
+    private (int First, int Last) SelectedLines()
+    {
+        var (start, end) = (SelectionStart, SelectionEnd);
+        return (start.Line, end.Line > start.Line && end.Index == 0 ? end.Line - 1 : end.Line);
+    }
+
+    // Tab (1.x spec §16.3): spaces to the next stop, or with a selection over several lines, indent each of them
+    private void Indent()
+    {
+        var (first, last) = SelectedLines();
+        if (!HasSelection || SelectionStart.Line == SelectionEnd.Line)
+        {
+            InsertText("\t", EditKind.Other);
+            return;
+        }
+        ShiftLines(first, last, line => line.Length == 0 ? 0 : IndentSize);
+    }
+
+    // Shift+Tab: remove up to one level of leading spaces, back to the previous stop
+    private void Outdent()
+    {
+        var (first, last) = SelectedLines();
+        ShiftLines(first, last, line =>
+        {
+            var n = 0;
+            while (n < line.Length && line[n] == ' ') n++;
+            return n == 0 ? 0 : -(n - (n - 1) / IndentSize * IndentSize);
+        });
+    }
+
+    // Add (positive) or remove (negative) spaces at the start of each line, as one undo group, moving the cursor and
+    // the anchor with the text they're on
+    private void ShiftLines(int first, int last, Func<string, int> change)
+    {
+        var changes = new int[last - first + 1];
+        for (var l = first; l <= last; l++) changes[l - first] = change(_lines[l]);
+        if (changes.All(c => c == 0)) return;
+
+        _history.Record(EditKind.Other, Current);
+        _history.Break();
+        for (var l = first; l <= last; l++)
+        {
+            var c = changes[l - first];
+            _lines[l] = c >= 0 ? new string(' ', c) + _lines[l] : _lines[l][-c..];
+        }
+        TextPosition Shift(TextPosition p)
+        {
+            if (p.Line < first || p.Line > last) return p;
+            var c = changes[p.Line - first];
+            return p with { Index = Math.Max(0, p.Index + c) };
+        }
+        (_line, _index) = Shift(Cursor);
+        if (_anchor is { } anchor) _anchor = Shift(anchor);
+        if (_anchor == Cursor) _anchor = null;
+        _pendingHighSurrogate = null;
+        Moved();
+    }
+
     private void DeleteRange(TextPosition start, TextPosition end, EditKind kind)
     {
         if (end <= start) return;
@@ -572,7 +692,7 @@ public class TextAreaState
             else if (c == '\t')
             {
                 var column = UnicodeWidth.Of(current.ToString());
-                current.Append(' ', TabSize - column % TabSize);
+                current.Append(' ', IndentSize - column % IndentSize);
             }
             else if (!char.IsControl(c))
             {

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0 |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -44,6 +44,7 @@ or add to them:
 | **19. Command palette and filterable select** | A `CommandPalette` overlay that fuzzy-filters the key bindings in scope and a `CommandRegistry`'s commands and runs the chosen one; `Fuzzy.Match`; `SelectState.Filterable` for a dropdown you type into. Backlog rank 2. | 13 | §13 | 1.8.0 |
 | **20. Split panes, scrollbar dragging and sortable tables** | `SplitState` and `Widget.Split()`, by ratio or with a fixed-size pane, with a divider dragged by the mouse or moved with Alt+Shift+arrows; dragging the scrollbar thumbs of lists, tables, trees and paragraphs, and paging on a track press; clicking a table header to sort (`TableBuilder.Sortable`, `SelectionState.ToggleSort` and `SortChanged`). Backlog rank 3. | 10, 16 | §14 | 1.9.0 |
 | **21. Menu bar and richer menus** | Mnemonics (`&File`), check and radio items, submenus and `Run` actions in `PopupMenu`; a `MenuBar` along the top opened with F10, Alt+mnemonic or a click, with ← → between menus; the palette lists its items. Backlog rank 4. | 13, 19 | §15 | 1.10.0 |
+| **22. Text area as an editor** | Opt-in Tab-to-indent (Tab, Shift+Tab, Backspace by indent stops), auto-indent on Enter and `IndentSize`; a line number gutter; a draggable scrollbar on the block; a find bar (Ctrl+F, F3, Shift+F3) with smart case and highlighted matches (`Theme.SearchMatch`). Backlog rank 5. | 12, 16, 20 | §16 | 1.11.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -61,7 +62,7 @@ picked, as in §0 rule 3.
 | 2 | **Command palette and filterable select** (Phase 19, §13). A `CommandPalette` overlay (Ctrl+P or Ctrl+Shift+P) that fuzzy-filters `CommandRegistry` entries and key map actions as you type, with their key hints. The same filtering list makes a combo box `Select` you can type into. | The discoverability of keys and commands is the main usability gap in larger apps, and VS Code, Textual and lazygit all have a palette. It reuses `PopupMenu`, `TextFieldState` and `CommandRegistry`. | §7.12 | 7, 13 |
 | 3 | **Split panes and scrollbar dragging** (Phase 20, §14). A `Split` layout with draggable dividers (mouse and keyboard), dragging a scrollbar's thumb in lists, tables, paragraphs and text areas, and clicking a table header to sort (an event; the app sorts). | `MouseAction.Drag` (1.5) makes these cheap now. Resizable panes are standard in file managers, log viewers and dashboards. | §4.14, §10.12 | 10, 16 |
 | 4 | **Menu bar and richer menus** (Phase 21, §15). A `MenuBar` along the top (F10, Alt+letter, mouse), submenus in `PopupMenu`, check and radio items, and mnemonics (underlined letters). | Apps in the style of classic desktop TUIs (Turbo Vision, Midnight Commander) expect a menu bar. Less central than a palette for keyboard-first apps. | §7.12 | 13 |
-| 5 | **Text area as an editor.** An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
+| 5 | **Text area as an editor** (Phase 22, §16). An opt-in Tab-to-indent mode, auto-indent on Enter, line numbers, find (Ctrl+F) with highlighted matches, and a built-in scrollbar. | It turns `TextArea` from a notes field into a usable config or script editor. Syntax highlighting stays out: it needs a tokenizer. | §6.12 | 12, 16 |
 | 6 | **Terminal queries** (Phase 18, §12). Asynchronous queries with replies parsed by the decoder: the background color (OSC 11) to choose a light or dark theme automatically, the cursor position (DSR 6), and the kitty protocol's capability reply (useful for rank 1). | Themes picked for dark terminals are unreadable on light ones, and nothing detects that today. The reply parser also makes rank 1 detectable. | §2.12 | 8 |
 | 7 | **Hover and double-click.** Opt-in all-motion reports (`?1003`) with hover styles for buttons, menu items and rows, and double-click detection by timing presses (`MouseEvent.ClickCount`). Double-click selects a word in text fields and activates a tree leaf. | It makes mouse use feel native. It's opt-in because all-motion reports cost a frame per pointer move. | §4.14, §10.12, §11.6 | 10, 16 |
 | 8 | **Tree extras.** Revealing a node by path, filtering that expands to matches, multi-select and checkboxes (tri-state parents), and async children with a built-in loading row. | Useful for file pickers and settings trees, but apps can do most of it on the 1.6 API. | §11.10 | 17 |
@@ -3599,3 +3600,242 @@ layout:
    clicks and ← →; the palette items; the example's menu bar; README; CHANGELOG; the manual QA.
 
 Both go out in one release (1.10.0).
+
+---
+
+## 16. Text area as an editor (Phase 22)
+
+### 16.1 Purpose
+
+`TextArea` (Phase 12, with selection, the clipboard and undo from Phase 16) is good for notes and messages, but
+not for editing a config file or a script. It has no indent key, each new line starts at column 0, nothing shows
+where the cursor is in a long file, and there's no way to find text. Phase 22 adds the missing parts (backlog
+rank 5, §1.1):
+- **Indentation:** an opt-in Tab-to-indent mode (Tab and Shift+Tab indent and outdent, and Backspace deletes a
+  level), opt-in auto-indent on Enter, and a configurable indent size.
+- **Line numbers:** an optional gutter.
+- **A scrollbar** on the block's border, which can be dragged like the others (§14.4).
+- **Find:** Ctrl+F opens a find bar at the bottom of the text area. Matches are found as you type and
+  highlighted, and Enter, F3 and Shift+F3 move between them.
+
+Syntax highlighting stays out: it needs a tokenizer (§16.10).
+
+### 16.2 Public API
+
+```csharp
+public class TextAreaState
+{
+    // Existing members unchanged
+
+    /// Tab and Shift+Tab indent and outdent instead of moving focus, and Backspace in a line's indentation
+    /// deletes back to the previous indent stop (§16.3). Off by default.
+    public bool TabIndents { get; set; }
+
+    /// Enter starts the new line with the current line's indentation (§16.3). Off by default.
+    public bool AutoIndent { get; set; }
+
+    /// The indent stop width: what Tab inserts, Shift+Tab removes, and how far tabs in typed, set or pasted text
+    /// expand (§6.4). 4 by default; ArgumentOutOfRangeException outside 1–8. Changing it doesn't touch the text.
+    public int IndentSize { get; set; }
+
+    /// Ctrl+F opens the find bar and F3 / Shift+F3 find again (§16.5). On by default; turn it off to leave
+    /// those keys to the app's bindings.
+    public bool FindEnabled { get; set; }
+
+    /// True while the find bar is open.
+    public bool IsFinding { get; }
+
+    /// The text being found. Setting it searches again, from the cursor.
+    public string FindText { get; set; }
+
+    /// The number of matches of FindText in the text, and the current one's index (−1 when none is current).
+    public int MatchCount { get; }
+    public int MatchIndex { get; }
+
+    /// Open the find bar (as Ctrl+F does) or close it (as Esc does), keeping the current match selected.
+    public void OpenFind();
+    public void CloseFind();
+
+    /// Select the next or previous match, wrapping around the text. False when there are no matches.
+    public bool FindNext();
+    public bool FindPrevious();
+}
+
+public sealed class TextAreaBuilder
+{
+    // Existing members unchanged
+
+    /// Show line numbers in a gutter on the left (§16.4).
+    public TextAreaBuilder LineNumbers(bool show = true);
+}
+
+public sealed record Theme
+{
+    // Existing members unchanged
+
+    /// Matches of the find text other than the current one (the current one is the selection). Every built-in
+    /// theme sets it; a theme made with `with` from one of them inherits it.
+    public Style SearchMatch { get; init; }
+}
+```
+
+- Nothing changes for an app that sets none of these, except the scrollbar (§16.4) and Ctrl+F / F3 (§16.5),
+  which are "Changed" entries.
+- The find bar's text field isn't public. Its keys are the text field keys (§8.4, §10.3), and `FindText` reads
+  and sets its text.
+
+### 16.3 Indentation
+
+Indent stops are every `IndentSize` display columns. The text only ever holds spaces (§6.4), so indenting means
+inserting and removing spaces.
+
+| Key (with `TabIndents`) | Effect |
+|---|---|
+| Tab, no selection or a selection within one line | Replace the selection (if any) with spaces up to the next indent stop. |
+| Tab, a selection over several lines | Indent every line the selection touches by `IndentSize` spaces. A line the selection ends at column 0 of isn't touched, and empty lines aren't indented. |
+| Shift+Tab | Outdent the current line, or every line the selection touches, by up to `IndentSize` leading spaces (removing what's there, to the previous stop). |
+| Backspace, no selection, only spaces before the cursor | Delete back to the previous indent stop (one space when that's all there is). |
+
+- **Auto-indent** (`AutoIndent`): Enter inserts the line break and then the leading spaces of the line it was
+  pressed in, but no more of them than there were before the cursor (Enter inside the indentation doesn't add
+  any). It works without `TabIndents`. Paste and `Insert` never auto-indent.
+- **The selection after Tab and Shift+Tab** over several lines keeps covering the same text: the anchor and the
+  cursor move with the spaces added or removed on their lines.
+- **Undo:** each Tab, Shift+Tab and indent-stop Backspace is its own group (§10.6). Enter with auto-indent is one
+  group, as Enter is.
+- **Focus.** With `TabIndents`, Tab and Shift+Tab never reach the focus chain from a focused text area, so they
+  can't move focus out of it. Clicking another component still does, and so do the app's own keys. Apps that
+  turn it on say so in their help, as editors do. Ctrl+Tab isn't handled, so it reaches the bindings where the
+  terminal reports it (§12).
+- Without `TabIndents`, Tab and Shift+Tab are unhandled as before, and Backspace deletes one cluster.
+
+### 16.4 Line numbers and the scrollbar
+
+- **The gutter** (`LineNumbers()`): line numbers right-aligned in a column as wide as the last line's number (at
+  least 2 digits), then one space. The wrapped rows after a line's first row have a blank gutter. The cursor
+  line's number uses `Theme.Text` and the others `Theme.TextMuted`. The text is laid out and wrapped in the width
+  left over. With `WrapMode.None`, the gutter stays put while the text scrolls horizontally.
+- When the area is too narrow for the gutter and one column of text, the gutter isn't drawn.
+- A left press in the gutter puts the cursor at the start of that row, and a drag from there extends the
+  selection as in the text (§10.7).
+- **The scrollbar:** with a block that has a right border, when the rows don't fit, a vertical scrollbar is drawn on
+  that border, as for lists and paragraphs (§14.4). Pressing and dragging its thumb scrolls, and a press on its track
+  pages, without moving the cursor (as the wheel does, §6.6). The view stays where it was left until the cursor
+  moves again. Without a block there's no scrollbar, so the text area doesn't lose a column.
+- `WrapMode.None` gets no horizontal scrollbar.
+
+### 16.5 Find
+
+**Opening and closing.** Ctrl+F opens the find bar. It's the last row of the text area (inside the block), so
+the text gets one row less. The bar shows `Find:`, the find field, and `3 of 12`, `No matches`, or nothing while
+the field is empty, right-aligned in `Theme.TextMuted`.
+- The find field starts with the selection when there's one within a line, or else the last find text. All of
+  it is selected, so typing replaces it.
+- **While the bar is open, keys go to it:**
+
+| Key | Effect |
+|---|---|
+| Typing, paste, the text field keys | Edit the find text. After each change, the first match at or after where the search started (the selection's start when the bar opened) is selected, wrapping around the text. |
+| Enter, ↓, F3 | The next match, wrapping. |
+| Shift+Enter (where reported, §12), ↑, Shift+F3 | The previous match, wrapping. |
+| Ctrl+F | Select all of the find text. |
+| Esc | Close the bar. The current match stays selected, with the cursor at its end. |
+
+- Other keys the find field doesn't take (Tab, Ctrl+S) aren't handled, so they reach the focus chain and the
+  bindings as before. The bar stays open when focus moves away; it's part of the state.
+- **With the bar closed,** F3 and Shift+F3 find the next and previous match of the last find text, and Esc is
+  unhandled as before.
+- **The mouse:** a press on the bar's row places the find field's cursor. A press in the text places the text's
+  cursor as usual and leaves the bar open; the next key still goes to the bar.
+
+**Matching.**
+- Matches are found within lines; the find field is one line, so a match never spans a line break. They don't
+  overlap and are found left to right.
+- **Smart case:** a find text with no uppercase letter matches case-insensitively (ordinal, ignoring case); one
+  with any uppercase letter matches exactly. This is less's and vim's `smartcase`.
+- A match that would start or end inside a grapheme cluster is skipped.
+- The matches are found again whenever the find text or the text changes. That's linear in the text, like the
+  layout (§6.5).
+
+**Drawing.** The current match is the selection, so it's drawn with `Theme.Selection`. The other visible matches
+are patched with `Theme.SearchMatch`. They're shown while the bar is open, and cleared when it closes.
+
+**Built-in themes:** `SearchMatch` is a yellow background with black text in the default and dark themes (the
+usual find highlight), a light yellow background in the light theme, and underlined in monochrome.
+
+### 16.6 Configuration
+
+None beyond the properties in §16.2.
+
+### 16.7 Example
+
+A new **Editor** demo: a text area in a block titled with a file name and `Ln 3, Col 5` (from `Cursor`), with
+`TabIndents`, `AutoIndent`, `IndentSize = 2`, line numbers and find. It starts with a sample config file long
+enough to scroll. The footer lists Tab / Shift+Tab, Ctrl+F, F3 and Ctrl+S (a toast that says "Saved", nothing
+written). Esc pops the screen only while the find bar is closed.
+
+### 16.8 Tests and acceptance
+
+Automated (all platforms):
+- **Indentation:** Tab at several columns, over a one-line selection and a multi-line one (the end-at-column-0
+  line and empty lines left alone), Shift+Tab with fewer than `IndentSize` spaces and none, the selection after
+  each, Backspace to the previous stop and as usual elsewhere, `IndentSize` limits and tab expansion with it,
+  auto-indent (in, after and inside the indentation, with and without `TabIndents`), undo of each, and Tab and
+  Shift+Tab unhandled without `TabIndents`.
+- **Focus:** with `TabIndents` in a form (`ComponentHarness`), Tab stays in the text area; without it, it moves
+  on.
+- **Gutter:** widths at 9, 10, 99 and 100 lines, the cursor line's style, blank continuation rows, wrapping in
+  the narrower width, `WrapMode.None` scrolling under a fixed gutter, too narrow to draw, and clicks and drags in
+  it.
+- **Scrollbar:** drawn only with a block and only when the rows don't fit; thumb drags and track presses scroll
+  without moving the cursor, and the next move brings the cursor back into view.
+- **Find:** open with and without a selection and with a previous find text; incremental search from the start
+  point, wrapping; next and previous by each key; Esc keeps the match selected; smart case; overlapping and
+  cluster-splitting candidates; matches updated after a text change from code; `MatchCount`, `MatchIndex` and the
+  bar's count text; F3 with the bar closed; `FindEnabled = false` leaves Ctrl+F and F3 unhandled; keys the bar
+  doesn't take; mouse presses on the bar and in the text.
+- **Snapshots:** the gutter, the scrollbar, the find bar with matches highlighted, and monochrome.
+
+Manual QA (results in the PR): the Editor demo in Windows Terminal, conhost and a Linux terminal, and in tmux:
+indent and outdent blocks, auto-indent, scroll with the bar, find with each key. Shift+F3 and Shift+Enter are the
+keys most likely to differ between terminals.
+
+### 16.9 Migration impact
+
+- New public API (§16.2) in `PublicAPI.Unshipped.txt`.
+- **Changed:** a text area with a block shows a scrollbar on its right border when its text doesn't fit. Ctrl+F
+  and F3 in a focused text area open find and find again, instead of reaching the bindings (set `FindEnabled =
+  false` to keep them there).
+- README: the editor features under `TextArea`, and `SearchMatch` in the theme list.
+
+### 16.10 Out of scope
+
+- Syntax highlighting, bracket matching, and code folding.
+- Replace (Ctrl+H), regular expressions, whole-word matching, and a case toggle.
+- Matches across lines (a multi-line find text).
+- Hard tabs (`\t` kept in the text): the text only holds spaces (§6.4).
+- Smarter auto-indent: indenting after `{` or `:`, outdenting on `}`, and trimming whitespace-only lines.
+- Go to line (Ctrl+G), a status line built into the widget, and a horizontal scrollbar.
+- A scrollbar without a block.
+- Large documents: layout and matching stay linear in the text per frame or edit (§6.5).
+
+### 16.11 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Where the find bar goes: the text area's last row (part of the state, works without an `App`), or an overlay above it? | **The last row** (§16.5): it's self-contained, and doesn't cover the text being searched. |
+| 2 | Ctrl+F and F3 on by default (a "Changed" entry), or only when an app opts in? | **On, with `FindEnabled` to turn them off** (§16.2): find is useful in any long text, and nobody uses MiniTui yet. |
+| 3 | The scrollbar: automatic with a block, as lists and paragraphs have it (a "Changed" entry), or opt-in? | **Automatic with a block** (§16.4), for consistency with the other scrolling widgets. |
+| 4 | Case: smart case, always ignore case, or a toggle key? | **Smart case** (§16.5): no extra key or UI. |
+| 5 | With `TabIndents`, should some key still move focus out of the text area (Esc then Tab, as VS Code's Ctrl+M toggle allows)? | **No** (§16.3): focus leaves by the mouse or the app's keys, and the app decides. It's opt-in, so forms keep Tab. |
+
+### 16.12 Implementation order
+
+Two PRs, like Phase 21:
+1. **22a** (indentation, line numbers, scrollbar): `TabIndents`, `AutoIndent`, `IndentSize`, the indent keys and
+   their undo groups; `LineNumbers()` and the gutter in layout, drawing and the mouse; the scrollbar and its
+   dragging; the Editor demo without find; README; CHANGELOG.
+2. **22b** (find): `FindEnabled`, the find bar, matching and its keys and mouse; `Theme.SearchMatch` in every
+   built-in theme; the demo's find; README; CHANGELOG; the manual QA.
+
+Both go out in one release (1.11.0).

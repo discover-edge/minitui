@@ -337,7 +337,7 @@ Widget.Table()
 | `Toasts()` | `Queue(toastQueue)`: up to 3 pop-ups in the top-right corner that expire on their own. |
 | `StatusBar()` | `Left` and `Right` text; the right side wins when both don't fit. |
 | `TextField()`, `CommandLine()` | Single-line input from `TextFieldState` / `CommandLineState`, scrolled by display width, with the terminal cursor shown. |
-| `TextArea()` | Multi-line input from `TextAreaState`: `Wrap(WrapMode.Word/Char/None)` (word by default; `None` scrolls sideways), `Placeholder`, `Block`. Scrolls to keep the cursor visible. |
+| `TextArea()` | Multi-line input from `TextAreaState`: `Wrap(WrapMode.Word/Char/None)` (word by default; `None` scrolls sideways), `Placeholder`, `Block`, `LineNumbers()` (a gutter). Scrolls to keep the cursor visible; with a block, a draggable scrollbar on its right border when the text doesn't fit. |
 | `Select()` | A dropdown field from `SelectState`: the chosen option (or a muted `Placeholder`) and a ▼. Opening it shows a `PopupMenu` of the options below the field; with `SelectState.Filterable`, a dropdown with a filter line, which typing on the field opens. |
 | `TabBar()` | `Tabs(...)` with `TabBarState`, scrolled to keep the selected tab visible. |
 | `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](#trees). |
@@ -412,7 +412,7 @@ size, scroll offset) back into it while drawing.
 | `ScrollState` | ↑ ↓ j k PgUp PgDn Home End | Paragraph, MessageDialog |
 | `TextFieldState` | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end); Shift with the moves selects, Ctrl+A selects all, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste, Ctrl+Z / Ctrl+Y undo and redo (see [Selection and the clipboard](#selection-and-the-clipboard)) | TextField |
 | `CommandLineState` | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
-| `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls | TextArea |
+| `TextAreaState` | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls; opt-in `TabIndents` (Tab and Shift+Tab indent and outdent the selected lines, Backspace deletes an indent level), `AutoIndent` (Enter keeps the indentation) and `IndentSize` | TextArea |
 | `SelectState` | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the `App`: `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option. With `Filterable`, a typed letter opens it too, and typing in it narrows the options | Select |
 | `TabBarState` | ← → h l | TabBar |
 | `TreeState<T>` | ↑ ↓ PgUp PgDn Home End, → (expand, then first child), ← (collapse, then parent), Enter (toggle, or `Activated` on a leaf), letters jump by name; `HandleMouse` selects, toggles on the expander and scrolls | Tree |
@@ -445,6 +445,15 @@ sealed class Notes : Component
     public override void Render(Buffer buf, Rect area, RenderContext ctx) =>
         Widget.TextArea().State(State).Placeholder("Notes").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
 }
+```
+
+For editing a config file or a script, turn on the editor features. With `TabIndents`, Tab no longer moves focus
+out of the text area, so give users another way out (the mouse, or a key of the app's):
+
+```csharp
+public TextAreaState State { get; } = new() { TabIndents = true, AutoIndent = true, IndentSize = 2 };
+// ...
+Widget.TextArea().State(State).LineNumbers().Block(Widget.Block().Title(" config.yaml ")).Focused(ctx.Focused).Draw(buf, area);
 ```
 
 A dropdown is a component around a `SelectState`. The state opens a menu overlay, so it takes the `App`:
