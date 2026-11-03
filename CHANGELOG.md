@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-11-03
+
+MiniTui 1.15: reading the system clipboard through the terminal, the Insert keys, and selecting paragraph text with the mouse.
+
 ### Added
 - `App.WithClipboardRead()`: on Linux and macOS, Ctrl+V (and Shift+Insert) in text fields, text areas and command lines asks the terminal for its clipboard with an OSC 52 query and pastes the reply when it arrives. A refusal (an empty reply) pastes the in-app text; no reply within 500 ms does too, and the app stops asking for the rest of the run. The decoder reads OSC 52 replies of any length, never as keys. `Clipboard.GetTextAsync()` reads the same way from code (the Win32 clipboard on Windows).
 - Ctrl+Insert copies the selection (and never quits), Shift+Insert pastes, and Shift+Delete cuts (or deletes, without a selection) in text fields, text areas and command lines.
