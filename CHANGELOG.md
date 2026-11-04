@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-04
+
+MiniTui 2.1: horizontal scrolling in paragraphs, checkbox and button states, selection by key for lists and tables, padding inside block borders, and clearer bar chart values.
+
 ### Added
 - Horizontal scrolling in paragraphs: `ScrollState.ScrollsHorizontally` lets an unwrapped paragraph's long lines scroll sideways instead of being cut. ← → and the horizontal wheel (or Shift or Alt with the wheel; Windows Terminal keeps Shift+wheel) scroll 8 columns, Home and End go to the first and last column, and a horizontal scrollbar (on the bottom border, or in the last row) shows while a row is wider than the view, with a draggable thumb. `HorizontalOffset`, `ContentWidth` and `ViewportWidth` give the position. Selection works while scrolled, and dragging past a side scrolls. Off by default. The example's Dashboard log uses it, and `w` toggles wrapping there.
 - A paragraph with a `ScrollState` keeps its place when its rows are laid out again (wrapping toggled, or a resize): the line at the top stays at the top, a view at the end stays at the end, and a selection keeps its text instead of pointing at whatever is now in its rows.
-
 - `CheckboxState` and `ButtonState`, so checkboxes and buttons handle their own keys and clicks: `Widget.Checkbox().State(...)` and `Widget.Button().State(...)`. A checkbox toggles on Space or a click on its box or label and raises `Changed` for user toggles only. A button raises `Pressed` on Enter, Space, or a left click released over it, cancels when the press is dragged off, and draws pressed while held (`IsDown`). The example's Form and Widgets screens use them, and the Form has a Submit button.
-
 - Selection by key for lists and tables: `Items(items, format, key)` and `Rows(items, format, key)` keep the selection on the same item when the items are re-sorted, filtered or refreshed, on the same screen row where it can; when the item is gone the next one takes its place, and a move in the same frame wins. `SelectionState.SelectedKey` and `SelectKey(key)`. The example's Services table is keyed by id.
 
 ### Changed
