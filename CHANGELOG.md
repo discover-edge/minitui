@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Horizontal scrolling in paragraphs: `ScrollState.ScrollsHorizontally` lets an unwrapped paragraph's long lines scroll sideways instead of being cut. ← → and the horizontal wheel (or Shift with the wheel) scroll 8 columns, Home and End go to the first and last column, and a horizontal scrollbar (on the bottom border, or in the last row) shows while a row is wider than the view, with a draggable thumb. `HorizontalOffset`, `ContentWidth` and `ViewportWidth` give the position. Selection works while scrolled, and dragging past a side scrolls. Off by default. The example's Dashboard log uses it.
+- Horizontal scrolling in paragraphs: `ScrollState.ScrollsHorizontally` lets an unwrapped paragraph's long lines scroll sideways instead of being cut. ← → and the horizontal wheel (or Shift with the wheel) scroll 8 columns, Home and End go to the first and last column, and a horizontal scrollbar (on the bottom border, or in the last row) shows while a row is wider than the view, with a draggable thumb. `HorizontalOffset`, `ContentWidth` and `ViewportWidth` give the position. Selection works while scrolled, and dragging past a side scrolls. Off by default. The example's Dashboard log uses it, and `w` toggles wrapping there.
+- A paragraph with a `ScrollState` keeps its place when its rows are laid out again (wrapping toggled, or a resize): the line at the top stays at the top, a view at the end stays at the end, and a selection keeps its text instead of pointing at whatever is now in its rows.
 
 ### Changed
 - Bar charts: a vertical bar shorter than one cell has its value on the row above it, in the bar's color, instead of over its partial glyph, which cut the bar in two. Where values above short neighbours would touch, the later one is left out. An empty bar's value takes the bar's color too.

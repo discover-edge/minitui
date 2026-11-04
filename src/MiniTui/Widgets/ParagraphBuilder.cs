@@ -75,11 +75,12 @@ public sealed class ParagraphBuilder
         if (inner.IsEmpty)
         {
             _state?.Fit(0, 0);
-            _state?.TrackRows(inner, [], _alignment);
+            _state?.TrackRows(inner, [], [], _alignment);
             return;
         }
 
-        var rows = TextWrap.Wrap(_text, inner.Width, _wrap);
+        var origins = new List<(int Line, int From)>();
+        var rows = TextWrap.Wrap(_text, inner.Width, _wrap, origins);
 
         // Without a right border, the scrollbar takes the last column, so the text is laid out narrower. Scrolling
         // sideways (1.x spec §23.3), the horizontal bar goes on a free bottom border or takes the last row, which
@@ -97,7 +98,11 @@ public sealed class ParagraphBuilder
             horizontal = sideways && widest > text.Width && (columnBarOnBorder || inner.Height > 1);
             text = text with { Height = horizontal && !columnBarOnBorder ? inner.Height - 1 : inner.Height };
         }
-        if (text.Width < inner.Width && _wrap != WrapMode.None) rows = TextWrap.Wrap(_text, text.Width, _wrap);
+        if (text.Width < inner.Width && _wrap != WrapMode.None)
+        {
+            origins.Clear();
+            rows = TextWrap.Wrap(_text, text.Width, _wrap, origins);
+        }
 
         var offset = _scroll;
         int? columns = null;
@@ -106,7 +111,7 @@ public sealed class ParagraphBuilder
             state.Fit(rows.Count, text.Height);
             state.FitColumns(widest, text.Width);
             if (sideways) columns = state.HorizontalOffset;
-            state.TrackRows(text, rows, _alignment, columns);
+            state.TrackRows(text, rows, origins, _alignment, columns, (text.Width, _wrap));
             offset = state.Offset;
         }
 
@@ -180,24 +185,29 @@ public sealed class ParagraphBuilder
 /// <summary>The line breaking behind <see cref="ParagraphBuilder"/>.</summary>
 internal static class TextWrap
 {
-    public static List<Line> Wrap(Text text, int width, WrapMode mode)
+    /// <summary>The rows of the text at a width; with <paramref name="origins"/>, each row's line and first column in it.</summary>
+    public static List<Line> Wrap(Text text, int width, WrapMode mode, List<(int Line, int From)>? origins = null)
     {
         var rows = new List<Line>();
-        foreach (var line in text.Lines)
+        for (var i = 0; i < text.Lines.Count; i++)
         {
-            if (mode == WrapMode.None || width <= 0) rows.Add(line);
-            else WrapLine(line, width, mode, rows);
+            var line = text.Lines[i];
+            if (mode == WrapMode.None || width <= 0)
+            {
+                rows.Add(line);
+                origins?.Add((i, 0));
+            }
+            else WrapLine(line, width, mode, new RowBuilder(line.Alignment, rows, origins, i));
         }
         return rows;
     }
 
-    private static void WrapLine(Line line, int width, WrapMode mode, List<Line> rows)
+    private static void WrapLine(Line line, int width, WrapMode mode, RowBuilder row)
     {
-        var row = new RowBuilder(line.Alignment);
         if (mode == WrapMode.Char)
         {
-            foreach (var g in Graphemes(line)) AddBreaking(g, width, row, rows);
-            rows.Add(row.Build());
+            foreach (var g in Graphemes(line)) AddBreaking(g, width, row);
+            row.Emit();
             return;
         }
 
@@ -227,24 +237,24 @@ internal static class TextWrap
             {
                 if (row.Width > 0)
                 {
-                    rows.Add(row.Build());
+                    row.Emit();
                     firstRow = false;
                 }
                 if (wordWidth <= width) row.AddRange(word);
                 else
                 {
                     foreach (var g in word)
-                        if (AddBreaking(g, width, row, rows)) firstRow = false;
+                        if (AddBreaking(g, width, row)) firstRow = false;
                 }
             }
             pending.Clear();
             pendingWidth = 0;
         }
-        rows.Add(row.Build());
+        row.Emit();
     }
 
     // Add a grapheme, starting a new row first if it doesn't fit. Returns true if a row was emitted.
-    private static bool AddBreaking(Grapheme g, int width, RowBuilder row, List<Line> rows)
+    private static bool AddBreaking(Grapheme g, int width, RowBuilder row)
     {
         if (row.Width + g.Width <= width)
         {
@@ -252,7 +262,7 @@ internal static class TextWrap
             return false;
         }
         if (row.Width == 0) return false; // wider than the whole area: dropped
-        rows.Add(row.Build());
+        row.Emit();
         if (g.Width <= width) row.Add(g);
         return true;
     }
@@ -277,6 +287,7 @@ internal static class TextWrap
 
     private static IEnumerable<Grapheme> Graphemes(Line line)
     {
+        var column = 0;
         foreach (var span in line.Spans)
         {
             var content = Sanitizer.SingleLine(span.Content ?? "");
@@ -287,23 +298,30 @@ internal static class TextWrap
                 i += length;
                 var w = UnicodeWidth.OfGrapheme(text);
                 if (w == 0) continue;
-                yield return new Grapheme(text, span.Style, w, text.Length == 1 && char.IsWhiteSpace(text[0]));
+                yield return new Grapheme(text, span.Style, w, text.Length == 1 && char.IsWhiteSpace(text[0]), column);
+                column += w;
             }
         }
     }
 
-    private readonly record struct Grapheme(string Text, Style Style, int Width, bool IsSpace);
+    // Column: where it starts in its line
+    private readonly record struct Grapheme(string Text, Style Style, int Width, bool IsSpace, int Column);
 
-    private sealed class RowBuilder(Alignment alignment)
+    // Builds the rows of one line, adding each one's origin
+    private sealed class RowBuilder(Alignment alignment, List<Line> rows, List<(int Line, int From)>? origins, int line)
     {
         private readonly List<Span> _spans = [];
         private readonly System.Text.StringBuilder _current = new();
         private Style _currentStyle;
+        private int? _from;
+        private int _end;
 
         public int Width { get; private set; }
 
         public void Add(Grapheme g)
         {
+            _from ??= g.Column;
+            _end = g.Column + g.Width;
             if (_current.Length > 0 && g.Style != _currentStyle) Flush();
             _currentStyle = g.Style;
             _current.Append(g.Text);
@@ -315,13 +333,14 @@ internal static class TextWrap
             foreach (var g in graphemes) Add(g);
         }
 
-        public Line Build()
+        public void Emit()
         {
             Flush();
-            var line = new Line([.. _spans], alignment);
+            rows.Add(new Line([.. _spans], alignment));
+            origins?.Add((line, _from ?? _end));
             _spans.Clear();
+            _from = null;
             Width = 0;
-            return line;
         }
 
         private void Flush()

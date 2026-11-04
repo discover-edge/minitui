@@ -4948,6 +4948,12 @@ public sealed class ScrollState
 - **Selection** (§20.5) works in the scrolled view: positions are columns of the row's text, so a selection keeps
   its text when scrolled, and dragging past the left or right edge scrolls by a column.
 - **Off by default,** so screens that use ← → for something else keep them. Without it, nothing changes.
+- **Laid out again** (amended at review, for toggling wrapping): a paragraph's selection is kept by its place in
+  the text (a line and a column of it), not by row, so it survives the rows being laid out again; it's cleared
+  only when its lines are gone. When the width or the wrap mode changes and the offset wasn't moved since the last
+  draw, the line at the top stays at the top (the row holding the old top's place), and a view at the end stays at
+  the end. This applies to every paragraph with a state, wrapped or not, so a resize keeps its place too.
+  Toggling wrapping is left to the app (a binding that switches `Wrap(...)`); the example's Dashboard log binds `w`.
 
 ### 23.4 Checkbox and button states (addition)
 

@@ -46,6 +46,19 @@ the last row when that border has a title), and its thumb drags. Rows narrower t
 `HorizontalOffset` is the first visible column; `ContentWidth` and `ViewportWidth` are set when it's drawn.
 It's off by default so that ← → stay free for screens that use them.
 
+**Toggling wrapping.** The builder is made each frame, so a key that flips a flag can switch `Wrap(...)`. A
+paragraph with a `ScrollState` keeps its place when its rows are laid out again: the line at the top stays at the
+top (and a view at the end stays at the end), and a selection keeps its text. That holds for a resize too.
+
+```csharp
+bool _wrap;
+
+public LogView() => Keys.Add("w", "Wrap", () => _wrap = !_wrap);
+
+// In Render
+Widget.Paragraph().Text(log).State(_log).Wrap(_wrap ? WrapMode.Word : WrapMode.None).Draw(buf, area);
+```
+
 ```csharp
 readonly ScrollState _log = new() { ScrollsHorizontally = true, Selectable = true };
 

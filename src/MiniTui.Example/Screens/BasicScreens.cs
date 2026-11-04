@@ -168,7 +168,8 @@ internal sealed class FormScreen : Screen
 
 /// <summary>
 /// A layout of panels updated by an async loop. The log follows new lines while it's scrolled to the end, its text
-/// can be selected with the mouse and copied (1.x spec §20.6), and ← → scroll its long lines sideways (§23.3).
+/// can be selected with the mouse and copied (1.x spec §20.6), ← → scroll its long lines sideways and w wraps them
+/// instead (§23.3).
 /// </summary>
 internal sealed class DashboardScreen : Screen
 {
@@ -250,8 +251,17 @@ internal sealed class DashboardScreen : Screen
             .Draw(buf, layout["requests"]);
     }
 
-    private sealed class LogView(DashboardScreen screen) : Component
+    private sealed class LogView : Component
     {
+        private readonly DashboardScreen screen;
+        private bool _wrap;
+
+        public LogView(DashboardScreen screen)
+        {
+            this.screen = screen;
+            Keys.Add("w", "Wrap", () => _wrap = !_wrap);
+        }
+
         public override string KeysGroup => "Logs";
         public override bool HasSelection => screen._logScroll.HasSelection;
         public override bool HandleKey(ConsoleKeyInfo key) => screen._logScroll.HandleKey(key);
@@ -259,6 +269,7 @@ internal sealed class DashboardScreen : Screen
 
         public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
             Widget.Paragraph().Text(string.Join("\n", screen._logs)).State(screen._logScroll)
+                .Wrap(_wrap ? WrapMode.Word : WrapMode.None)
                 .Block(Widget.Block().Title(" Logs ").TitleBottom(" drag to select · ← → scroll · Ctrl+C copies ").Focused(ctx.Focused))
                 .Draw(buf, area);
     }
