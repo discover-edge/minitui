@@ -126,7 +126,7 @@ public sealed class ScrollState
     /// <summary>
     /// Handle the mouse over the text drawn last (1.x spec §4.8, §14.4): the wheel scrolls by three rows, the
     /// scrollbar's thumb drags and its track pages. When <see cref="ScrollsHorizontally"/>, the horizontal wheel and
-    /// Shift with the wheel scroll sideways by 8 columns (§23.3). When <see cref="Selectable"/>, the left button
+    /// Shift with the wheel scroll sideways by 8 columns, and so does the horizontal scrollbar (§23.3). When <see cref="Selectable"/>, the left button
     /// selects (§20.5).
     /// </summary>
     /// <returns>True if it scrolled, tried to, or selected.</returns>
@@ -137,6 +137,12 @@ public sealed class ScrollState
         if (_bar.Handle(mouse, ref offset))
         {
             Offset = Clamp(offset);
+            return true;
+        }
+        var columns = HorizontalOffset;
+        if (_columnBar.Handle(mouse, ref columns))
+        {
+            HorizontalOffset = ClampColumns(columns);
             return true;
         }
         if (Selectable && HandleSelectionMouse(mouse)) return true;
@@ -169,6 +175,7 @@ public sealed class ScrollState
     {
         _mouseArea = area;
         _bar.Track(default, 0, 0);
+        _columnBar.Track(default, 0, 0);
     }
 
     /// <summary>
@@ -233,6 +240,9 @@ public sealed class ScrollState
     /// <summary>Called by widgets while drawing, after <see cref="Fit"/>: where the scrollbar was drawn.</summary>
     internal void TrackScrollbar(Rect bar) => _bar.Track(bar, ContentHeight, ViewportHeight);
 
+    /// <summary>Called by widgets while drawing, after <see cref="FitColumns"/>: where the horizontal scrollbar was drawn.</summary>
+    internal void TrackColumnScrollbar(Rect bar) => _columnBar.Track(bar, ContentWidth, ViewportWidth);
+
     /// <summary>Called by widgets while drawing.</summary>
     internal void Fit(int contentHeight, int viewportHeight)
     {
@@ -255,6 +265,7 @@ public sealed class ScrollState
     private Rect _mouseArea;
     private Rect _textArea;
     private readonly ScrollbarDrag _bar = new();
+    private readonly ScrollbarDrag _columnBar = new(horizontal: true);
     private readonly List<Row> _rows = [];
     private Mark _anchor;
     private Mark _head;

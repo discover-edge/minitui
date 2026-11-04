@@ -1,10 +1,11 @@
 namespace MiniTui;
 
 /// <summary>
-/// Dragging a vertical scrollbar's thumb and paging on its track (1.x spec §14.4), for the states whose widgets
-/// draw one. The widget records the bar while drawing; the state passes its mouse events here first.
+/// Dragging a scrollbar's thumb and paging on its track (1.x spec §14.4), for the states whose widgets draw one;
+/// vertical, or horizontal for a paragraph scrolled sideways (§23.3). The widget records the bar while drawing; the
+/// state passes its mouse events here first.
 /// </summary>
-internal sealed class ScrollbarDrag
+internal sealed class ScrollbarDrag(bool horizontal = false)
 {
     private Rect _bar;
     private int _content;
@@ -38,14 +39,14 @@ internal sealed class ScrollbarDrag
             case MouseAction.Press:
                 _grab = null;
                 if (mouse.Button != MouseButton.Left || _bar.IsEmpty || !_bar.Contains(mouse.X, mouse.Y)) return false;
-                var (start, length) = ScrollbarBuilder.Thumb(_bar.Height, _content, _viewport, offset);
-                var at = mouse.Y - _bar.Y;
+                var (start, length) = ScrollbarBuilder.Thumb(Length, _content, _viewport, offset);
+                var at = Along(mouse);
                 if (at < start) offset = Clamp(offset - _viewport);
                 else if (at >= start + length) offset = Clamp(offset + _viewport);
                 else _grab = at - start;
                 return true;
             case MouseAction.Drag when _grab is { } grab && mouse.Button == MouseButton.Left && !_bar.IsEmpty:
-                offset = OffsetAt(mouse.Y - _bar.Y - grab);
+                offset = OffsetAt(Along(mouse) - grab);
                 return true;
             case MouseAction.Release when _grab is not null:
                 _grab = null;
@@ -58,12 +59,17 @@ internal sealed class ScrollbarDrag
     /// <summary>The offset whose thumb starts nearest <paramref name="thumbStart"/>.</summary>
     private int OffsetAt(int thumbStart)
     {
-        var (_, length) = ScrollbarBuilder.Thumb(_bar.Height, _content, _viewport, 0);
-        var free = _bar.Height - length;
+        var (_, length) = ScrollbarBuilder.Thumb(Length, _content, _viewport, 0);
+        var free = Length - length;
         if (free <= 0) return 0;
         var max = Math.Max(0, _content - _viewport);
         return (int)Math.Round((double)Math.Clamp(thumbStart, 0, free) * max / free, MidpointRounding.AwayFromZero);
     }
+
+    private int Length => horizontal ? _bar.Width : _bar.Height;
+
+    // The pointer's cell along the bar
+    private int Along(MouseEvent mouse) => horizontal ? mouse.X - _bar.X : mouse.Y - _bar.Y;
 
     private int Clamp(int offset) => Math.Clamp(offset, 0, Math.Max(0, _content - _viewport));
 }

@@ -78,6 +78,9 @@ public sealed class BlockBuilder
 
     internal bool HasRightBorder => (_borders & MiniTui.Borders.Right) != 0;
 
+    /// <summary>A bottom border without a bottom title, where a horizontal scrollbar can go (1.x spec §23.3).</summary>
+    internal bool HasFreeBottomBorder => (_borders & MiniTui.Borders.Bottom) != 0 && _titleBottom is null;
+
     internal BlockBuilder TitleInset(int columns) { _titleInset = columns; return this; }
 
     internal BlockBuilder Clone() => (BlockBuilder)MemberwiseClone();

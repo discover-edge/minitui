@@ -4934,9 +4934,13 @@ public sealed class ScrollState
 ```
 
 - **When it applies:** a `ParagraphBuilder` with `WrapMode.None`, a `State(...)` whose `ScrollsHorizontally` is
-  true. Rows are drawn from `HorizontalOffset`, clipped at the edges instead of cut with `…`, except that a row
-  continuing past the right edge shows `…` in the last column, and one scrolled past its start shows `…` in the
-  first (only when the row is wider than the view).
+  true. Rows wider than the view are drawn from `HorizontalOffset`, clipped at the edges instead of cut with `…`.
+- **Scrollbar** (amended at review): when a row is wider than the view, a horizontal scrollbar is shown, like the
+  vertical one is when rows overflow. It goes on the bottom border when the block has one without a bottom
+  title, and otherwise takes the last text row. Its thumb drags and its track pages by a view's width (§14.4).
+  With both bars and no borders, the corner cell is left blank. Where there's no room for it (no free bottom
+  border and a single row), a row continuing past the right edge shows `…` in the last column instead, and one
+  scrolled past its start `…` in the first.
 - **Keys:** ← and → scroll by 8 columns (not handled at the edge, so they go on); `HandleKey`'s Home and End also
   go to the first and last column. Alignment applies only to rows narrower than the view.
 - **Mouse:** `ScrollLeft`/`ScrollRight` (a horizontal wheel or trackpad), and Shift with the vertical wheel, scroll
@@ -4995,7 +4999,6 @@ Manual QA: the monitor's chart (rebuilt against the fix), a long-line paragraph 
 
 ### 23.7 Out of scope
 
-- A horizontal scrollbar (the `…`s show there's more).
 - Horizontal scrolling of wrapped text, lists or tables.
 - Radio buttons and checkbox groups (`SelectState` covers a choice of one).
 

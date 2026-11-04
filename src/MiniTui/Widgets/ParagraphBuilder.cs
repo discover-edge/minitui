@@ -81,52 +81,65 @@ public sealed class ParagraphBuilder
 
         var rows = TextWrap.Wrap(_text, inner.Width, _wrap);
 
-        // Without a right border, the scrollbar takes the last column, so the text is laid out narrower
+        // Without a right border, the scrollbar takes the last column, so the text is laid out narrower. Scrolling
+        // sideways (1.x spec §23.3), the horizontal bar goes on a free bottom border or takes the last row, which
+        // can make the rows overflow, so the two are settled together.
         var scrollbarOnBorder = _block?.HasRightBorder == true;
-        if (_state is not null && rows.Count > inner.Height && !scrollbarOnBorder && inner.Width > 1)
+        var columnBarOnBorder = _block?.HasFreeBottomBorder == true;
+        var sideways = _state is { ScrollsHorizontally: true } && _wrap == WrapMode.None;
+        var widest = sideways && rows.Count > 0 ? rows.Max(r => r.Width) : 0;
+        var text = inner;
+        bool vertical = false, horizontal = false;
+        for (var pass = 0; pass < 2; pass++)
         {
-            inner = inner with { Width = inner.Width - 1 };
-            rows = TextWrap.Wrap(_text, inner.Width, _wrap);
+            vertical = _state is not null && rows.Count > text.Height;
+            text = text with { Width = vertical && !scrollbarOnBorder && inner.Width > 1 ? inner.Width - 1 : inner.Width };
+            horizontal = sideways && widest > text.Width && (columnBarOnBorder || inner.Height > 1);
+            text = text with { Height = horizontal && !columnBarOnBorder ? inner.Height - 1 : inner.Height };
         }
+        if (text.Width < inner.Width && _wrap != WrapMode.None) rows = TextWrap.Wrap(_text, text.Width, _wrap);
 
         var offset = _scroll;
         int? columns = null;
         if (_state is { } state)
         {
-            state.Fit(rows.Count, inner.Height);
-            if (_wrap == WrapMode.None && state.ScrollsHorizontally)
-            {
-                state.FitColumns(rows.Count == 0 ? 0 : rows.Max(r => r.Width), inner.Width);
-                columns = state.HorizontalOffset;
-            }
-            else state.FitColumns(0, inner.Width);
-            state.TrackRows(inner, rows, _alignment, columns);
+            state.Fit(rows.Count, text.Height);
+            state.FitColumns(widest, text.Width);
+            if (sideways) columns = state.HorizontalOffset;
+            state.TrackRows(text, rows, _alignment, columns);
             offset = state.Offset;
         }
 
         var style = Theme.Current.Text.Patch(_style ?? default);
-        for (var i = 0; i < inner.Height && offset + i < rows.Count; i++)
+        for (var i = 0; i < text.Height && offset + i < rows.Count; i++)
         {
             var line = rows[offset + i];
-            if (columns is { } from && line.Width > inner.Width) DrawScrolled(buf, inner.X, inner.Y + i, line, from, inner.Width, style);
+            if (columns is { } from && line.Width > text.Width) DrawScrolled(buf, text.X, text.Y + i, line, from, text.Width, style, marks: !horizontal);
             else
             {
                 var alignment = line.Alignment != MiniTui.Alignment.Left ? line.Alignment : _alignment;
-                WidgetText.DrawLine(buf, inner.X, inner.Y + i, line, inner.Width, style, alignment);
+                WidgetText.DrawLine(buf, text.X, text.Y + i, line, text.Width, style, alignment);
             }
-            DrawSelection(buf, inner, i, offset + i);
+            DrawSelection(buf, text, i, offset + i);
         }
 
-        if (_state is not null && rows.Count > inner.Height)
+        if (vertical)
         {
-            var bar = scrollbarOnBorder ? new Rect(area.Right - 1, inner.Y, 1, inner.Height) : new Rect(inner.Right, inner.Y, 1, inner.Height);
-            new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(inner.Height).Position(offset).Draw(buf, bar);
-            _state.TrackScrollbar(bar);
+            var bar = scrollbarOnBorder ? new Rect(area.Right - 1, text.Y, 1, text.Height) : new Rect(text.Right, text.Y, 1, text.Height);
+            new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(text.Height).Position(offset).Draw(buf, bar);
+            _state!.TrackScrollbar(bar);
+        }
+        if (horizontal)
+        {
+            var bar = new Rect(text.X, columnBarOnBorder ? area.Bottom - 1 : text.Bottom, text.Width, 1);
+            new ScrollbarBuilder().Horizontal().ContentLength(widest).ViewportLength(text.Width).Position(columns ?? 0).Draw(buf, bar);
+            _state!.TrackColumnScrollbar(bar);
         }
     }
 
-    // 1.x spec §23.3: the columns of a row wider than the view from `from`, with … at an edge it continues past
-    private static void DrawScrolled(CellBuffer buf, int x, int y, Line line, int from, int width, Style style)
+    // 1.x spec §23.3: the columns of a row wider than the view from `from`; without a scrollbar, with … at an edge it
+    // continues past
+    private static void DrawScrolled(CellBuffer buf, int x, int y, Line line, int from, int width, Style style, bool marks)
     {
         var spans = new List<Span>();
         var column = 0;
@@ -146,6 +159,7 @@ public sealed class ParagraphBuilder
             if (text.Length > 0) spans.Add(new Span(text.ToString(), span.Style));
         }
         WidgetText.DrawLine(buf, x, y, new Line([.. spans]), width, style, MiniTui.Alignment.Left);
+        if (!marks) return;
         if (from > 0) buf.SetString(x, y, WidgetText.Ellipsis, style, 1);
         if (line.Width > from + width) buf.SetString(x + width - 1, y, WidgetText.Ellipsis, style, 1);
     }
