@@ -42,7 +42,9 @@ Widget.Table()
 `ScrollsHorizontally = true` and they scroll instead: ← and → move 8 columns (and go unhandled at the edge, so
 the screen gets them), Home and End go to the first and last column, and the horizontal wheel or Shift with the
 wheel scrolls too. A horizontal scrollbar shows while a row is wider than the view, on the bottom border (or in
-the last row when that border has a title), and its thumb drags. Rows narrower than the view keep their alignment.
+the last row when that border has a title), and its thumb drags. Shift+wheel depends on the terminal: those that
+use Shift to get past mouse mode (Windows Terminal, WezTerm, foot) keep it for themselves, so ← → and the
+scrollbar are the dependable ways. Rows narrower than the view keep their alignment.
 `HorizontalOffset` is the first visible column; `ContentWidth` and `ViewportWidth` are set when it's drawn.
 It's off by default so that ← → stay free for screens that use them.
 
