@@ -209,7 +209,7 @@ public class ListAndTableTests
 
         Assert.Equal([498, 499, 500], formatted);
         Assert.Equal("┌N [499-501 of 1000]───┐", buf.ToLines()[0]);
-        Assert.Equal("│> item 500            ░", buf.ToLines()[3]); // the scrollbar replaces the right border
+        Assert.Equal("│ > item 500           ░", buf.ToLines()[3]); // the scrollbar replaces the right border
         AssertStyle(buf, 1, 3, Color.Black, Color.Cyan);
     }
 

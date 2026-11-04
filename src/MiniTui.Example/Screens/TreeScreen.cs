@@ -107,7 +107,7 @@ internal sealed class TreeScreen : Screen
             if (selected.Info.Exists) lines.Add($"Modified {selected.Info.LastWriteTime:yyyy-MM-dd HH:mm}");
         }
         Widget.Paragraph().Text(new Text(lines)).Wrap(WrapMode.Word)
-            .Block(Widget.Block().Title(" Details ").Padding(new Margin(1, 0)))
+            .Block(Widget.Block().Title(" Details "))
             .Draw(buf, columns["detail"]);
     }
 

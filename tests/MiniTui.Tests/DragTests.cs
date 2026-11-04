@@ -199,7 +199,8 @@ public class DragTests
     {
         var state = new TextFieldState(text);
         var buf = new CellBuffer(width + 2, 3);
-        Widget.TextField().State(state).Block(Widget.Block()).Draw(buf, buf.Area);
+        // Without padding, so the text starts at x 1 (1.x spec §24.2)
+        Widget.TextField().State(state).Block(Widget.Block().Padding(new Margin(0))).Draw(buf, buf.Area);
         return state;
     }
 

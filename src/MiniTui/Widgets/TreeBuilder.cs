@@ -97,6 +97,8 @@ public class TreeBuilder<T> where T : class
             ? new Rect(area.Right - 1, inner.Y, 1, inner.Height)
             : new Rect(inner.Right - 1, inner.Y, 1, inner.Height);
         var rowArea = overflow && !block.HasRightBorder ? inner with { Width = inner.Width - 1 } : inner;
+        // 1.x spec §24.2: the highlight and the clicks reach across the padding, border to border
+        var band = block.AcrossPadding(area, rowArea);
 
         var style = theme.Text.Patch(_style ?? default);
         var muted = style.Patch(theme.TextMuted);
@@ -137,10 +139,10 @@ public class TreeBuilder<T> where T : class
             var (loading, error) = _state.LoadStatus(row.Node);
             if (loading && right - x > 1) buf.SetString(x + 1, y, "Loading…", muted, right - x - 1);
             else if (error is not null && right - x > 1) buf.SetString(x + 1, y, Sanitizer.SingleLine(error), style.Patch(theme.Error), right - x - 1);
-            if (offset + i == selected) buf.SetStyle(new Rect(rowArea.X, y, rowArea.Width, 1), highlight);
-            else if (_hover is { } p && p.Y == y && p.X >= rowArea.X && p.X < rowArea.Right) buf.SetStyle(new Rect(rowArea.X, y, rowArea.Width, 1), theme.Hover);
+            if (offset + i == selected) buf.SetStyle(new Rect(band.X, y, band.Width, 1), highlight);
+            else if (_hover is { } p && p.Y == y && p.X >= band.X && p.X < band.Right) buf.SetStyle(new Rect(band.X, y, band.Width, 1), theme.Hover);
         }
-        _state.Track(area, rowArea with { Height = visible }, expanders, checks);
+        _state.Track(area, band with { Height = visible }, expanders, checks);
 
         if (!overflow) return;
         new ScrollbarBuilder().ContentLength(rows.Count).ViewportLength(viewport).Position(offset).Draw(buf, scrollbar);

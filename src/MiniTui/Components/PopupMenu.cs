@@ -303,7 +303,7 @@ public sealed class PopupMenu : Overlay
         ArgumentNullException.ThrowIfNull(buf);
         ArgumentNullException.ThrowIfNull(ctx);
         var theme = ctx.Theme;
-        var inner = Widget.Block().BorderStyle(theme.ModalBorder).Draw(buf, area);
+        var inner = Widget.Block().BorderStyle(theme.ModalBorder).Padding(new Margin(0)).Draw(buf, area);
         _viewport = Math.Max(0, inner.Height);
         _offset = SelectionState.FitOffset(_offset, Math.Max(0, _selected), _items.Length, _viewport);
         var visible = Math.Clamp(_items.Length - _offset, 0, _viewport);

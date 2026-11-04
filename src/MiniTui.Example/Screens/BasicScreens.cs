@@ -244,7 +244,7 @@ internal sealed class DashboardScreen : Screen
         var panels = Layout.Horizontal(layout["panels"]).Add("logs", Constraint.Fill()).Add("activity", Constraint.Fill()).Build();
         ctx.Render(_logView, buf, panels["logs"]);
 
-        var activity = Widget.Block().Title(" Activity ").Padding(new Margin(1, 0)).Draw(buf, panels["activity"]);
+        var activity = Widget.Block().Title(" Activity ").Draw(buf, panels["activity"]);
         for (var i = 0; i < 5 && i * 2 < activity.Height; i++)
         {
             buf.SetString(activity.X, activity.Y + i * 2, $"Svc {i + 1}", ctx.Theme.TextMuted);

@@ -234,11 +234,11 @@ public sealed class ParagraphSelectionTests : IDisposable
         Assert.Equal(Theme.Current.Selection.Bg, plain.Get(2, 0).Bg);
         Assert.NotEqual(Theme.Current.Selection.Bg, plain.Get(3, 0).Bg);
 
-        // In a block the text starts at (1, 1); the same text cells are selected
+        // In a block the text starts at (2, 1), inside the padding; the same text cells are selected
         var unfocused = Draw(state, "hello", height: 3, block: Widget.Block());
-        Assert.Equal(Theme.Current.SelectionUnfocused.Bg, unfocused.Get(2, 1).Bg);
+        Assert.Equal(Theme.Current.SelectionUnfocused.Bg, unfocused.Get(3, 1).Bg);
         var focused = Draw(state, "hello", height: 3, block: Widget.Block().Focused());
-        Assert.Equal(Theme.Current.Selection.Bg, focused.Get(2, 1).Bg);
+        Assert.Equal(Theme.Current.Selection.Bg, focused.Get(3, 1).Bg);
     }
 
     // Through an app

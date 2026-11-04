@@ -367,7 +367,7 @@ internal static class ChartLegend
         var box = new Rect(x, y, width, height);
         WidgetText.Clear(buf, box);
         buf.SetStyle(box.Intersect(buf.Area), style);
-        var inner = Widget.Block().BorderStyle(theme.Border).Draw(buf, box);
+        var inner = Widget.Block().BorderStyle(theme.Border).Padding(new Margin(0)).Draw(buf, box);
         for (var i = 0; i < named.Count; i++)
         {
             buf.SetString(inner.X, inner.Y + i, named[i].Sample, named[i].Style, 1);

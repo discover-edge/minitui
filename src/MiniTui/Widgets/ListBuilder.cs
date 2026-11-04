@@ -112,7 +112,9 @@ public class ListBuilder
             ? new Rect(area.Right - 1, inner.Y, 1, inner.Height)
             : new Rect(inner.Right - 1, inner.Y, 1, inner.Height);
         var rows = overflow && !block.HasRightBorder ? inner with { Width = inner.Width - 1 } : inner;
-        _state?.Track(area, rows with { Height = visible });
+        // 1.x spec §24.2: the highlight and the clicks reach across the padding, border to border
+        var band = block.AcrossPadding(area, rows);
+        _state?.Track(area, band with { Height = visible });
 
         var style = theme.Text.Patch(_style ?? default);
         var highlight = (_focused || block.IsFocused ? theme.Selection : theme.SelectionUnfocused).Patch(_highlightStyle ?? default);
@@ -126,8 +128,8 @@ public class ListBuilder
             var selected = _state is { } s && s.Selected == index;
             if (selected && symbolWidth > 0) buf.SetString(rows.X, y, symbol, style, symbolWidth);
             WidgetText.DrawLine(buf, rows.X + symbolWidth, y, _item(index), rows.Width - symbolWidth, style);
-            if (selected) buf.SetStyle(new Rect(rows.X, y, rows.Width, 1), highlight);
-            else if (_hover is { } p && p.Y == y && p.X >= rows.X && p.X < rows.Right) buf.SetStyle(new Rect(rows.X, y, rows.Width, 1), theme.Hover);
+            if (selected) buf.SetStyle(new Rect(band.X, y, band.Width, 1), highlight);
+            else if (_hover is { } p && p.Y == y && p.X >= band.X && p.X < band.Right) buf.SetStyle(new Rect(band.X, y, band.Width, 1), theme.Hover);
         }
 
         if (!overflow) return;

@@ -472,16 +472,17 @@ public class TextAreaState
         var area = ViewArea;
         switch (mouse.Action)
         {
-            case MouseAction.ScrollUp or MouseAction.ScrollDown when area.Contains(mouse.X, mouse.Y):
+            case MouseAction.ScrollUp or MouseAction.ScrollDown when (HitArea.IsEmpty ? area : HitArea).Contains(mouse.X, mouse.Y):
                 var delta = mouse.Action == MouseAction.ScrollUp ? -WheelRows : WheelRows;
                 ScrollOffset = Math.Clamp(ScrollOffset + delta, 0, MaxScroll);
                 FollowCursor = false;
                 return true;
             case MouseAction.Press when mouse.Button == MouseButton.Left:
                 var inGutter = ViewGutter.Contains(mouse.X, mouse.Y);
-                _dragging = inGutter || area.Contains(mouse.X, mouse.Y);
+                _dragging = inGutter || (HitArea.IsEmpty ? area : HitArea).Contains(mouse.X, mouse.Y);
                 if (!_dragging) return false;
-                // A press in the gutter goes to the start of the row
+                // A press in the gutter (or the padding before it) goes to the start of the row
+                inGutter |= mouse.X < area.X;
                 var x = inGutter ? (ViewWrap == WrapMode.None ? -HorizontalOffset : 0) : mouse.X - area.X;
                 var at = PositionAt(ScrollOffset + mouse.Y - area.Y, x);
                 // 1.x spec §17.4: a double-click selects a word, a triple-click the line
@@ -528,9 +529,13 @@ public class TextAreaState
     }
 
     /// <summary>Record what the widget drew, so the keys and the mouse can use the same layout.</summary>
+    /// <summary>Where a press lands in the text: the view, and the block's side padding (1.x spec §24.2).</summary>
+    internal Rect HitArea { get; set; }
+
     internal void Track(Rect area, WrapMode wrap, int rowCount, Rect gutter = default)
     {
         ViewArea = area;
+        HitArea = default;
         ViewGutter = gutter;
         _bar.Track(default, 0, 0);
         ViewWidth = wrap == WrapMode.None ? int.MaxValue : Math.Max(1, area.Width);

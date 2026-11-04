@@ -79,6 +79,9 @@ public class TextFieldState
     /// <summary>The row the widget last drew the text in, for the mouse.</summary>
     internal Rect ViewArea { get; set; }
 
+    /// <summary>Where a press lands in the text: the view, and the block's side padding (1.x spec §24.2).</summary>
+    internal Rect HitArea { get; set; }
+
     // True between a left press in the text and its release, while drags extend the selection
     private bool _dragging;
 
@@ -181,9 +184,9 @@ public class TextFieldState
         switch (mouse.Action)
         {
             case MouseAction.Press when mouse.Button == MouseButton.Left:
-                _dragging = area.Contains(mouse.X, mouse.Y);
+                _dragging = (HitArea.IsEmpty ? area : HitArea).Contains(mouse.X, mouse.Y);
                 if (!_dragging) return false;
-                var at = IndexAtColumn(ScrollOffset + mouse.X - area.X);
+                var at = IndexAtColumn(ScrollOffset + Math.Clamp(mouse.X - area.X, 0, area.Width));
                 if (mouse.ClickCount == 2)
                 {
                     var (start, end) = WordAt(_text, at);

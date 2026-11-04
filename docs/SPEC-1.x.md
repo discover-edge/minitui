@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0; §21 (Phase 27) live at minitui.org, with its README and project URL released in v1.15.1; §22 (Phase 28) released in v2.0.0; §23 (Phase 29) specced |
+| **Status** | §2 (Phase 8) and §3 (Phase 9) released in v1.1.0; §4 (Phase 10) and §5 (Phase 11) released in v1.2.0; §6 (Phase 12) and §7 (Phase 13) released in v1.3.0; §8 (Phase 14) and §9 (Phase 15) released in v1.4.0; §10 (Phase 16) released in v1.5.0; §11 (Phase 17) released in v1.6.0; §12 (Phase 18) released in v1.7.0; §13 (Phase 19) released in v1.8.0; §14 (Phase 20) released in v1.9.0; §15 (Phase 21) released in v1.10.0; §16 (Phase 22) released in v1.11.0; §17 (Phase 23) released in v1.12.0; §18 (Phase 24) released in v1.13.0; §19 (Phase 25) released in v1.14.0; §20 (Phase 26) released in v1.15.0; §21 (Phase 27) live at minitui.org, with its README and project URL released in v1.15.1; §22 (Phase 28) released in v2.0.0; §23 (Phase 29) built, unreleased; §24 (Phase 30) specced |
 | **Baseline** | `discover-edge/minitui` @ `v1.0.0` |
 | **Target** | v1.1.0 and later minor releases |
 | **Builds on** | [`docs/SPEC.md`](SPEC.md) (the 1.0 spec). Section references like "§9.4" without a file name point there. |
@@ -52,6 +52,7 @@ or add to them:
 | **27. Website** | minitui.org on GitHub Pages, built with DocFX: a landing page with generated recordings and screenshots of the example app, the README's content as guide pages, an API reference from the XML docs, and the changelog. | — | §21 | — (no package) |
 | **28. Fixes from building apps from the docs** | `Buffer` renamed to `CellBuffer`; tree type-ahead and expander clicks, gauge label colors, text states leaving Alt+arrows, palette duplicates, toasts and the menu bar, status bar hints first, an `esc Back` hint, padded overlay titles, the harness and custom dialogs; `TextFieldState.Changed`, `ConfirmAsync(yesFirst)`. | 27 | §22 | **2.0.0** |
 | **29. Bar values, paragraph scrolling, checkbox and button states** | A short bar's value drawn above it instead of splitting it; `ScrollState.ScrollsHorizontally` for unwrapped paragraphs; `CheckboxState` and `ButtonState`. | 28 | §23 | 2.1.0 |
+| **30. Padding, selection by key, and wide bar values** | Blocks pad their content a column in from side borders by default; `Rows(items, format, key)` and `Items(items, format, key)` keep a list or table's selection on the same item when the items change (`SelectionState.SelectedKey`, `SelectKey`); bar values wider than their bar go above it, and values never touch or get cut. | 29 | §24 | 2.1.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -5024,3 +5025,137 @@ Three PRs, one release (2.1.0):
 1. **29a** (bar values): §23.2.
 2. **29b** (paragraphs): §23.3, the example's long-line demo, the Widgets guide.
 3. **29c** (states): §23.4, the Forms guide, the example's form.
+
+## 24. Padding, selection by key, and wide bar values (Phase 30)
+
+### 24.1 Purpose
+
+The rest of the hand-testing notes, done before 2.1.0 is released, so 2.1.0 carries Phases 29 and 30:
+- **Content touches the borders.** In the system monitor, every panel's content starts in the column next to its
+  border: labels, gauges, the services table's first column, the leftmost bar, the chart legend. `Block().Padding`
+  exists, but nothing uses it unless the app asks, and the docs' samples don't.
+- **A table's selection is by index.** `Rows(items, format)` reads the app's list and `SelectionState.Selected` is a
+  position, so re-sorting, filtering, or a row inserted above (a refresh of live data) leaves the highlight on the
+  same row number with another item in it. Every app with live data has to find the item again itself.
+- **Wide bar values vanish, and touching ones run together.** A value wider than its bar is dropped without a trace
+  (`BarWidth(1)` shows no multi-digit values at all), and with `BarGap(0)` and values as wide as their bars,
+  neighbouring values read as one number (`3040`). Left as-is by §23.2; the notes asked for it.
+
+### 24.2 Padding (change)
+
+```csharp
+public sealed class BlockBuilder
+{
+    /// Space inside the borders. By default, one column inside each side border (left, right) and none at the
+    /// top and bottom; Padding(...) replaces it, and Padding(new Margin(0)) removes it.
+    public BlockBuilder Padding(Margin padding);   // existing; only the default changes
+}
+```
+
+- **The default:** a column inside a left border and a column inside a right border. A side without a border gets
+  none, so `Borders.None` and `Borders.Top` blocks are unchanged, and so is the top and bottom.
+- **Small blocks:** when the inside would be narrower than 3 columns with it, there's no default padding.
+- **Row widgets** (List, Table, Tree, and the Select and filter menus): rows are laid out in the padded area, and the
+  selected or hovered row's highlight is drawn across the padding too, border to border, so it doesn't look cut.
+- **Scrollbars** stay on the right border. Where a widget puts its scrollbar inside (no right border), there's no
+  right border and so no right padding.
+- **Built-in overlays, toasts, dialogs and menus** already set their padding and look the same.
+- **The text inputs** (TextField, TextArea, CommandLine, Select) with a block move their text, cursor and mouse
+  mapping in by the padding; the mouse mapping is computed from the same inner rect, so nothing else changes.
+- The guides' samples and the example drop the `Padding(new Margin(1, 0))` they set by hand where it's now the
+  default.
+
+### 24.3 Selection by key (addition)
+
+```csharp
+public sealed class TableBuilder
+{
+    /// As Rows(items, format), and the selection follows the item with the selected key when the items change.
+    public TableBuilder Rows<T>(IReadOnlyList<T> items, Func<T, Row> format, Func<T, object> key);
+}
+
+public sealed class ListBuilder
+{
+    public ListBuilder Items<T>(IReadOnlyList<T> items, Func<T, Line> format, Func<T, object> key);
+}
+
+public sealed class SelectionState
+{
+    /// The selected item's key at the last draw with a key; null before, or without one.
+    public object? SelectedKey { get; }
+
+    /// Select the item with this key at the next draw (for example, a row just added); ignored if none has it.
+    public void SelectKey(object key);
+}
+```
+
+- **Following the item:** at each draw with a key, if the selection wasn't moved since the last draw (by a key, the
+  mouse, `Selected` or `SelectKey`) and the item now at `Selected` doesn't have `SelectedKey`, the selection moves
+  to the item that has it, and `Offset` moves by as many rows, so the item stays on the same screen row where it
+  can (then clamped and kept visible). Keys compare with `Equals`.
+- **The item is gone:** the selection keeps its index, clamped, so the next item takes its place.
+- **Moved since the last draw:** the move wins, as the paragraph's offset does in §23.3.
+- **Cost:** the items are read once only when the item at `Selected` has a different key, so a draw costs the same
+  as now while nothing moves; finding the item is one pass over the list.
+- Without a key, nothing changes. `Activated`, sorting (`SortColumn`, `ToggleSort`, `SortChanged`) and the
+  `HandleKey`/`HandleMouse(count)` calls are unchanged; after the app re-sorts in `SortChanged`, the selection stays
+  on its item.
+
+### 24.4 Bar values (fix)
+
+Extends §23.2 for vertical bars and stacks:
+
+- **Whole or not at all:** a value is never cut (`…`); it's drawn whole or left out.
+- **A value wider than its bar** goes on the row above the bar (above the stack, for a total), centred on the bar,
+  in the bar's color, spreading into the gaps and over neighbouring columns where every cell it needs on that row
+  is empty. A bar that reaches the top of the chart has no row above, so its wide value is left out.
+- **Values never touch:** on any row, a value is left out when it would sit next to another value with no column
+  between them; the leftmost wins. This covers values in the row above (as §23.2) and values reversed in bars' bottom
+  rows, so with `BarGap(0)` and values as wide as their bars, `3040` becomes `30` and the next value along. A bar's
+  own cells between two values keep them apart.
+- Horizontal bars, whose values go after the bar, don't change.
+
+### 24.5 Tests
+
+- **Padding:** a bordered block's inner rect is a column in on each bordered side; `Borders.None`, `Borders.Top` and
+  a narrow block get none; `Padding(...)` and `Padding(new Margin(0))` override it; a list, table and tree highlight
+  spans border to border; the text inputs' cursor and clicks with a padded block; the existing snapshot tests
+  updated to the new default.
+- **Selection by key:** a row inserted above, a re-sort, a filter that keeps the item, one that removes it, a key
+  move and a mouse click in the same frame as a change, `SelectKey`, `SelectedKey`, the screen row kept, lists and
+  tables, no key unchanged.
+- **Bar values:** wide values above short and tall bars, into the gaps, left out against a neighbour's cells or the
+  top; touching values in the row above and in bottom rows with `BarGap(0)`; never `…`.
+
+Manual QA: the monitor and the four doc-testing apps against the new defaults; the example's screens; the site's
+recordings.
+
+### 24.6 Migration impact
+
+- **Changed (visual):** bordered blocks pad one column inside side borders by default. Apps that relied on the
+  content starting next to the border, or that set `Padding(new Margin(1, 0))` themselves, see either one more
+  column of space or none; `Padding(new Margin(0))` restores the old look.
+- New API (§24.3) in `PublicAPI.Unshipped.txt`. Nothing removed.
+
+### 24.7 Out of scope
+
+- A theme-wide padding setting (the default is the block's).
+- Compact number formats for values that don't fit (`1.2k`); `ValueFormat` does that already.
+- Keyed selection for trees (`TreeState<T>` already keeps its selection by node), for selects and tabs.
+
+### 24.8 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Pad by default, or keep no padding and only document `Padding`? | **Pad by default**, one column on bordered sides: the cramped look came from apps that followed the docs. |
+| 2 | Should a list's highlight span the padding? | **Yes, border to border**: a highlight a column short of each border looks cut. |
+| 3 | Touching values reversed in bars of different colors (grouped series): drop one, or keep both since the colors part them? | **Drop one** (leftmost wins): one rule, and colors alone don't part them for color-blind users or `Monochrome`. |
+| 4 | A key by overload (`Rows(items, format, key)`) or a separate `.Key(...)` call? | **Overloads**: the key needs the item type, which only `Rows` and `Items` know. |
+| 5 | Release Phases 29 and 30 together? | **Yes, as 2.1.0**, as asked: no release until the notes are done. |
+
+### 24.9 Implementation order
+
+Three PRs, one release (2.1.0, with Phase 29):
+1. **30a** (padding): §24.2, the widgets' highlight, the snapshot tests, the guides and the example.
+2. **30b** (selection by key): §24.3, the Widgets and Keys guides, the example's Services screen.
+3. **30c** (bar values): §24.4.

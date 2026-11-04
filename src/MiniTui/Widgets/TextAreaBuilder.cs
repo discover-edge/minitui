@@ -59,7 +59,9 @@ public sealed class TextAreaBuilder
             state.Track(inner, _wrap, 0);
             return;
         }
-        buf.SetStyle(inner, style);
+        // 1.x spec §24.2: the area's style and its clicks reach across the block's padding
+        var band = _block?.AcrossPadding(area, inner) ?? inner;
+        buf.SetStyle(band, style);
 
         // 1.x spec §16.5: the find bar takes the last row
         var finding = state.IsFinding && inner.Height >= 2;
@@ -78,6 +80,7 @@ public sealed class TextAreaBuilder
         var width = _wrap == WrapMode.None ? int.MaxValue : inner.Width;
         var rows = TextAreaLayout.Build(state.Lines, width, _wrap, state.Cursor);
         state.Track(inner, _wrap, rows.Count, gutter);
+        state.HitArea = band with { Y = inner.Y, Height = inner.Height };
         var cursor = state.Cursor;
         var cursorRow = TextAreaLayout.RowOf(rows, cursor);
         var cursorColumn = TextAreaState.ColumnIn(state.Lines[cursor.Line], rows[cursorRow], cursor.Index);

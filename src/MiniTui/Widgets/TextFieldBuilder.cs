@@ -34,6 +34,11 @@ public sealed class TextFieldBuilder
         var inner = _block?.Clone().Focused(_focused || _block.IsFocused).Draw(buf, area) ?? area;
         var theme = Theme.Current;
         var style = (_focused ? theme.InputFocused : theme.Input).Patch(_style ?? default);
-        TextFieldRenderer.Draw(buf, inner, _state ?? new TextFieldState(), _focused, style, _placeholder);
+        var state = _state ?? new TextFieldState();
+        // 1.x spec §24.2: the field's style and its clicks reach across the block's padding
+        var band = _block?.AcrossPadding(area, inner with { Height = Math.Min(inner.Height, 1) });
+        if (band is { } b) buf.SetStyle(b, style);
+        TextFieldRenderer.Draw(buf, inner, state, _focused, style, _placeholder);
+        if (band is { } hit) state.HitArea = hit;
     }
 }

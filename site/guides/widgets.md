@@ -18,7 +18,7 @@ Widget.Table()
 
 | Builder | What it draws |
 |---|---|
-| `Block()` | Borders (`Borders.All`, `Top`, …), `BorderType(BoxStyle)`, `Title`/`TitleBottom`, `Padding`, `Focused`. `Draw` returns the inner rect. |
+| `Block()` | Borders (`Borders.All`, `Top`, …), `BorderType(BoxStyle)`, `Title`/`TitleBottom`, `Padding`, `Focused`. `Draw` returns the inner rect. Content sits a column in from side borders by default; `Padding(...)` replaces that (`Padding(new Margin(0))` for none). Lists, tables and trees still highlight border to border. |
 | `Paragraph()` | [`Text`](xref:MiniTui.Text) with `Wrap(WrapMode.None/Word/Char)`, [`Alignment`](xref:MiniTui.Alignment), `Scroll(n)` or `State(ScrollState)`. Unwrapped lines are cut with `…`, or scroll sideways with `ScrollState.ScrollsHorizontally` (see below), with a horizontal scrollbar. `Paragraph.MeasureLines` measures without drawing. |
 | `List()` | `Items(list)` or `Items(list, format)` (only visible rows are formatted), `State(SelectionState)`, `HighlightSymbol("> ")`, `Title`. |
 | `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows`, `State` (▲/▼ on `SortColumn`), `HighlightSymbol`, `Sortable(columns)` (a header click calls `SelectionState.ToggleSort`, and `SortChanged` tells you to re-sort). 100,000 rows cost the same per frame as 100. |

@@ -437,12 +437,13 @@ public class TextAreaTests
     public void ABlock_DrawsAroundTheText()
     {
         var state = new TextAreaState("hello");
-        var buf = new CellBuffer(9, 3);
+        var buf = new CellBuffer(11, 3);
 
         Widget.TextArea().State(state).Block(Widget.Block()).Focused().Draw(buf, buf.Area);
 
-        Assert.Equal("│hello  │", buf.ToLines()[1]);
-        Assert.Equal((6, 1), buf.CursorRequest);
+        // A column of padding inside each border (1.x spec §24.2)
+        Assert.Equal("│ hello   │", buf.ToLines()[1]);
+        Assert.Equal((7, 1), buf.CursorRequest);
     }
 
     [Fact]
@@ -560,11 +561,11 @@ public class TextAreaTests
         harness.Type("hi");
         harness.Press("enter");
         harness.Paste("a\nb");
-        harness.Click(2, 1);
+        harness.Click(3, 1);
 
         Assert.Equal("hi\na\nb", screen.Notes.Text);
         Assert.Equal(0, screen.Enters);
         Assert.Equal(P(0, 1), screen.Notes.Cursor);
-        Assert.Equal("│hi                │", harness.Lines[1]);
+        Assert.Equal("│ hi               │", harness.Lines[1]);
     }
 }

@@ -35,7 +35,7 @@ public sealed class BlockBuilder
     private Line? _title;
     private Alignment _titleAlignment = Alignment.Left;
     private Line? _titleBottom;
-    private Margin _padding;
+    private Margin? _padding;
     private bool _focused;
     private Style? _style;
     private Style? _borderStyle;
@@ -59,7 +59,11 @@ public sealed class BlockBuilder
     /// <summary>A title in the bottom border.</summary>
     public BlockBuilder TitleBottom(Line? title) { _titleBottom = title; return this; }
 
-    /// <summary>Space between the border and the inner area.</summary>
+    /// <summary>
+    /// Space between the border and the inner area. By default, one column inside each side border (left, right)
+    /// and none at the top and bottom, unless that would leave fewer than 3 columns (1.x spec §24.2); this replaces
+    /// it, and <c>Padding(new Margin(0))</c> removes it.
+    /// </summary>
     public BlockBuilder Padding(Margin padding) { _padding = padding; return this; }
 
     /// <summary>Draw with the focused border and title styles.</summary>
@@ -88,13 +92,40 @@ public sealed class BlockBuilder
     /// <summary>The area inside the borders, titles and padding, without drawing.</summary>
     public Rect Inner(Rect area)
     {
+        var bordered = Bordered(area);
+        return bordered.Inner(PaddingFor(bordered));
+    }
+
+    /// <summary>
+    /// Rows laid out in the padded area, widened across the side padding, for a highlight drawn border to border
+    /// (1.x spec §24.2).
+    /// </summary>
+    internal Rect AcrossPadding(Rect area, Rect rows)
+    {
+        if (rows.IsEmpty) return rows;
+        var bordered = Bordered(area);
+        var padding = PaddingFor(bordered);
+        var x = Math.Max(bordered.X, rows.X - padding.Left);
+        var right = Math.Min(bordered.Right, rows.Right + padding.Right);
+        return rows with { X = x, Width = Math.Max(0, right - x) };
+    }
+
+    // The area inside the borders and titles
+    private Rect Bordered(Rect area)
+    {
         var top = Has(MiniTui.Borders.Top) || _title is not null ? 1 : 0;
         var bottom = Has(MiniTui.Borders.Bottom) || _titleBottom is not null ? 1 : 0;
         var left = Has(MiniTui.Borders.Left) ? 1 : 0;
         var right = Has(MiniTui.Borders.Right) ? 1 : 0;
-        return area
-            .Inner(new Margin(left, top, right, bottom))
-            .Inner(_padding);
+        return area.Inner(new Margin(left, top, right, bottom));
+    }
+
+    private Margin PaddingFor(Rect bordered)
+    {
+        if (_padding is { } padding) return padding;
+        var left = Has(MiniTui.Borders.Left) ? 1 : 0;
+        var right = Has(MiniTui.Borders.Right) ? 1 : 0;
+        return bordered.Width - left - right < 3 ? default : new Margin(left, 0, right, 0);
     }
 
     /// <summary>Draw the block.</summary>
