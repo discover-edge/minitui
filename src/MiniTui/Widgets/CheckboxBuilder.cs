@@ -10,6 +10,7 @@ public sealed class CheckboxBuilder
     private bool _focused;
     private Style? _style;
     private Vec2? _hover;
+    private CheckboxState? _state;
 
     /// <summary>The label.</summary>
     public CheckboxBuilder Label(string label) { _label = label ?? ""; return this; }
@@ -25,6 +26,12 @@ public sealed class CheckboxBuilder
     /// </summary>
     public CheckboxBuilder Hover(Vec2? position) { _hover = position; return this; }
 
+    /// <summary>
+    /// Take the value from a state (1.x spec §23.4), instead of <see cref="Checked"/>: the checkbox records where its
+    /// box and label are drawn, for the mouse.
+    /// </summary>
+    public CheckboxBuilder State(CheckboxState state) { _state = state; return this; }
+
     /// <summary>A style patched over the theme's text style for the label.</summary>
     public CheckboxBuilder Style(Style style) { _style = style; return this; }
 
@@ -32,15 +39,21 @@ public sealed class CheckboxBuilder
     public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
-        if (area.IsEmpty) return;
+        if (area.IsEmpty)
+        {
+            _state?.Track(default);
+            return;
+        }
         var theme = Theme.Current;
+        var isChecked = _state?.Checked ?? _checked;
         var brackets = _focused ? theme.BorderFocused : theme.Text;
         var right = area.Right;
         var x = area.X;
         x += buf.SetString(x, area.Y, "[", brackets, right - x);
-        x += buf.SetString(x, area.Y, _checked ? "✓" : " ", theme.Success, right - x);
+        x += buf.SetString(x, area.Y, isChecked ? "✓" : " ", theme.Success, right - x);
         x += buf.SetString(x, area.Y, "]", brackets, right - x);
         if (right - x > 1) x += 1 + WidgetText.DrawString(buf, x + 1, area.Y, _label, right - x - 1, theme.Text.Patch(_style ?? default));
+        _state?.Track(new Rect(area.X, area.Y, x - area.X, 1));
         if (_hover is { } p && p.Y == area.Y && p.X >= area.X && p.X < x) buf.SetStyle(new Rect(area.X, area.Y, x - area.X, 1), theme.Hover);
     }
 }

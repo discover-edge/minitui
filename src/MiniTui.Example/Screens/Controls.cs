@@ -54,23 +54,42 @@ internal sealed class SelectInput(string label, string placeholder, IReadOnlyLis
             .Draw(buf, area);
 }
 
-/// <summary>A checkbox toggled with Space, Enter or a click.</summary>
-internal sealed class Toggle(string label) : Component
+/// <summary>A checkbox on a CheckboxState: Space or a click on its box or label toggles it (1.x spec §23.4).</summary>
+internal sealed class CheckboxField(string label) : Component
 {
-    public bool Checked { get; set; }
+    public CheckboxState State { get; } = new();
 
-    public override bool HandleKey(ConsoleKeyInfo key) => key.Key is ConsoleKey.Spacebar or ConsoleKey.Enter && Flip();
+    public bool Checked => State.Checked;
 
-    public override bool HandleMouse(MouseEvent mouse) => mouse.IsClick && Flip();
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
 
-    private bool Flip()
-    {
-        Checked = !Checked;
-        return true;
-    }
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
 
     public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
-        Widget.Checkbox().Label(label).Checked(Checked).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
+        Widget.Checkbox().Label(label).State(State).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
+}
+
+/// <summary>
+/// A button on a ButtonState: Enter, Space, or a click released over it runs the action; a press dragged off it is
+/// cancelled (1.x spec §23.4).
+/// </summary>
+internal sealed class ButtonField : Component
+{
+    private readonly ButtonState _state = new();
+    private readonly string _label;
+
+    public ButtonField(string label, Action pressed)
+    {
+        _label = label;
+        _state.Pressed += (_, _) => pressed();
+    }
+
+    public override bool HandleKey(ConsoleKeyInfo key) => _state.HandleKey(key);
+
+    public override bool HandleMouse(MouseEvent mouse) => _state.HandleMouse(mouse);
+
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
+        Widget.Button().Label(_label).State(_state).Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area);
 }
 
 /// <summary>A scrolling list of strings with its own selection.</summary>

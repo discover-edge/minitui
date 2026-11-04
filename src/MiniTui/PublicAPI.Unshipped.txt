@@ -5,3 +5,19 @@ MiniTui.ScrollState.HorizontalOffset.set -> void
 MiniTui.ScrollState.ScrollsHorizontally.get -> bool
 MiniTui.ScrollState.ScrollsHorizontally.set -> void
 MiniTui.ScrollState.ViewportWidth.get -> int
+MiniTui.ButtonBuilder.State(MiniTui.ButtonState! state) -> MiniTui.ButtonBuilder!
+MiniTui.ButtonState
+MiniTui.ButtonState.ButtonState() -> void
+MiniTui.ButtonState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.ButtonState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.ButtonState.IsDown.get -> bool
+MiniTui.ButtonState.Pressed -> System.EventHandler?
+MiniTui.CheckboxBuilder.State(MiniTui.CheckboxState! state) -> MiniTui.CheckboxBuilder!
+MiniTui.CheckboxState
+MiniTui.CheckboxState.Changed -> System.EventHandler?
+MiniTui.CheckboxState.CheckboxState() -> void
+MiniTui.CheckboxState.Checked.get -> bool
+MiniTui.CheckboxState.Checked.set -> void
+MiniTui.CheckboxState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.CheckboxState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.CheckboxState.Toggle() -> void

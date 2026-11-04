@@ -10,6 +10,7 @@ public sealed class ButtonBuilder
     private bool _focused;
     private bool _pressed;
     private Style? _style;
+    private ButtonState? _state;
 
     /// <summary>The label.</summary>
     public ButtonBuilder Label(string label) { _label = label ?? ""; return this; }
@@ -25,6 +26,12 @@ public sealed class ButtonBuilder
     /// </summary>
     public ButtonBuilder Hover(Vec2? position) { _hover = position; return this; }
 
+    /// <summary>
+    /// Take presses from a state (1.x spec §23.4): the button records where it's drawn for the mouse, and draws
+    /// pressed while <see cref="ButtonState.IsDown"/>.
+    /// </summary>
+    public ButtonBuilder State(ButtonState state) { _state = state; return this; }
+
     /// <summary>A style patched over the theme's button style.</summary>
     public ButtonBuilder Style(Style style) { _style = style; return this; }
 
@@ -32,9 +39,10 @@ public sealed class ButtonBuilder
     public void Draw(CellBuffer buf, Rect area)
     {
         ArgumentNullException.ThrowIfNull(buf);
+        _state?.Track(area);
         if (area.IsEmpty) return;
         var theme = Theme.Current;
-        var style = (_pressed ? theme.ButtonFocused.Reversed() : _focused ? theme.ButtonFocused : theme.Button).Patch(_style ?? default);
+        var style = (_pressed || _state?.IsDown == true ? theme.ButtonFocused.Reversed() : _focused ? theme.ButtonFocused : theme.Button).Patch(_style ?? default);
         WidgetText.Clear(buf, area);
         if (_hover is { } p && area.Contains(p.X, p.Y)) style = style.Patch(theme.Hover);
         buf.SetStyle(area, style);

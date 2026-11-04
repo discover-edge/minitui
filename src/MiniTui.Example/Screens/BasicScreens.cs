@@ -87,7 +87,7 @@ internal sealed class ProgressScreen : Screen
     }
 }
 
-/// <summary>Text fields, a select and a checkbox in one focus scope: Tab moves between them.</summary>
+/// <summary>Text fields, selects, a checkbox and a button in one focus scope: Tab moves between them.</summary>
 internal sealed class FormScreen : Screen
 {
     private readonly TextInput _name;
@@ -95,7 +95,8 @@ internal sealed class FormScreen : Screen
     private readonly SelectInput _plan;
     private readonly SelectInput _country;
     private readonly NotesInput _notes;
-    private readonly Toggle _subscribe;
+    private readonly CheckboxField _subscribe;
+    private readonly ButtonField _submit;
 
     // A filterable select: typing on the field opens it and narrows the list
     private static readonly string[] Countries =
@@ -118,8 +119,9 @@ internal sealed class FormScreen : Screen
         _country = AddChild(new SelectInput("Country", "Type to search", Countries));
         _country.State.Filterable = true;
         _notes = AddChild(new NotesInput("Notes", "Anything else? Enter starts a new line."));
-        _subscribe = AddChild(new Toggle("Subscribe to newsletter"));
-        Focus.Add(_name).Add(_email).Add(_plan).Add(_country).Add(_notes).Add(_subscribe);
+        _subscribe = AddChild(new CheckboxField("Subscribe to newsletter"));
+        _submit = AddChild(new ButtonField("Submit", Submit));
+        Focus.Add(_name).Add(_email).Add(_plan).Add(_country).Add(_notes).Add(_subscribe).Add(_submit);
         // Ctrl+Enter needs a terminal with a keyboard protocol (kitty, WezTerm, foot, Windows Terminal...); Ctrl+S works everywhere
         Keys.Add("ctrl+s,ctrl+enter", "Submit", Submit);
     }
@@ -136,6 +138,8 @@ internal sealed class FormScreen : Screen
             .Add("gap", Constraint.Length(1))
             .Add("subscribe", Constraint.Length(1))
             .Add("gap2", Constraint.Length(1))
+            .Add("submit", Constraint.Length(1))
+            .Add("gap3", Constraint.Length(1))
             .Add("help", Constraint.Length(1))
             .Add("select", Constraint.Length(1))
             .Add("clipboard", Constraint.Length(1))
@@ -146,6 +150,7 @@ internal sealed class FormScreen : Screen
         ctx.Render(_country, buf, rows["country"]);
         ctx.Render(_notes, buf, rows["notes"]);
         ctx.Render(_subscribe, buf, rows["subscribe"]);
+        ctx.Render(_submit, buf, rows["submit"] with { Width = Math.Min(rows["submit"].Width, 12) });
         buf.SetString(rows["help"].X, rows["help"].Y, "Tab next field · Space toggle · Ctrl+S or Ctrl+Enter submit", ctx.Theme.TextMuted);
         buf.SetString(rows["select"].X, rows["select"].Y, "Shift+arrows select · Ctrl+A select all", ctx.Theme.TextMuted);
         buf.SetString(rows["clipboard"].X, rows["clipboard"].Y, "Ctrl+C/X/V, Ctrl/Shift+Ins · Ctrl+Z undo", ctx.Theme.TextMuted);
