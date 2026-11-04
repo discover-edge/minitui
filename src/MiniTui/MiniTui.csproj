@@ -32,6 +32,7 @@
     <PackageProjectUrl>https://minitui.org</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -42,6 +43,8 @@
   <ItemGroup>
     <!-- The package page on nuget.org: a summary that links to minitui.org (1.x spec §21.7) -->
     <None Include="PACKAGE.md" Pack="true" PackagePath="/README.md" />
+    <!-- The icon on nuget.org: site/images/logo.svg rendered at 128x128 -->
+    <None Include="icon.png" Pack="true" PackagePath="/" />
   </ItemGroup>
 
   <ItemGroup>
