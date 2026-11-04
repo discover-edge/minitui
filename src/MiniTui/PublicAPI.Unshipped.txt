@@ -1,1 +1,7 @@
 #nullable enable
+MiniTui.ScrollState.ContentWidth.get -> int
+MiniTui.ScrollState.HorizontalOffset.get -> int
+MiniTui.ScrollState.HorizontalOffset.set -> void
+MiniTui.ScrollState.ScrollsHorizontally.get -> bool
+MiniTui.ScrollState.ScrollsHorizontally.set -> void
+MiniTui.ScrollState.ViewportWidth.get -> int

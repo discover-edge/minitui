@@ -4921,7 +4921,7 @@ public sealed class ScrollState
 {
     // Existing members unchanged
 
-    /// Let ← → and the horizontal wheel (or Shift+wheel) scroll unwrapped text sideways. Off by default.
+    /// Let ← → and the horizontal wheel (or Shift+wheel or Alt+wheel) scroll unwrapped text sideways. Off by default.
     public bool ScrollsHorizontally { get; set; }
 
     /// The first visible column of unwrapped text. Clamped when drawn.
@@ -4934,16 +4934,28 @@ public sealed class ScrollState
 ```
 
 - **When it applies:** a `ParagraphBuilder` with `WrapMode.None`, a `State(...)` whose `ScrollsHorizontally` is
-  true. Rows are drawn from `HorizontalOffset`, clipped at the edges instead of cut with `…`, except that a row
-  continuing past the right edge shows `…` in the last column, and one scrolled past its start shows `…` in the
-  first (only when the row is wider than the view).
+  true. Rows wider than the view are drawn from `HorizontalOffset`, clipped at the edges instead of cut with `…`.
+- **Scrollbar** (amended at review): when a row is wider than the view, a horizontal scrollbar is shown, like the
+  vertical one is when rows overflow. It goes on the bottom border when the block has one without a bottom
+  title, and otherwise takes the last text row. Its thumb drags and its track pages by a view's width (§14.4).
+  With both bars and no borders, the corner cell is left blank. Where there's no room for it (no free bottom
+  border and a single row), a row continuing past the right edge shows `…` in the last column instead, and one
+  scrolled past its start `…` in the first.
 - **Keys:** ← and → scroll by 8 columns (not handled at the edge, so they go on); `HandleKey`'s Home and End also
   go to the first and last column. Alignment applies only to rows narrower than the view.
 - **Mouse:** `ScrollLeft`/`ScrollRight` (a horizontal wheel or trackpad), and Shift with the vertical wheel, scroll
-  by 8 columns.
+  by 8 columns, and so does Alt with the wheel (amended at review): terminals that keep Shift for bypassing mouse
+  mode (Windows Terminal, WezTerm, foot) don't send Shift+wheel to the app, but Windows Terminal sends Alt+wheel.
+  Ctrl+wheel is left alone, being zoom in most apps.
 - **Selection** (§20.5) works in the scrolled view: positions are columns of the row's text, so a selection keeps
   its text when scrolled, and dragging past the left or right edge scrolls by a column.
 - **Off by default,** so screens that use ← → for something else keep them. Without it, nothing changes.
+- **Laid out again** (amended at review, for toggling wrapping): a paragraph's selection is kept by its place in
+  the text (a line and a column of it), not by row, so it survives the rows being laid out again; it's cleared
+  only when its lines are gone. When the width or the wrap mode changes and the offset wasn't moved since the last
+  draw, the line at the top stays at the top (the row holding the old top's place), and a view at the end stays at
+  the end. This applies to every paragraph with a state, wrapped or not, so a resize keeps its place too.
+  Toggling wrapping is left to the app (a binding that switches `Wrap(...)`); the example's Dashboard log binds `w`.
 
 ### 23.4 Checkbox and button states (addition)
 
@@ -4981,7 +4993,7 @@ public sealed class ButtonBuilder   { public ButtonBuilder State(ButtonState sta
 
 - **Bars:** a value over a short bar goes above it and leaves the glyph whole; whole-cell bars unchanged; an empty
   bar's value; two short neighbours whose values would touch; no row above; stacks.
-- **Paragraphs:** offsets and clamping, ← → at the edges, Home and End, the edge `…`s, the wheel and Shift+wheel,
+- **Paragraphs:** offsets and clamping, ← → at the edges, Home and End, the edge `…`s, the wheel, Shift+wheel and Alt+wheel,
   alignment of short rows, selection while scrolled and dragging past the side edges, `ScrollsHorizontally` off.
 - **States:** Space, clicks on the box and the label, `Changed` only from the user; button Enter, Space, a click,
   a press dragged off and released (no `Pressed`), `IsDown` while held.
@@ -4995,7 +5007,6 @@ Manual QA: the monitor's chart (rebuilt against the fix), a long-line paragraph 
 
 ### 23.7 Out of scope
 
-- A horizontal scrollbar (the `…`s show there's more).
 - Horizontal scrolling of wrapped text, lists or tables.
 - Radio buttons and checkbox groups (`SelectState` covers a choice of one).
 

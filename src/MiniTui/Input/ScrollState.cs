@@ -19,6 +19,22 @@ public sealed class ScrollState
     public int ContentHeight { get; private set; }
 
     /// <summary>
+    /// Let ← → and the horizontal wheel (or Shift or Alt with the wheel) scroll unwrapped text sideways by 8 columns
+    /// (1.x spec §23.3), for a <see cref="ParagraphBuilder"/> with <see cref="WrapMode.None"/>. Off by default, so
+    /// ← → stay free for the screen.
+    /// </summary>
+    public bool ScrollsHorizontally { get; set; }
+
+    /// <summary>The first visible column of unwrapped text, with <see cref="ScrollsHorizontally"/>. Clamped when drawn.</summary>
+    public int HorizontalOffset { get; set; }
+
+    /// <summary>How many columns were visible at the last draw, with <see cref="ScrollsHorizontally"/>.</summary>
+    public int ViewportWidth { get; private set; }
+
+    /// <summary>How wide the widest row was at the last draw, with <see cref="ScrollsHorizontally"/>.</summary>
+    public int ContentWidth { get; private set; }
+
+    /// <summary>
     /// Let the mouse select the text (1.x spec §20.5): a press and drag select, a double-click a word, a triple-click
     /// a row. Ctrl+C and Ctrl+Insert copy, Ctrl+A selects all and Esc clears. Off by default.
     /// </summary>
@@ -53,10 +69,11 @@ public sealed class ScrollState
         if (_rows.Count == 0) return;
         _anchor = new Mark(0, 0);
         _head = new Mark(_rows.Count - 1, _rows[^1].Width);
+        Remember();
     }
 
     /// <summary>Clear the selection.</summary>
-    public void ClearSelection() => _anchor = _head = default;
+    public void ClearSelection() => _anchor = _head = _anchorAt = _headAt = default;
 
     /// <summary>Copy the selection to the <see cref="Clipboard"/>.</summary>
     /// <returns>False, doing nothing, without a selection.</returns>
@@ -71,8 +88,9 @@ public sealed class ScrollState
     public void ScrollBy(int rows) => Offset = Clamp(Offset + rows);
 
     /// <summary>
-    /// Handle ↑ ↓ j k PgUp PgDn Home End; when <see cref="Selectable"/>, also Ctrl+C and Ctrl+Insert (copy, with a
-    /// selection), Ctrl+A (select all) and Esc (clear a selection).
+    /// Handle ↑ ↓ j k PgUp PgDn Home End; when <see cref="ScrollsHorizontally"/>, also ← and → (unhandled at the
+    /// edge), with Home and End going to the first and last column too; when <see cref="Selectable"/>, also Ctrl+C
+    /// and Ctrl+Insert (copy, with a selection), Ctrl+A (select all) and Esc (clear a selection).
     /// </summary>
     /// <returns>True if the key was handled.</returns>
     public bool HandleKey(ConsoleKeyInfo key)
@@ -85,8 +103,16 @@ public sealed class ScrollState
             case ConsoleKey.DownArrow: ScrollBy(1); return true;
             case ConsoleKey.PageUp: ScrollBy(-page); return true;
             case ConsoleKey.PageDown: ScrollBy(page); return true;
-            case ConsoleKey.Home: Offset = 0; return true;
-            case ConsoleKey.End: Offset = MaxOffset; return true;
+            case ConsoleKey.Home:
+                Offset = 0;
+                if (ScrollsHorizontally) HorizontalOffset = 0;
+                return true;
+            case ConsoleKey.End:
+                Offset = MaxOffset;
+                if (ScrollsHorizontally) HorizontalOffset = MaxColumns;
+                return true;
+            case ConsoleKey.LeftArrow when ScrollsHorizontally: return ScrollSideways(-SideStep);
+            case ConsoleKey.RightArrow when ScrollsHorizontally: return ScrollSideways(SideStep);
         }
 
         if (KeyInput.HasCommandModifier(key)) return false;
@@ -100,7 +126,9 @@ public sealed class ScrollState
 
     /// <summary>
     /// Handle the mouse over the text drawn last (1.x spec §4.8, §14.4): the wheel scrolls by three rows, the
-    /// scrollbar's thumb drags and its track pages. When <see cref="Selectable"/>, the left button selects (§20.5).
+    /// scrollbar's thumb drags and its track pages. When <see cref="ScrollsHorizontally"/>, the horizontal wheel and
+    /// Shift or Alt with the wheel scroll sideways by 8 columns, and so does the horizontal scrollbar (§23.3). When <see cref="Selectable"/>, the left button
+    /// selects (§20.5).
     /// </summary>
     /// <returns>True if it scrolled, tried to, or selected.</returns>
     public bool HandleMouse(MouseEvent mouse)
@@ -112,8 +140,30 @@ public sealed class ScrollState
             Offset = Clamp(offset);
             return true;
         }
+        var columns = HorizontalOffset;
+        if (_columnBar.Handle(mouse, ref columns))
+        {
+            HorizontalOffset = ClampColumns(columns);
+            return true;
+        }
         if (Selectable && HandleSelectionMouse(mouse)) return true;
         if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
+        if (ScrollsHorizontally)
+        {
+            // Alt as well as Shift: terminals that keep Shift for bypassing mouse mode still send Alt
+            var sideways = (mouse.Modifiers & (ConsoleModifiers.Shift | ConsoleModifiers.Alt)) != 0;
+            switch (mouse.Action)
+            {
+                case MouseAction.ScrollLeft:
+                case MouseAction.ScrollUp when sideways:
+                    ScrollColumnsBy(-SideStep);
+                    return true;
+                case MouseAction.ScrollRight:
+                case MouseAction.ScrollDown when sideways:
+                    ScrollColumnsBy(SideStep);
+                    return true;
+            }
+        }
         switch (mouse.Action)
         {
             case MouseAction.ScrollUp: ScrollBy(-WheelRows); return true;
@@ -127,23 +177,41 @@ public sealed class ScrollState
     {
         _mouseArea = area;
         _bar.Track(default, 0, 0);
+        _columnBar.Track(default, 0, 0);
     }
 
     /// <summary>
     /// Called by widgets while drawing, after <see cref="Fit"/>: the rows laid out and where they were drawn, for
-    /// selecting. A selection on rows that are gone is cleared.
+    /// selecting. A selection is kept by its place in the text, so it survives the rows being laid out again; one on
+    /// lines that are gone is cleared. When the layout changes and the offset wasn't moved, the line at the top
+    /// stays there (1.x spec §23.3).
     /// </summary>
-    internal void TrackRows(Rect text, IReadOnlyList<Line> rows, Alignment alignment)
+    /// <param name="text">Where the rows were drawn.</param>
+    /// <param name="rows">The rows laid out.</param>
+    /// <param name="origins">Where each row starts in the text: its line and the column in that line.</param>
+    /// <param name="alignment">The paragraph's alignment.</param>
+    /// <param name="columns">When scrolling sideways, the first visible column: rows wider than the view start there.</param>
+    /// <param name="layout">What the rows were laid out for; the top line is kept when it changes.</param>
+    internal void TrackRows(Rect text, IReadOnlyList<Line> rows, IReadOnlyList<(int Line, int From)> origins, Alignment alignment,
+        int? columns = null, (int Width, WrapMode Wrap) layout = default)
     {
         _textArea = text;
+        KeepTop(origins, layout);
         _rows.Clear();
         if (!Selectable) return;
-        foreach (var line in rows)
+        for (var i = 0; i < rows.Count; i++)
         {
+            var line = rows[i];
+            var (source, from) = origins[i];
             var content = new StringBuilder();
             foreach (var span in line.Spans) content.Append(Sanitizer.SingleLine(span.Content ?? ""));
             var row = content.ToString();
             var width = UnicodeWidth.Of(row);
+            if (columns is not null && width > text.Width)
+            {
+                _rows.Add(new Row(row, width, 0, source, from, Scrolls: true));
+                continue;
+            }
             var shown = Math.Min(width, text.Width);
             var start = (line.Alignment != Alignment.Left ? line.Alignment : alignment) switch
             {
@@ -151,9 +219,30 @@ public sealed class ScrollState
                 Alignment.Right => text.Width - shown,
                 _ => 0,
             };
-            _rows.Add(new Row(row, width, start));
+            _rows.Add(new Row(row, width, start, source, from));
         }
-        if (HasSelection && Math.Max(_anchor.Row, _head.Row) >= _rows.Count) ClearSelection();
+        if (_anchorAt == _headAt) return;
+        if (_rows.Count == 0 || Math.Max(_anchorAt.Row, _headAt.Row) > _rows[^1].Line) ClearSelection();
+        else (_anchor, _head) = (ToRow(_anchorAt), ToRow(_headAt));
+    }
+
+    // The same line at the top after the rows are laid out again, unless the offset was moved; at the end, the end
+    private void KeepTop(IReadOnlyList<(int Line, int From)> origins, (int Width, WrapMode Wrap) layout)
+    {
+        if (_layout is { } last && last != layout && _requested == _drawnOffset && origins.Count > 0)
+        {
+            if (_atEnd) Offset = MaxOffset;
+            else
+            {
+                var row = 0;
+                while (row + 1 < origins.Count && origins[row + 1].CompareTo(_top) <= 0) row++;
+                Offset = Clamp(row);
+            }
+        }
+        _layout = layout;
+        _drawnOffset = Offset;
+        _top = Offset < origins.Count ? origins[Offset] : default;
+        _atEnd = MaxOffset > 0 && Offset == MaxOffset;
     }
 
     /// <summary>
@@ -175,32 +264,81 @@ public sealed class ScrollState
             x0 = Math.Min(x0, column);
             x1 = column + width;
         }
-        return x1 > x0 ? (x0 + _rows[row].Start, x1 + _rows[row].Start) : default;
+        var shift = StartOf(_rows[row]);
+        return x1 > x0 ? (x0 + shift, x1 + shift) : default;
     }
 
     /// <summary>Called by widgets while drawing, after <see cref="Fit"/>: where the scrollbar was drawn.</summary>
     internal void TrackScrollbar(Rect bar) => _bar.Track(bar, ContentHeight, ViewportHeight);
+
+    /// <summary>Called by widgets while drawing, after <see cref="FitColumns"/>: where the horizontal scrollbar was drawn.</summary>
+    internal void TrackColumnScrollbar(Rect bar) => _columnBar.Track(bar, ContentWidth, ViewportWidth);
 
     /// <summary>Called by widgets while drawing.</summary>
     internal void Fit(int contentHeight, int viewportHeight)
     {
         ContentHeight = Math.Max(0, contentHeight);
         ViewportHeight = Math.Max(0, viewportHeight);
+        _requested = Offset;
         Offset = Clamp(Offset);
     }
 
+    /// <summary>Called by widgets while drawing: the widest row and the visible columns, for scrolling sideways.</summary>
+    internal void FitColumns(int contentWidth, int viewportWidth)
+    {
+        ContentWidth = Math.Max(0, contentWidth);
+        ViewportWidth = Math.Max(0, viewportWidth);
+        HorizontalOffset = ClampColumns(HorizontalOffset);
+    }
+
     private const int WheelRows = 3;
+    private const int SideStep = 8;
 
     private Rect _mouseArea;
     private Rect _textArea;
     private readonly ScrollbarDrag _bar = new();
+    private readonly ScrollbarDrag _columnBar = new(horizontal: true);
     private readonly List<Row> _rows = [];
+    // The selection in rows as drawn, and in the text (a line and a column of it), which it's kept by
     private Mark _anchor;
     private Mark _head;
+    private Mark _anchorAt;
+    private Mark _headAt;
     private bool _selecting;
 
-    // A row as drawn: its text, its width, and the column it starts at (by its alignment)
-    private readonly record struct Row(string Text, int Width, int Start);
+    // The layout drawn last, the offset asked for and drawn, and the top row's place in the text
+    private (int Width, WrapMode Wrap)? _layout;
+    private int _requested;
+    private int _drawnOffset;
+    private (int Line, int From) _top;
+    private bool _atEnd;
+
+    // A row as drawn: its text, its width, the column it starts at (by its alignment) or that it scrolls sideways,
+    // and its line and first column in the text
+    private readonly record struct Row(string Text, int Width, int Start, int Line, int From, bool Scrolls = false);
+
+    // The selection's rows as places in the text
+    private void Remember() => (_anchorAt, _headAt) = (ToText(_anchor), ToText(_head));
+
+    private Mark ToText(Mark mark) => _rows.Count == 0 ? default : new Mark(_rows[mark.Row].Line, _rows[mark.Row].From + mark.Column);
+
+    // The row and column of a place in the text: in the last row starting at or before it, at most at its end
+    private Mark ToRow(Mark at)
+    {
+        int low = 0, high = _rows.Count - 1;
+        while (low < high)
+        {
+            var mid = (low + high + 1) / 2;
+            var row = _rows[mid];
+            if (row.Line < at.Row || (row.Line == at.Row && row.From <= at.Column)) low = mid;
+            else high = mid - 1;
+        }
+        var found = _rows[low];
+        var column = found.Line < at.Row ? found.Width : Math.Clamp(at.Column - found.From, 0, found.Width);
+        return new Mark(low, column);
+    }
+
+    private int StartOf(Row row) => row.Scrolls ? -HorizontalOffset : row.Start;
 
     // A row and a column of that row's text: the boundary before that cell
     private readonly record struct Mark(int Row, int Column) : IComparable<Mark>
@@ -244,14 +382,19 @@ public sealed class ScrollState
                     _head = at with { Column = row.Width };
                 }
                 else _anchor = _head = at;
+                Remember();
                 return true;
             case MouseAction.Drag when mouse.Button == MouseButton.Left && _selecting:
+                // Past the left or right edge, scroll a column (1.x spec §23.3)
+                if (ScrollsHorizontally && mouse.X < area.X) ScrollColumnsBy(-1);
+                else if (ScrollsHorizontally && mouse.X >= area.Right) ScrollColumnsBy(1);
                 // Past the top or bottom, scroll a row and select to the first or last visible row
                 int visible;
                 if (mouse.Y < area.Y) visible = Offset = Clamp(Offset - 1);
                 else if (mouse.Y >= area.Bottom) visible = (Offset = Clamp(Offset + 1)) + area.Height - 1;
                 else visible = Offset + mouse.Y - area.Y;
-                _head = MarkAt(visible, mouse.X - area.X);
+                _head = MarkAt(visible, ScrollsHorizontally ? Math.Clamp(mouse.X - area.X, 0, area.Width) : mouse.X - area.X);
+                Remember();
                 return true;
             case MouseAction.Release when _selecting:
                 _selecting = false;
@@ -267,7 +410,7 @@ public sealed class ScrollState
         if (row >= _rows.Count) return new Mark(_rows.Count - 1, _rows[^1].Width);
         row = Math.Max(0, row);
         var text = _rows[row];
-        var column = Math.Clamp(x - text.Start, 0, text.Width);
+        var column = Math.Clamp(x - StartOf(text), 0, text.Width);
         // Inside a wide character, the boundary before it
         var at = 0;
         foreach (var (_, start, width) in Clusters(text.Text))
@@ -311,6 +454,23 @@ public sealed class ScrollState
     }
 
     private int MaxOffset => Math.Max(0, ContentHeight - ViewportHeight);
+
+    private void ScrollColumnsBy(int columns) => HorizontalOffset = ClampColumns(HorizontalOffset + columns);
+
+    private int MaxColumns => Math.Max(0, ContentWidth - ViewportWidth);
+
+    // Scroll sideways; false, doing nothing, at that edge (and before anything wider than the view was drawn)
+    private bool ScrollSideways(int columns)
+    {
+        var to = Math.Clamp(HorizontalOffset + columns, 0, MaxColumns);
+        if (to == HorizontalOffset) return false;
+        HorizontalOffset = to;
+        return true;
+    }
+
+    private int ClampColumns(int offset) => ContentWidth == 0 && ViewportWidth == 0
+        ? Math.Max(0, offset)
+        : Math.Clamp(offset, 0, MaxColumns);
 
     // Before the first draw the content size is unknown, so only negative offsets are clamped
     private int Clamp(int offset) => ContentHeight == 0 && ViewportHeight == 0

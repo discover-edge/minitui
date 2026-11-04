@@ -19,7 +19,7 @@ Widget.Table()
 | Builder | What it draws |
 |---|---|
 | `Block()` | Borders (`Borders.All`, `Top`, …), `BorderType(BoxStyle)`, `Title`/`TitleBottom`, `Padding`, `Focused`. `Draw` returns the inner rect. |
-| `Paragraph()` | [`Text`](xref:MiniTui.Text) with `Wrap(WrapMode.None/Word/Char)`, [`Alignment`](xref:MiniTui.Alignment), `Scroll(n)` or `State(ScrollState)`. `Paragraph.MeasureLines` measures without drawing. |
+| `Paragraph()` | [`Text`](xref:MiniTui.Text) with `Wrap(WrapMode.None/Word/Char)`, [`Alignment`](xref:MiniTui.Alignment), `Scroll(n)` or `State(ScrollState)`. Unwrapped lines are cut with `…`, or scroll sideways with `ScrollState.ScrollsHorizontally` (see below), with a horizontal scrollbar. `Paragraph.MeasureLines` measures without drawing. |
 | `List()` | `Items(list)` or `Items(list, format)` (only visible rows are formatted), `State(SelectionState)`, `HighlightSymbol("> ")`, `Title`. |
 | `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows`, `State` (▲/▼ on `SortColumn`), `HighlightSymbol`, `Sortable(columns)` (a header click calls `SelectionState.ToggleSort`, and `SortChanged` tells you to re-sort). 100,000 rows cost the same per frame as 100. |
 | `Scrollbar()` | `Vertical`/`Horizontal`, `ContentLength`, `Position`, `ViewportLength`. Hidden when the content fits. |
@@ -37,6 +37,39 @@ Widget.Table()
 | `TabBar()` | `Tabs(...)` with [`TabBarState`](xref:MiniTui.TabBarState), scrolled to keep the selected tab visible. |
 | `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](keys-and-state.md#trees). |
 | `Button()`, `Checkbox()` | Themed controls. |
+
+**Long lines.** A paragraph with `WrapMode.None` cuts long lines with `…`. Give it a `ScrollState` with
+`ScrollsHorizontally = true` and they scroll instead: ← and → move 8 columns (and go unhandled at the edge, so
+the screen gets them), Home and End go to the first and last column, and the horizontal wheel or Shift or Alt
+with the wheel scrolls too. A horizontal scrollbar shows while a row is wider than the view, on the bottom border (or in
+the last row when that border has a title), and its thumb drags. Some terminals (Windows Terminal, WezTerm, foot) keep
+Shift+wheel for themselves, to get past mouse mode; Alt+wheel works in Windows Terminal. Rows narrower than the view keep their alignment.
+`HorizontalOffset` is the first visible column; `ContentWidth` and `ViewportWidth` are set when it's drawn.
+It's off by default so that ← → stay free for screens that use them.
+
+**Toggling wrapping.** The builder is made each frame, so a key that flips a flag can switch `Wrap(...)`. A
+paragraph with a `ScrollState` keeps its place when its rows are laid out again: the line at the top stays at the
+top (and a view at the end stays at the end), and a selection keeps its text. That holds for a resize too.
+
+```csharp
+bool _wrap;
+
+public LogView() => Keys.Add("w", "Wrap", () => _wrap = !_wrap);
+
+// In Render
+Widget.Paragraph().Text(log).State(_log).Wrap(_wrap ? WrapMode.Word : WrapMode.None).Draw(buf, area);
+```
+
+```csharp
+readonly ScrollState _log = new() { ScrollsHorizontally = true, Selectable = true };
+
+public override bool HandleKey(ConsoleKeyInfo key) => _log.HandleKey(key);
+public override bool HandleMouse(MouseEvent mouse) => _log.HandleMouse(mouse);
+
+public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
+    Widget.Paragraph().Text(string.Join("\n", _lines)).State(_log)
+        .Block(Widget.Block().Title(" Log ").Focused(ctx.Focused)).Draw(buf, area);
+```
 
 ```csharp
 Widget.Chart()
