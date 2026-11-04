@@ -182,7 +182,7 @@ public sealed class BarChartBuilder
         var height = inner.Height - labelRow;
         var bottom = inner.Y + height - 1;
         var x = (long)inner.X;
-        var above = new List<(long From, long To)>();
+        var drawn = new List<(Column Column, long X, List<(long End, Style Style)> Ends, long Top)>();
         for (var i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
@@ -200,40 +200,68 @@ public sealed class BarChartBuilder
                 var style = ends.First(e => e.End > 8L * row).Style;
                 for (var dx = 0; dx < _barWidth; dx++) buf.SetString((int)x + dx, bottom - row, glyph, style, 1);
             }
-
-            var valueWidth = UnicodeWidth.Of(column.Value);
-            if (valueWidth > 0 && valueWidth <= _barWidth && height > 0)
-            {
-                // 1.x spec §23.2: inside a bar of a whole cell or more; above a shorter one, so its glyph stays whole;
-                // in the bottom row of an empty one. The last two take the bar's color.
-                var color = text.Patch(new Style((ends.Count > 0 ? ends[^1].Style : column.Segments[0].Style).Fg));
-                if (top >= 8)
-                {
-                    // A stack's total goes in its top whole cell
-                    var row = column.IsStack ? (int)(top / 8) - 1 : 0;
-                    WidgetText.DrawString(buf, (int)x, bottom - row, column.Value, _barWidth, ends.First(e => e.End > 8L * row).Style.Reversed(), Alignment.Center);
-                }
-                else if (top == 0)
-                {
-                    WidgetText.DrawString(buf, (int)x, bottom, column.Value, _barWidth, color, Alignment.Center);
-                }
-                else if (height >= 2)
-                {
-                    // Short bars' neighbours share the row above: a value that would touch one already there is left out
-                    var from = x + (_barWidth - valueWidth) / 2;
-                    var to = from + valueWidth;
-                    if (!above.Any(v => from <= v.To && v.From <= to))
-                    {
-                        WidgetText.DrawString(buf, (int)x, bottom - 1, column.Value, _barWidth, color, Alignment.Center);
-                        above.Add((from, to));
-                    }
-                }
-            }
+            drawn.Add((column, x, ends, top));
             if (labelRow > 0 && (column.GroupSize > 0 || _groups is null || _stacked))
                 WidgetText.DrawString(buf, (int)x, inner.Bottom - 1, column.Label, groupWidth, text, Alignment.Center);
             x += _barWidth + column.GapAfter;
         }
+        if (height > 0) DrawValues(buf, inner, drawn, height, bottom, text);
     }
+
+    // 1.x spec §23.2, §24.4: each value whole or not at all, after the bars are drawn so a wide one can check its row
+    private void DrawValues(CellBuffer buf, Rect inner, List<(Column Column, long X, List<(long End, Style Style)> Ends, long Top)> drawn,
+        int height, int bottom, Style text)
+    {
+        // The values drawn on each row, by row from the bottom: one that would touch one of them is left out
+        var placed = new Dictionary<int, List<(long From, long To)>>();
+        bool Free(int row, long from, long to) =>
+            !placed.TryGetValue(row, out var spans) || !spans.Any(v => from <= v.To && v.From <= to);
+        void Place(int row, long from, long to) =>
+            (placed.TryGetValue(row, out var spans) ? spans : placed[row] = []).Add((from, to));
+
+        foreach (var (column, x, ends, top) in drawn)
+        {
+            var valueWidth = UnicodeWidth.Of(column.Value);
+            if (valueWidth == 0) continue;
+            var color = text.Patch(new Style((ends.Count > 0 ? ends[^1].Style : column.Segments[0].Style).Fg));
+            var cells = (int)((top + 7) / 8);   // the rows the bar has a glyph in
+            int row;
+            long from;
+            Style style;
+            if (valueWidth <= _barWidth)
+            {
+                from = x + (_barWidth - valueWidth) / 2;
+                // Inside a bar of a whole cell or more (a stack's total in its top whole cell), reversed; above a
+                // shorter one, so its glyph stays whole; in the bottom row of an empty one
+                if (top >= 8)
+                {
+                    row = column.IsStack ? (int)(top / 8) - 1 : 0;
+                    style = ends.First(e => e.End > 8L * row).Style.Reversed();
+                }
+                else
+                {
+                    row = top == 0 ? 0 : 1;
+                    style = color;
+                }
+            }
+            else
+            {
+                // Wider than its bar: centred on the row above it, over the gaps and neighbours' empty cells
+                from = x + (int)Math.Floor((_barWidth - valueWidth) / 2.0);
+                row = cells;
+                style = color;
+                if (from < inner.X || from + valueWidth > inner.Right || !Empty(drawn, row, from, from + valueWidth)) continue;
+            }
+            var to = from + valueWidth;
+            if (row >= height || bottom - row < 0 || !Free(row, from, to)) continue;
+            WidgetText.DrawString(buf, (int)from, bottom - row, column.Value, valueWidth, style);
+            Place(row, from, to);
+        }
+    }
+
+    // No bar has a glyph on the row in these columns
+    private bool Empty(List<(Column Column, long X, List<(long End, Style Style)> Ends, long Top)> drawn, int row, long from, long to) =>
+        !drawn.Any(d => d.X < to && from < d.X + _barWidth && (d.Top + 7) / 8 > row);
 
     // The width of the group starting at column i, from its bars and the gaps inside it
     private int GroupWidth(List<Column> columns, int i)

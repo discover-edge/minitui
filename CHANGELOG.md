@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Blocks pad their content one column inside each side border by default, so nothing sits against a border; the top and bottom, sides without a border, and blocks narrower than 3 columns inside are unpadded. `Padding(...)` replaces the default, and `Padding(new Margin(0))` restores the old look. List, table and tree highlights, text input backgrounds and clicks, and a paragraph's horizontal scrollbar span the padding. Built-in dialogs, menus, toasts and chart legends look the same.
-- Bar charts: a vertical bar shorter than one cell has its value on the row above it, in the bar's color, instead of over its partial glyph, which cut the bar in two. Where values above short neighbours would touch, the later one is left out. An empty bar's value takes the bar's color too.
+- Bar charts: a vertical bar shorter than one cell has its value on the row above it, in the bar's color, instead of over its partial glyph, which cut the bar in two. An empty bar's value takes the bar's color too. A value wider than its bar goes on the row above it, spreading over the gaps and neighbours' empty cells, instead of being dropped. A value is drawn whole or not at all, and never next to another value on its row: the later one is left out, so with `BarGap(0)` neighbouring values no longer run together.
 
 ## [2.0.0] - 2026-11-03
 
