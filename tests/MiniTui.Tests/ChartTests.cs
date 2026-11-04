@@ -551,6 +551,69 @@ public class BarChartTests
         Assert.Equal("▃▃▃", buf.ToLines()[2]);
     }
 
+    // 1.x spec §24.4
+
+    private static string[] Bars(int width, int height, int barWidth, int gap, double? max, params (string Label, double Value)[] bars)
+    {
+        var buf = new CellBuffer(width, height);
+        var chart = Widget.BarChart().BarWidth(barWidth).BarGap(gap).Bars([.. bars.Select(b => new Bar(b.Label, b.Value))]);
+        if (max is { } m) chart.Max(m);
+        chart.Draw(buf, buf.Area);
+        return buf.ToLines();
+    }
+
+    [Fact]
+    public void AValueWiderThanItsBar_GoesAboveIt_IntoTheGaps()
+    {
+        var lines = Bars(10, 6, 2, 1, null, ("a", 1234), ("b", 56), ("c", 789));
+
+        Assert.Equal("██   789  ", lines[0]);     // 1234 has no row above; 789 spreads over the gap before it
+        Assert.Equal("██ 56 ██  ", lines[3]);
+    }
+
+    [Fact]
+    public void AWideValue_GoesOverANeighboursEmptyCells_NotItsBar()
+    {
+        var lines = Bars(8, 4, 1, 1, 100, ("a", 100), ("b", 50), ("c", 10));
+
+        Assert.Equal("█50     ", lines[0]);       // 100 reaches the top: left out
+        Assert.Equal("█ ▄10   ", lines[1]);
+    }
+
+    [Fact]
+    public void AWideValue_PastTheChartsEdge_IsLeftOut()
+    {
+        // "10" over a's short bar would start left of the chart, and b's full bar has no row above for "80"
+        var lines = Bars(4, 3, 1, 1, 80, ("a", 10), ("b", 80));
+
+        Assert.DoesNotContain(lines, l => l.Any(char.IsDigit) || l.Contains('…', StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ValuesInBarsThatWouldTouch_LeaveOutTheLaterOne()
+    {
+        var lines = Bars(8, 5, 2, 0, null, ("a", 30), ("b", 40), ("c", 35), ("d", 38));
+
+        Assert.Equal("30██35██", lines[3]);
+    }
+
+    [Fact]
+    public void ABarsOwnCells_KeepTwoValuesApart()
+    {
+        var lines = Bars(9, 5, 3, 0, null, ("a", 30), ("b", 40), ("c", 35));
+
+        Assert.Equal("30█40█35█", lines[3]);
+    }
+
+    [Fact]
+    public void AValue_IsNeverCut()
+    {
+        var lines = Bars(8, 6, 1, 0, 400, ("a", 12), ("b", 345), ("c", 7), ("d", 380));
+
+        Assert.DoesNotContain(lines, l => l.Contains('…', StringComparison.Ordinal));
+        Assert.Equal(" █7█    ", lines[3]);
+    }
+
     [Fact]
     public void Vertical_ValuesThatDontFit_AreHidden()
     {
