@@ -4921,7 +4921,7 @@ public sealed class ScrollState
 {
     // Existing members unchanged
 
-    /// Let ← → and the horizontal wheel (or Shift+wheel) scroll unwrapped text sideways. Off by default.
+    /// Let ← → and the horizontal wheel (or Shift+wheel or Alt+wheel) scroll unwrapped text sideways. Off by default.
     public bool ScrollsHorizontally { get; set; }
 
     /// The first visible column of unwrapped text. Clamped when drawn.
@@ -4944,8 +4944,9 @@ public sealed class ScrollState
 - **Keys:** ← and → scroll by 8 columns (not handled at the edge, so they go on); `HandleKey`'s Home and End also
   go to the first and last column. Alignment applies only to rows narrower than the view.
 - **Mouse:** `ScrollLeft`/`ScrollRight` (a horizontal wheel or trackpad), and Shift with the vertical wheel, scroll
-  by 8 columns. Terminals that keep Shift for bypassing mouse mode (Windows Terminal, WezTerm, foot) don't send
-  Shift+wheel to the app; it works in conhost, xterm and others. The keys and the scrollbar work everywhere.
+  by 8 columns, and so does Alt with the wheel (amended at review): terminals that keep Shift for bypassing mouse
+  mode (Windows Terminal, WezTerm, foot) don't send Shift+wheel to the app, but Windows Terminal sends Alt+wheel.
+  Ctrl+wheel is left alone, being zoom in most apps.
 - **Selection** (§20.5) works in the scrolled view: positions are columns of the row's text, so a selection keeps
   its text when scrolled, and dragging past the left or right edge scrolls by a column.
 - **Off by default,** so screens that use ← → for something else keep them. Without it, nothing changes.
@@ -4992,7 +4993,7 @@ public sealed class ButtonBuilder   { public ButtonBuilder State(ButtonState sta
 
 - **Bars:** a value over a short bar goes above it and leaves the glyph whole; whole-cell bars unchanged; an empty
   bar's value; two short neighbours whose values would touch; no row above; stacks.
-- **Paragraphs:** offsets and clamping, ← → at the edges, Home and End, the edge `…`s, the wheel and Shift+wheel,
+- **Paragraphs:** offsets and clamping, ← → at the edges, Home and End, the edge `…`s, the wheel, Shift+wheel and Alt+wheel,
   alignment of short rows, selection while scrolled and dragging past the side edges, `ScrollsHorizontally` off.
 - **States:** Space, clicks on the box and the label, `Changed` only from the user; button Enter, Space, a click,
   a press dragged off and released (no `Pressed`), `IsDown` while held.

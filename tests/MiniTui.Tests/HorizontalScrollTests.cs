@@ -132,7 +132,7 @@ public sealed class HorizontalScrollTests : IDisposable
     }
 
     [Fact]
-    public void TheHorizontalWheel_AndShiftWithTheWheel_Scroll8Columns()
+    public void TheHorizontalWheel_AndShiftOrAltWithTheWheel_Scroll8Columns()
     {
         var state = Sideways();
 
@@ -144,7 +144,13 @@ public sealed class HorizontalScrollTests : IDisposable
         Assert.True(state.HandleMouse(Wheel(MouseAction.ScrollUp, ConsoleModifiers.Shift)));
         Assert.Equal(0, state.HorizontalOffset);
 
+        Assert.True(state.HandleMouse(Wheel(MouseAction.ScrollDown, ConsoleModifiers.Alt)));
+        Assert.Equal(8, state.HorizontalOffset);
+        Assert.True(state.HandleMouse(Wheel(MouseAction.ScrollUp, ConsoleModifiers.Alt)));
+        Assert.Equal(0, state.HorizontalOffset);
+
         state.HandleMouse(Wheel(MouseAction.ScrollDown));
+        state.HandleMouse(Wheel(MouseAction.ScrollDown, ConsoleModifiers.Control));
         Assert.Equal(0, state.HorizontalOffset);
     }
 

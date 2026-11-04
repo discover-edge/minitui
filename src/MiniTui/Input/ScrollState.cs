@@ -19,7 +19,7 @@ public sealed class ScrollState
     public int ContentHeight { get; private set; }
 
     /// <summary>
-    /// Let ← → and the horizontal wheel (or Shift with the wheel) scroll unwrapped text sideways by 8 columns
+    /// Let ← → and the horizontal wheel (or Shift or Alt with the wheel) scroll unwrapped text sideways by 8 columns
     /// (1.x spec §23.3), for a <see cref="ParagraphBuilder"/> with <see cref="WrapMode.None"/>. Off by default, so
     /// ← → stay free for the screen.
     /// </summary>
@@ -127,7 +127,7 @@ public sealed class ScrollState
     /// <summary>
     /// Handle the mouse over the text drawn last (1.x spec §4.8, §14.4): the wheel scrolls by three rows, the
     /// scrollbar's thumb drags and its track pages. When <see cref="ScrollsHorizontally"/>, the horizontal wheel and
-    /// Shift with the wheel scroll sideways by 8 columns, and so does the horizontal scrollbar (§23.3). When <see cref="Selectable"/>, the left button
+    /// Shift or Alt with the wheel scroll sideways by 8 columns, and so does the horizontal scrollbar (§23.3). When <see cref="Selectable"/>, the left button
     /// selects (§20.5).
     /// </summary>
     /// <returns>True if it scrolled, tried to, or selected.</returns>
@@ -150,15 +150,16 @@ public sealed class ScrollState
         if (!_mouseArea.Contains(mouse.X, mouse.Y)) return false;
         if (ScrollsHorizontally)
         {
-            var shift = (mouse.Modifiers & ConsoleModifiers.Shift) != 0;
+            // Alt as well as Shift: terminals that keep Shift for bypassing mouse mode still send Alt
+            var sideways = (mouse.Modifiers & (ConsoleModifiers.Shift | ConsoleModifiers.Alt)) != 0;
             switch (mouse.Action)
             {
                 case MouseAction.ScrollLeft:
-                case MouseAction.ScrollUp when shift:
+                case MouseAction.ScrollUp when sideways:
                     ScrollColumnsBy(-SideStep);
                     return true;
                 case MouseAction.ScrollRight:
-                case MouseAction.ScrollDown when shift:
+                case MouseAction.ScrollDown when sideways:
                     ScrollColumnsBy(SideStep);
                     return true;
             }
