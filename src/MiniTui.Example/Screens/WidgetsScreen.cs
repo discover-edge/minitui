@@ -19,8 +19,8 @@ internal sealed class WidgetsScreen : Screen
     private readonly Component _tabBar;
     private readonly Component _items;
     private readonly TextInput _name;
-    private readonly Toggle _agree;
-    private readonly Component _greet;
+    private readonly CheckboxField _agree;
+    private readonly ButtonField _greet;
     private static readonly string[] ThemeNames = ["auto (dark or light by background)", "default (the terminal's palette)", "dark", "light", "monochrome"];
     private int _theme;
     private double _progress;
@@ -34,10 +34,8 @@ internal sealed class WidgetsScreen : Screen
             key => _tabs.HandleKey(key)));
         _items = AddChild(Component.From(DrawItems, HandleItemKey));
         _name = AddChild(new TextInput("Name", "Your name (any script: 日本, émoji 😀)"));
-        _agree = AddChild(new Toggle("I agree"));
-        _greet = AddChild(Component.From(
-            (buf, area, ctx) => Widget.Button().Label("Greet").Focused(ctx.Focused).Hover(ctx.Hover).Draw(buf, area),
-            key => key.Key is ConsoleKey.Enter or ConsoleKey.Spacebar && Greet()));
+        _agree = AddChild(new CheckboxField("I agree"));
+        _greet = AddChild(new ButtonField("Greet", Greet));
         Focus.Add(_tabBar).Add(_items).Add(_name).Add(_agree).Add(_greet);
         Focus.Focus(_items);
 
@@ -45,12 +43,11 @@ internal sealed class WidgetsScreen : Screen
             .Add("n", "Toast", () => App.Toasts.Push($"Toast at {Demo.Now:HH:mm:ss}", (ToastLevel)(_samples.Count % 4)));
     }
 
-    // The tab bar, list and button are inline components, so their clicks come here
+    // The tab bar and list are inline components, so their clicks come here
     public override bool HandleMouse(MouseEvent mouse)
     {
         if (_tabs.HandleMouse(mouse)) return true;
         if (_tabs.Selected == 0 ? _list.HandleMouse(mouse, Fruits.Length) : _table.HandleMouse(mouse, Fruits.Length)) return true;
-        if (mouse.IsClick && _greet.Area.Contains(mouse.X, mouse.Y)) return Greet();
         return _unicode.HandleMouse(mouse);
     }
 
@@ -143,11 +140,10 @@ internal sealed class WidgetsScreen : Screen
         return _table.HandleKey(key, Fruits.Length);
     }
 
-    private bool Greet()
+    private void Greet()
     {
         var who = _name.State.Text.Length > 0 ? _name.State.Text : "stranger";
         App.Toasts.Push(_agree.Checked ? $"Hello, {who}!" : "Tick the checkbox first", _agree.Checked ? ToastLevel.Success : ToastLevel.Warning);
-        return true;
     }
 
     private void ToggleTheme()

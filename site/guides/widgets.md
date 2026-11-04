@@ -36,7 +36,7 @@ Widget.Table()
 | `Select()` | A dropdown field from [`SelectState`](xref:MiniTui.SelectState): the chosen option (or a muted `Placeholder`) and a ▼. Opening it shows a [`PopupMenu`](xref:MiniTui.PopupMenu) of the options below the field; with `SelectState.Filterable`, a dropdown with a filter line, which typing on the field opens. |
 | `TabBar()` | `Tabs(...)` with [`TabBarState`](xref:MiniTui.TabBarState), scrolled to keep the selected tab visible. |
 | `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](keys-and-state.md#trees). |
-| `Button()`, `Checkbox()` | Themed controls. |
+| `Button()`, `Checkbox()` | Themed controls: `Label`, `Focused`, `Hover`, and `Pressed(bool)` / `Checked(bool)` or a `State(ButtonState)` / `State(CheckboxState)` that handles keys and clicks (see [Forms](keys-and-state.md#forms)). |
 
 **Long lines.** A paragraph with `WrapMode.None` cuts long lines with `…`. Give it a `ScrollState` with
 `ScrollsHorizontally = true` and they scroll instead: ← and → move 8 columns (and go unhandled at the edge, so

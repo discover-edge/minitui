@@ -14,6 +14,8 @@ size, scroll offset) back into it while drawing.
 | [`TextAreaState`](xref:MiniTui.TextAreaState) | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls; opt-in `TabIndents` (Tab and Shift+Tab indent and outdent the selected lines, Backspace deletes an indent level), `AutoIndent` (Enter keeps the indentation) and `IndentSize`; Ctrl+F opens a find bar on the last row (smart case, Enter/↓/F3 next, Shift+Enter/↑/Shift+F3 previous, Esc closes; `FindText`, `FindNext`, `MatchCount`, `FindEnabled = false` to leave Ctrl+F and F3 to the app) | TextArea |
 | [`SelectState`](xref:MiniTui.SelectState) | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the [`App`](xref:MiniTui.App): `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option. With `Filterable`, a typed letter opens it too, and typing in it narrows the options | Select |
 | [`TabBarState`](xref:MiniTui.TabBarState) | ← → h l | TabBar |
+| [`CheckboxState`](xref:MiniTui.CheckboxState) | Space; `HandleMouse` toggles on a click on the box or label; `Changed` | Checkbox |
+| [`ButtonState`](xref:MiniTui.ButtonState) | Enter, Space; `HandleMouse` presses on a release over it, cancels when dragged off; `Pressed`, `IsDown` | Button |
 | `TreeState<T>` | ↑ ↓ PgUp PgDn Home End, → (expand, then first child), ← (collapse, then parent), Enter (toggle, or `Activated` on a leaf), letters jump by name; `HandleMouse` selects, toggles on the expander and scrolls | Tree |
 
 [`KeyMap`](xref:MiniTui.KeyMap) binds keys to actions and produces hints and help text from the same list:
@@ -86,34 +88,40 @@ void Submit()
 `TextFieldState.Changed` fires after the text changes (typing, deleting, pasting, undo, or setting `Text`), to
 validate or filter as the user types. `SelectState` has `Changed` too.
 
-`Widget.Checkbox()` and `Widget.Button()` only draw. A component around one keeps the value and handles the
-keys and clicks:
+A checkbox keeps its value in a [`CheckboxState`](xref:MiniTui.CheckboxState) and a button its presses in a
+[`ButtonState`](xref:MiniTui.ButtonState); the widget draws from the state and records where it was drawn, so the
+state handles the keys and clicks. `CheckboxState.Changed` fires when the user toggles it (Space, or a click on
+the box or label), not when code sets `Checked`. `ButtonState.Pressed` fires on Enter or Space, or when a left
+click is released over it; a press dragged off it is cancelled, and the button draws pressed while held
+(`IsDown`). Keys with modifiers are left alone, so a screen's Ctrl+Enter still reaches it.
 
 ```csharp
 sealed class CheckboxField(string label) : Component
 {
-    public bool Checked { get; set; }
-
-    public override bool HandleKey(ConsoleKeyInfo key)
-    {
-        if (key.Key != ConsoleKey.Spacebar) return false;
-        Checked = !Checked;
-        return true;
-    }
-
-    public override bool HandleMouse(MouseEvent mouse)
-    {
-        if (!mouse.IsClick) return false;
-        Checked = !Checked;
-        return true;
-    }
-
+    public CheckboxState State { get; } = new();
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
     public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
-        Widget.Checkbox().Label(label).Checked(Checked).Focused(ctx.Focused).Draw(buf, area);
+        Widget.Checkbox().Label(label).State(State).Focused(ctx.Focused).Draw(buf, area);
+}
+
+sealed class ButtonField : Component
+{
+    private readonly ButtonState _state = new();
+    private readonly string _label;
+
+    public ButtonField(string label, Action pressed)
+    {
+        _label = label;
+        _state.Pressed += (_, _) => pressed();
+    }
+
+    public override bool HandleKey(ConsoleKeyInfo key) => _state.HandleKey(key);
+    public override bool HandleMouse(MouseEvent mouse) => _state.HandleMouse(mouse);
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
+        Widget.Button().Label(_label).State(_state).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
-
-A button is the same with Enter and Space, calling an action instead of toggling.
 
 ## Trees
 
