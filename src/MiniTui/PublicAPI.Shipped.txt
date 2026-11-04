@@ -157,7 +157,14 @@ MiniTui.ButtonBuilder.Focused(bool focused = true) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Label(string! label) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Pressed(bool pressed = true) -> MiniTui.ButtonBuilder!
+MiniTui.ButtonBuilder.State(MiniTui.ButtonState! state) -> MiniTui.ButtonBuilder!
 MiniTui.ButtonBuilder.Style(MiniTui.Style style) -> MiniTui.ButtonBuilder!
+MiniTui.ButtonState
+MiniTui.ButtonState.ButtonState() -> void
+MiniTui.ButtonState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.ButtonState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.ButtonState.IsDown.get -> bool
+MiniTui.ButtonState.Pressed -> System.EventHandler?
 MiniTui.CanvasBuilder
 MiniTui.CanvasBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.CanvasBuilder!
 MiniTui.CanvasBuilder.CanvasBuilder() -> void
@@ -238,7 +245,16 @@ MiniTui.CheckboxBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.CheckboxBuilder.Focused(bool focused = true) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Label(string! label) -> MiniTui.CheckboxBuilder!
+MiniTui.CheckboxBuilder.State(MiniTui.CheckboxState! state) -> MiniTui.CheckboxBuilder!
 MiniTui.CheckboxBuilder.Style(MiniTui.Style style) -> MiniTui.CheckboxBuilder!
+MiniTui.CheckboxState
+MiniTui.CheckboxState.Changed -> System.EventHandler?
+MiniTui.CheckboxState.CheckboxState() -> void
+MiniTui.CheckboxState.Checked.get -> bool
+MiniTui.CheckboxState.Checked.set -> void
+MiniTui.CheckboxState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.CheckboxState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.CheckboxState.Toggle() -> void
 MiniTui.Clipboard
 MiniTui.Color
 MiniTui.Color.Color() -> void
@@ -493,6 +509,7 @@ MiniTui.ListBuilder.HighlightSymbol(string! symbol) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.Items(System.Collections.Generic.IReadOnlyList<string!>! items) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.Items<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Line!>! format) -> MiniTui.ListBuilder!
+MiniTui.ListBuilder.Items<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Line!>! format, System.Func<T, object!>! key) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.ListBuilder() -> void
 MiniTui.ListBuilder.ScrollOffset(int offset) -> MiniTui.ListBuilder!
 MiniTui.ListBuilder.Selected(int index) -> MiniTui.ListBuilder!
@@ -768,19 +785,25 @@ MiniTui.ScriptedInputSource.TryRead(out System.ConsoleKeyInfo key) -> bool
 MiniTui.ScrollState
 MiniTui.ScrollState.ClearSelection() -> void
 MiniTui.ScrollState.ContentHeight.get -> int
+MiniTui.ScrollState.ContentWidth.get -> int
 MiniTui.ScrollState.Copy() -> bool
 MiniTui.ScrollState.HandleKey(System.ConsoleKeyInfo key) -> bool
 MiniTui.ScrollState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 MiniTui.ScrollState.HasSelection.get -> bool
+MiniTui.ScrollState.HorizontalOffset.get -> int
+MiniTui.ScrollState.HorizontalOffset.set -> void
 MiniTui.ScrollState.Offset.get -> int
 MiniTui.ScrollState.Offset.set -> void
 MiniTui.ScrollState.ScrollBy(int rows) -> void
 MiniTui.ScrollState.ScrollState() -> void
+MiniTui.ScrollState.ScrollsHorizontally.get -> bool
+MiniTui.ScrollState.ScrollsHorizontally.set -> void
 MiniTui.ScrollState.SelectAll() -> void
 MiniTui.ScrollState.Selectable.get -> bool
 MiniTui.ScrollState.Selectable.set -> void
 MiniTui.ScrollState.SelectedText.get -> string!
 MiniTui.ScrollState.ViewportHeight.get -> int
+MiniTui.ScrollState.ViewportWidth.get -> int
 MiniTui.ScrollbarBuilder
 MiniTui.ScrollbarBuilder.ContentLength(int length) -> MiniTui.ScrollbarBuilder!
 MiniTui.ScrollbarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
@@ -823,8 +846,10 @@ MiniTui.SelectionState.Offset.set -> void
 MiniTui.SelectionState.PageDown(int count) -> void
 MiniTui.SelectionState.PageUp(int count) -> void
 MiniTui.SelectionState.Previous(int count) -> void
+MiniTui.SelectionState.SelectKey(object! key) -> void
 MiniTui.SelectionState.Selected.get -> int
 MiniTui.SelectionState.Selected.set -> void
+MiniTui.SelectionState.SelectedKey.get -> object?
 MiniTui.SelectionState.SelectionState() -> void
 MiniTui.SelectionState.SortChanged -> System.EventHandler?
 MiniTui.SelectionState.SortColumn.get -> int?
@@ -945,6 +970,7 @@ MiniTui.TableBuilder.HighlightSymbol(string! symbol) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Hover(MiniTui.Vec2? position) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Rows(System.Collections.Generic.IReadOnlyList<MiniTui.Row!>! rows) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Rows<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Row!>! format) -> MiniTui.TableBuilder!
+MiniTui.TableBuilder.Rows<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Row!>! format, System.Func<T, object!>! key) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Sortable(params int[]! columns) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.State(MiniTui.SelectionState! state) -> MiniTui.TableBuilder!
 MiniTui.TableBuilder.Style(MiniTui.Style style) -> MiniTui.TableBuilder!
