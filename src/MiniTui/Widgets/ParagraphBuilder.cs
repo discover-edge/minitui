@@ -136,7 +136,9 @@ public sealed class ParagraphBuilder
         }
         if (horizontal)
         {
-            var bar = new Rect(text.X, columnBarOnBorder ? area.Bottom - 1 : text.Bottom, text.Width, 1);
+            // Across the padding too (1.x spec §24.2)
+            var across = _block?.AcrossPadding(area, text) ?? text;
+            var bar = across with { Y = columnBarOnBorder ? area.Bottom - 1 : text.Bottom, Height = 1 };
             new ScrollbarBuilder().Horizontal().ContentLength(widest).ViewportLength(text.Width).Position(columns ?? 0).Draw(buf, bar);
             _state!.TrackColumnScrollbar(bar);
         }

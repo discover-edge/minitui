@@ -135,7 +135,9 @@ public sealed class TableBuilder
         var overflow = _count > viewport && viewport > 0;
         var scrollbarOnBorder = block?.HasRightBorder == true;
         var body = overflow && !scrollbarOnBorder ? inner with { Width = inner.Width - 1 } : inner;
-        _state?.Track(area, new Rect(body.X, body.Y + headerRows, body.Width, visible));
+        // 1.x spec §24.2: the highlight and the clicks reach across the padding, border to border
+        var band = block?.AcrossPadding(area, body) ?? body;
+        _state?.Track(area, new Rect(band.X, body.Y + headerRows, band.Width, visible));
 
         var symbol = _highlightSymbol ?? "";
         var symbolWidth = Math.Min(UnicodeWidth.Of(symbol), body.Width);
@@ -173,8 +175,8 @@ public sealed class TableBuilder
             if (selected && symbolWidth > 0) buf.SetString(body.X, y, symbol, rowStyle, symbolWidth);
             for (var c = 0; c < columns.Length && c < row.Cells.Count; c++)
                 WidgetText.DrawLine(buf, x0 + columns[c].Offset, y, row.Cells[c], columns[c].Size, rowStyle);
-            if (selected) buf.SetStyle(new Rect(body.X, y, body.Width, 1), highlight);
-            else if (_hover is { } p && p.Y == y && p.X >= body.X && p.X < body.Right) buf.SetStyle(new Rect(body.X, y, body.Width, 1), theme.Hover);
+            if (selected) buf.SetStyle(new Rect(band.X, y, band.Width, 1), highlight);
+            else if (_hover is { } p && p.Y == y && p.X >= band.X && p.X < band.Right) buf.SetStyle(new Rect(band.X, y, band.Width, 1), theme.Hover);
             y++;
         }
 

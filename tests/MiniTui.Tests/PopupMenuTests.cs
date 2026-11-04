@@ -531,7 +531,7 @@ public class PopupMenuTests
         Assert.Equal("Pro", state.Value);
         Assert.Equal([1], changes);
         Assert.False(state.IsOpen);
-        Assert.Equal("  │Pro              ▼│", harness.Lines[2].TrimEnd());
+        Assert.Equal("  │ Pro            ▼ │", harness.Lines[2].TrimEnd());
     }
 
     [Fact]

@@ -40,11 +40,12 @@ public class WidgetDefectTests
     [Fact]
     public void D9_List_TruncatesWideItemsByDisplayWidth()
     {
-        var buf = new CellBuffer(8, 3);
+        var buf = new CellBuffer(10, 3);
 
         Widgets.List(buf, buf.Area, ["日本語テキスト"], 0, focused: true, showScrollInfo: false);
 
-        Assert.Equal("│日本… │", buf.ToLines()[1]);
+        // 1.x spec §24.2: a column of padding inside each border
+        Assert.Equal("│ 日本…  │", buf.ToLines()[1]);
     }
 
     [Fact]

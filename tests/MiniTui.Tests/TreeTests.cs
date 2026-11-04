@@ -405,13 +405,14 @@ public class TreeTests
         Assert.Equal("README", state.Selected!.Name);
         Assert.Equal(1, changes);
 
-        Assert.True(state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 1, 1)));
+        // The expander, inside the padding
+        Assert.True(state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 2, 1)));
         Assert.True(state.IsExpanded(Find(state, "src")));
         Assert.Equal("src", state.Selected!.Name);
 
         // A press on the label doesn't toggle
         Draw(state, 20, 6);
-        state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 4, 1));
+        state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 5, 1));
         Assert.True(state.IsExpanded(Find(state, "src")));
     }
 
@@ -450,13 +451,13 @@ public class TreeTests
         var buf = Draw(state, 22, 9, b => b.Title("Files"));
         Snapshot.AssertLines(buf, """
             ┌Files [7]───────────┐
-            │▾ src               │
-            │  ▾ MiniTui         │
-            │      App.cs        │
-            │    ▸ Widgets       │
-            │  ▸ Example         │
-            │▸ tests             │
-            │  README            │
+            │ ▾ src              │
+            │   ▾ MiniTui        │
+            │       App.cs       │
+            │     ▸ Widgets      │
+            │   ▸ Example        │
+            │ ▸ tests            │
+            │   README           │
             └────────────────────┘
             """);
     }

@@ -8,6 +8,7 @@ internal static class TextFieldRenderer
     public static void Draw(CellBuffer buf, Rect area, TextFieldState state, bool focused, Style style, string? placeholder)
     {
         state.ViewArea = area with { Height = Math.Min(area.Height, 1) };
+        state.HitArea = default;
         if (area.IsEmpty) return;
         var theme = Theme.Current;
         var y = area.Y;

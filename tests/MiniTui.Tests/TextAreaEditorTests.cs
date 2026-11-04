@@ -398,9 +398,9 @@ public class TextAreaEditorTests
         Assert.Equal(
         [
             "┌──────────┐",
-            "│ 1 l1     █",
-            "│ 2 l2     ░",
-            "│ 3 l3     ░",
+            "│  1 l1    █",
+            "│  2 l2    ░",
+            "│  3 l3    ░",
             "└──────────┘",
         ], lines);
     }

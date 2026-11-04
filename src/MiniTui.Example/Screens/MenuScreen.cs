@@ -44,7 +44,7 @@ internal sealed class MenuScreen : Screen
 
     public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
-        var inner = Widget.Block().Title(" MiniTui Demos ").Padding(new Margin(1, 0)).Draw(buf, area);
+        var inner = Widget.Block().Title(" MiniTui Demos ").Draw(buf, area);
         var layout = Layout.Vertical(inner)
             .Add("heading", Constraint.Length(2))
             .Add("body", Constraint.Fill())

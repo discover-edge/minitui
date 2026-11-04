@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CheckboxState` and `ButtonState`, so checkboxes and buttons handle their own keys and clicks: `Widget.Checkbox().State(...)` and `Widget.Button().State(...)`. A checkbox toggles on Space or a click on its box or label and raises `Changed` for user toggles only. A button raises `Pressed` on Enter, Space, or a left click released over it, cancels when the press is dragged off, and draws pressed while held (`IsDown`). The example's Form and Widgets screens use them, and the Form has a Submit button.
 
 ### Changed
+- Blocks pad their content one column inside each side border by default, so nothing sits against a border; the top and bottom, sides without a border, and blocks narrower than 3 columns inside are unpadded. `Padding(...)` replaces the default, and `Padding(new Margin(0))` restores the old look. List, table and tree highlights, text input backgrounds and clicks, and a paragraph's horizontal scrollbar span the padding. Built-in dialogs, menus, toasts and chart legends look the same.
 - Bar charts: a vertical bar shorter than one cell has its value on the row above it, in the bar's color, instead of over its partial glyph, which cut the bar in two. Where values above short neighbours would touch, the later one is left out. An empty bar's value takes the bar's color too.
 
 ## [2.0.0] - 2026-11-03

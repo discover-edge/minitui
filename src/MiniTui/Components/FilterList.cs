@@ -129,6 +129,7 @@ internal sealed class FilterList
             .Title(title is { Length: > 0 } t ? new Line(t) : null)
             .BorderStyle(theme.ModalBorder)
             .TitleStyle(theme.ModalTitle)
+            .Padding(new Margin(0))         // the rows and the filter line set their own
             .Draw(buf, area);
         if (inner.IsEmpty)
         {
