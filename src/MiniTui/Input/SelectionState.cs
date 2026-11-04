@@ -9,6 +9,11 @@ public sealed class SelectionState
     private int _selected;
     private bool _reveal = true;
 
+    // 1.x spec §24.3: the selected item's key at the last draw, one asked for, and whether the selection moved since
+    private object? _key;
+    private object? _wantedKey;
+    private bool _moved;
+
     /// <summary>
     /// The selected index. Clamped to the item count when drawn. Setting it (or moving it with a key) scrolls it
     /// into view at the next draw.
@@ -20,7 +25,23 @@ public sealed class SelectionState
         {
             _selected = value;
             _reveal = true;
+            _moved = true;
         }
+    }
+
+    /// <summary>
+    /// The selected item's key at the last draw of a list or table given a key (<c>Items(items, format, key)</c>,
+    /// <c>Rows(items, format, key)</c>); null before, or without one (1.x spec §24.3). While the selection isn't
+    /// moved, it follows the item with this key when the items change.
+    /// </summary>
+    public object? SelectedKey => _key;
+
+    /// <summary>Select the item with <paramref name="key"/> at the next draw with a key, such as a row just added; ignored if none has it.</summary>
+    public void SelectKey(object key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        _wantedKey = key;
+        _moved = true;
     }
 
     /// <summary>
@@ -160,12 +181,42 @@ public sealed class SelectionState
     /// Called by widgets while drawing: clamp the selection to <paramref name="count"/> and scroll so it's
     /// within a viewport of <paramref name="viewportHeight"/> rows.
     /// </summary>
-    internal void Fit(int count, int viewportHeight)
+    /// <param name="count">How many items there are.</param>
+    /// <param name="viewportHeight">How many rows show.</param>
+    /// <param name="keyAt">With a key (1.x spec §24.3), the key of the item at an index.</param>
+    internal void Fit(int count, int viewportHeight, Func<int, object>? keyAt = null)
     {
+        if (keyAt is not null) Follow(count, keyAt);
         ViewportHeight = Math.Max(0, viewportHeight);
         _selected = Clamp(_selected, count);
         Offset = _reveal ? FitOffset(Offset, _selected, count, ViewportHeight) : ClampOffset(Offset, count, ViewportHeight);
         _reveal = false;
+        _key = keyAt is not null && count > 0 ? keyAt(_selected) : null;
+    }
+
+    // A key asked for is selected; otherwise, unless the selection moved, it follows its item to where it is now,
+    // moving the offset as far, so the item stays on its screen row. An item that's gone leaves the index.
+    private void Follow(int count, Func<int, object> keyAt)
+    {
+        if (_wantedKey is { } wanted)
+        {
+            _wantedKey = null;
+            if (IndexOf(wanted, count, keyAt) is var found and >= 0) Selected = found;
+        }
+        else if (!_moved && _key is { } had && count > 0 && !Equals(keyAt(Clamp(_selected, count)), had)
+            && IndexOf(had, count, keyAt) is var at and >= 0)
+        {
+            Offset += at - _selected;
+            _selected = at;
+        }
+        _moved = false;
+    }
+
+    private static int IndexOf(object key, int count, Func<int, object> keyAt)
+    {
+        for (var i = 0; i < count; i++)
+            if (Equals(keyAt(i), key)) return i;
+        return -1;
     }
 
     /// <summary>An offset kept within the content, leaving the selection wherever it is.</summary>

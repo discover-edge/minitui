@@ -17,6 +17,7 @@ public class ListBuilder
     private Func<int, Line> _item = _ => "";
     private SelectionState? _state;
     private bool _focused;
+    private Func<int, object>? _key;
     private string? _title;
     private bool _showScrollInfo = true;
     private string? _highlightSymbol;
@@ -30,6 +31,7 @@ public class ListBuilder
         ArgumentNullException.ThrowIfNull(items);
         _count = items.Count;
         _item = i => items[i];
+        _key = null;
         return this;
     }
 
@@ -40,6 +42,19 @@ public class ListBuilder
         ArgumentNullException.ThrowIfNull(format);
         _count = items.Count;
         _item = i => format(items[i]);
+        _key = null;
+        return this;
+    }
+
+    /// <summary>
+    /// The items, formatted by <paramref name="format"/>, with the selection kept on the item with the selected key
+    /// when the items change (1.x spec §24.3). Only visible items are formatted.
+    /// </summary>
+    public ListBuilder Items<T>(IReadOnlyList<T> items, Func<T, Line> format, Func<T, object> key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        Items(items, format);
+        _key = i => key(items[i]);
         return this;
     }
 
@@ -98,7 +113,7 @@ public class ListBuilder
 
         var inner = block.Inner(area);
         var viewport = Math.Max(0, inner.Height);
-        _state?.Fit(_count, viewport);
+        _state?.Fit(_count, viewport, _key);
         var offset = _state?.Offset ?? 0;
         var visible = Math.Clamp(_count - offset, 0, viewport);
 

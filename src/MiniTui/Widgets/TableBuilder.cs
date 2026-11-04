@@ -32,6 +32,7 @@ public sealed class Row
 /// </example>
 public sealed class TableBuilder
 {
+    private Func<int, object>? _key;
     private Line[]? _header;
     private Constraint[]? _columns;
     private int _columnSpacing = 1;
@@ -63,6 +64,7 @@ public sealed class TableBuilder
         ArgumentNullException.ThrowIfNull(rows);
         _count = rows.Count;
         _row = i => rows[i];
+        _key = null;
         return this;
     }
 
@@ -73,6 +75,19 @@ public sealed class TableBuilder
         ArgumentNullException.ThrowIfNull(format);
         _count = items.Count;
         _row = i => format(items[i]);
+        _key = null;
+        return this;
+    }
+
+    /// <summary>
+    /// The rows, formatted by <paramref name="format"/>, with the selection kept on the item with the selected key
+    /// when the items change, such as after a re-sort (1.x spec §24.3). Only visible rows are formatted.
+    /// </summary>
+    public TableBuilder Rows<T>(IReadOnlyList<T> items, Func<T, Row> format, Func<T, object> key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        Rows(items, format);
+        _key = i => key(items[i]);
         return this;
     }
 
@@ -126,7 +141,7 @@ public sealed class TableBuilder
 
         var headerRows = _header is null ? 0 : _headerSeparator ? 2 : 1;
         var viewport = Math.Max(0, inner.Height - headerRows);
-        _state?.Fit(_count, viewport);
+        _state?.Fit(_count, viewport, _key);
         _state?.Track(area, default);
         if (inner.IsEmpty) return;
 
