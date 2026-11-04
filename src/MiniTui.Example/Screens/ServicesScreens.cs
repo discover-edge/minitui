@@ -22,7 +22,10 @@ internal sealed class ServicesClient(HttpClient http)
         (await http.DeleteAsync(new Uri($"services/{id}", UriKind.Relative), ct)).EnsureSuccessStatusCode();
 }
 
-/// <summary>The list of services.</summary>
+/// <summary>
+/// The list of services. Rows are keyed by id, so the selection stays on its service when s re-sorts or r refreshes
+/// (1.x spec §24.3).
+/// </summary>
 internal sealed class ServicesScreen : Screen
 {
     private readonly HttpClient _http = new(new FakeServicesHandler()) { BaseAddress = new Uri("http://services.local/") };
@@ -117,7 +120,8 @@ internal sealed class ServicesScreen : Screen
                 s.Name,
                 new Line(s.Status, s.Healthy ? ctx.Theme.Success : ctx.Theme.Error),
                 s.Version,
-                new Line($"{s.LatencyMs} ms") with { Alignment = Alignment.Right }))
+                new Line($"{s.LatencyMs} ms") with { Alignment = Alignment.Right }),
+                s => s.Id)
             .State(_selection)
             .HighlightSymbol("> ")
             .Focused(ctx.Focused).Hover(ctx.Hover)

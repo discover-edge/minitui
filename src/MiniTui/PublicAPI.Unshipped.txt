@@ -21,3 +21,7 @@ MiniTui.CheckboxState.Checked.set -> void
 MiniTui.CheckboxState.HandleKey(System.ConsoleKeyInfo key) -> bool
 MiniTui.CheckboxState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 MiniTui.CheckboxState.Toggle() -> void
+MiniTui.ListBuilder.Items<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Line!>! format, System.Func<T, object!>! key) -> MiniTui.ListBuilder!
+MiniTui.SelectionState.SelectedKey.get -> object?
+MiniTui.SelectionState.SelectKey(object! key) -> void
+MiniTui.TableBuilder.Rows<T>(System.Collections.Generic.IReadOnlyList<T>! items, System.Func<T, MiniTui.Row!>! format, System.Func<T, object!>! key) -> MiniTui.TableBuilder!

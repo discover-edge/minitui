@@ -20,8 +20,8 @@ Widget.Table()
 |---|---|
 | `Block()` | Borders (`Borders.All`, `Top`, …), `BorderType(BoxStyle)`, `Title`/`TitleBottom`, `Padding`, `Focused`. `Draw` returns the inner rect. Content sits a column in from side borders by default; `Padding(...)` replaces that (`Padding(new Margin(0))` for none). Lists, tables and trees still highlight border to border. |
 | `Paragraph()` | [`Text`](xref:MiniTui.Text) with `Wrap(WrapMode.None/Word/Char)`, [`Alignment`](xref:MiniTui.Alignment), `Scroll(n)` or `State(ScrollState)`. Unwrapped lines are cut with `…`, or scroll sideways with `ScrollState.ScrollsHorizontally` (see below), with a horizontal scrollbar. `Paragraph.MeasureLines` measures without drawing. |
-| `List()` | `Items(list)` or `Items(list, format)` (only visible rows are formatted), `State(SelectionState)`, `HighlightSymbol("> ")`, `Title`. |
-| `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows`, `State` (▲/▼ on `SortColumn`), `HighlightSymbol`, `Sortable(columns)` (a header click calls `SelectionState.ToggleSort`, and `SortChanged` tells you to re-sort). 100,000 rows cost the same per frame as 100. |
+| `List()` | `Items(list)` or `Items(list, format)` (only visible rows are formatted), or `Items(list, format, key)` to keep the selection on its item (see below), `State(SelectionState)`, `HighlightSymbol("> ")`, `Title`. |
+| `Table()` | `Header`, `Columns(constraints)`, `ColumnSpacing`, `Rows` (or `Rows(items, format, key)`, below), `State` (▲/▼ on `SortColumn`), `HighlightSymbol`, `Sortable(columns)` (a header click calls `SelectionState.ToggleSort`, and `SortChanged` tells you to re-sort). 100,000 rows cost the same per frame as 100. |
 | `Scrollbar()` | `Vertical`/`Horizontal`, `ContentLength`, `Position`, `ViewportLength`. Hidden when the content fits. |
 | `Gauge()` | `Ratio(0..1)` with eighth-cell precision and a percentage (or custom) `Label`. |
 | `Sparkline()` | `Data(values)` as `▁▂▃▄▅▆▇█`, newest at the right; optional `Max`. |
@@ -37,6 +37,22 @@ Widget.Table()
 | `TabBar()` | `Tabs(...)` with [`TabBarState`](xref:MiniTui.TabBarState), scrolled to keep the selected tab visible. |
 | `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](keys-and-state.md#trees). |
 | `Button()`, `Checkbox()` | Themed controls: `Label`, `Focused`, `Hover`, and `Pressed(bool)` / `Checked(bool)` or a `State(ButtonState)` / `State(CheckboxState)` that handles keys and clicks (see [Forms](keys-and-state.md#forms)). |
+
+**Selection by key.** `SelectionState.Selected` is an index, so when the items change under it (a re-sort, a
+filter, a refresh that adds rows above), it would point at another item. Give `Rows` or `Items` a key and the
+selection follows its item instead, staying on the same screen row where it can. If the item is gone, the next one
+takes its place, and a move by the user in the same frame wins. `SelectedKey` is the selected item's key, and
+`SelectKey(key)` selects an item at the next draw, such as a row just added.
+
+```csharp
+Widget.Table()
+    .Rows(Sorted(services), s => new Row(s.Name, s.Status), s => s.Id)    // re-sorting keeps the selected service
+    .State(selection)
+    .Draw(buf, area);
+
+services.Add(created);
+selection.SelectKey(created.Id);
+```
 
 **Long lines.** A paragraph with `WrapMode.None` cuts long lines with `…`. Give it a `ScrollState` with
 `ScrollsHorizontally = true` and they scroll instead: ← and → move 8 columns (and go unhandled at the edge, so
