@@ -436,7 +436,7 @@ internal sealed class AnsiInputDecoder
         var c = (char)b;
         return b switch
         {
-            0x0D or 0x0A => Named(ConsoleKey.Enter, '\r', alt),
+            0x0D => Named(ConsoleKey.Enter, '\r', alt),
             0x09 => Named(ConsoleKey.Tab, '\t', alt),
             0x7F => Named(ConsoleKey.Backspace, '\b', alt),
             0x08 => Named(ConsoleKey.Backspace, '\b', alt | ConsoleModifiers.Control),
