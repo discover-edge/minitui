@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Ctrl+J arrives as Ctrl+J on terminals without a keyboard protocol, so `ctrl+j` bindings work there. The line feed it sends used to decode as Enter. Enter sends a carriage return in raw mode, so it isn't affected, but a key a terminal sends as a line feed (some send one for Ctrl+Enter, or for a Shift+Enter set up by hand) is now Ctrl+J too. So is an Enter pressed before the app has switched the terminal to raw mode, since the kernel has already turned it into a line feed, so that press does nothing.
+
 ## [2.1.0] - 2026-11-04
 
 MiniTui 2.1: horizontal scrolling in paragraphs, checkbox and button states, selection by key for lists and tables, padding inside block borders, and clearer bar chart values.

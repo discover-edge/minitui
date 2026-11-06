@@ -68,7 +68,7 @@ public class AnsiInputDecoderTests
         { "é", K('é', 0) },
         { "日", K('日', 0) },
         { "\r", K('\r', ConsoleKey.Enter) },
-        { "\n", K('\r', ConsoleKey.Enter) },
+        { "\n", K('\n', ConsoleKey.J, Ctrl) },
         { "\t", K('\t', ConsoleKey.Tab) },
         { "\x7f", K('\b', ConsoleKey.Backspace) },
         { "\b", K('\b', ConsoleKey.Backspace, Ctrl) },
@@ -207,6 +207,9 @@ public class AnsiInputDecoderTests
         Assert.True(KeyBinding.Parse("shift+tab").Matches(Decode("\x1b[Z")[0]));
         Assert.True(KeyBinding.Parse("alt+x").Matches(Decode("\x1bx")[0]));
         Assert.True(KeyBinding.Parse("ctrl+c").Matches(Decode("\x03")[0]));
+        Assert.True(KeyBinding.Parse("ctrl+j").Matches(Decode("\n")[0]));
+        Assert.False(KeyBinding.Parse("enter").Matches(Decode("\n")[0]));
+        Assert.True(KeyBinding.Parse("enter").Matches(Decode("\r")[0]));
         Assert.True(KeyBinding.Parse("esc").Matches(Decode("\x1b")[0]));
         Assert.True(KeyBinding.Parse("f5").Matches(Decode("\x1b[15~")[0]));
     }
@@ -404,6 +407,28 @@ public class AnsiInputDecoderTests
 
         Assert.Equal([inside], sink.Pastes);
         Assert.Empty(sink.Keys);
+    }
+
+    [Fact]
+    public void CtrlJ_IsNotEnter_AndTypesNothingIntoATextInput()
+    {
+        var key = Assert.Single(Decode("\n"));
+        Assert.False(KeyInput.IsEnter(key));
+
+        var area = new TextAreaState { Text = "ab" };
+        Assert.False(area.HandleKey(key));
+        Assert.Equal("ab", area.Text);
+
+        var field = new TextFieldState { Text = "ab" };
+        Assert.False(field.HandleKey(key));
+        Assert.Equal("ab", field.Text);
+    }
+
+    [Fact]
+    public void AltLineFeed_IsCtrlAltJ()
+    {
+        var key = Assert.Single(Decode("\x1b\n"));
+        Assert.Equal(new ConsoleKeyInfo('\n', ConsoleKey.J, false, true, true), key);
     }
 
     [Theory]

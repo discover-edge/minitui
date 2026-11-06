@@ -54,7 +54,8 @@ produces a stray Esc.
   or win32-input-mode in Windows Terminal. Those keys then arrive as themselves and bindings such as
   `ctrl+enter`, `shift+enter`, `ctrl+tab`, `ctrl+i` and `ctrl+1` match them; every other key arrives exactly
   as before. In other terminals they arrive without the extra modifier, so give such bindings a fallback
-  (`Keys.Add("ctrl+s,ctrl+enter", "Submit", Submit)`). `app.TerminalInfo.Keyboard` says which protocol is in
+  (`Keys.Add("ctrl+s,ctrl+enter", "Submit", Submit)`). A terminal that sends a line feed for one of them,
+  by default or through its own settings, delivers Ctrl+J, not Enter. `app.TerminalInfo.Keyboard` says which protocol is in
   use; `WithKeyboardProtocol(false)` or `MINITUI_KEYBOARD=legacy` turns them off. Built-in widgets treat
   Shift+Enter as Enter (a text area inserts a line break) and leave Ctrl+Enter and Ctrl+Tab to the app.
 

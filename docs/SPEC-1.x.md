@@ -177,7 +177,7 @@ contract the tests check.
 | Printable ASCII (0x20–0x7E) | Letters `A`–`Z`, digits `D0`–`D9`, space `Spacebar`, others `0` | the character | Shift for `A`–`Z` |
 | UTF-8 sequence (2–4 bytes) | `0` | the character; non-BMP characters become two keys, high then low surrogate | none |
 | Invalid UTF-8 | `0` | U+FFFD | none |
-| 0x0D, 0x0A | `Enter` | `\r` | none |
+| 0x0D | `Enter` | `\r` | none |
 | 0x09 | `Tab` | `\t` | none |
 | 0x7F | `Backspace` | `\b` | none |
 | 0x08 | `Backspace` | `\b` | Control (terminals send ^H for Ctrl+Backspace; §8.4 already handles it) |
